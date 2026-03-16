@@ -1,6 +1,6 @@
 "use client"
 
-function KPIScore() {
+function KPIScore({ filters }) {
     const kpiBreakdown = [
         { label: "NBD Performance (40%)", score: 35, max: 40 },
         { label: "Retention (30%)", score: 25, max: 30 },
@@ -11,21 +11,32 @@ function KPIScore() {
     const overallScore = 82
     const grade = overallScore >= 80 ? "A" : overallScore >= 70 ? "B" : overallScore >= 60 ? "C" : "D"
 
+    let multiplier = 1;
+    if (filters?.dateRange === "Weekly") multiplier = 0.25;
+    else if (filters?.dateRange === "Quarterly") multiplier = 3;
+    else if (filters?.dateRange === "Yearly") multiplier = 12;
+
+    const projectedIncentive = (2.8 * multiplier).toFixed(1);
+
+    const rangeText = filters?.dateRange === "Weekly" ? "Weekly" : filters?.dateRange === "Quarterly" ? "Quarterly" : filters?.dateRange === "Yearly" ? "Yearly" : "Monthly";
+
     return (
-        <div className="bg-white rounded-xl shadow-sm border border-slate-100 p-4 md:p-6 h-full">
-            <div className="flex items-center gap-2 mb-4 md:mb-6">
-                <span className="material-icons text-amber-500 text-xl md:text-2xl">emoji_events</span>
-                <h2 className="text-base md:text-lg font-semibold text-slate-800">KPI Score & Incentive</h2>
+        <div className="bg-white rounded-2xl shadow-sm hover:shadow-lg transition-shadow duration-300 border border-slate-200 p-5 md:p-7 h-full flex flex-col">
+            <div className="flex items-center gap-3 mb-6 md:mb-8 border-b border-slate-100 pb-4">
+                <div className="bg-amber-100 p-2 rounded-xl text-amber-600 shadow-inner">
+                    <span className="material-icons text-xl md:text-2xl block">emoji_events</span>
+                </div>
+                <h2 className="text-lg md:text-xl font-extrabold text-slate-800 tracking-tight">KPI Score & {rangeText} Metrics</h2>
             </div>
 
-            <div className="flex flex-col sm:flex-row gap-4 md:gap-6">
+            <div className="flex flex-col sm:flex-row gap-6 md:gap-8 flex-1 justify-center items-center">
                 {/* Score Circle */}
-                <div className="flex flex-col items-center justify-center mx-auto sm:mx-0">
-                    <div className="relative w-24 h-24 md:w-28 md:h-28">
-                        <svg className="w-24 h-24 md:w-28 md:h-28 transform -rotate-90" viewBox="0 0 100 100">
-                            <circle cx="50" cy="50" r="40" stroke="#e2e8f0" strokeWidth="8" fill="none" />
+                <div className="flex flex-col items-center justify-center mx-auto sm:mx-0 bg-slate-50 p-6 rounded-3xl border border-slate-100 shadow-sm relative group">
+                    <div className="relative w-28 h-28 md:w-32 md:h-32 mb-2 group-hover:scale-105 transition-transform duration-300">
+                        <svg className="w-28 h-28 md:w-32 md:h-32 transform -rotate-90" viewBox="0 0 100 100">
+                            <circle cx="50" cy="50" r="40" stroke="#f1f5f9" strokeWidth="8" fill="none" />
                             <circle cx="50" cy="50" r="40" stroke="url(#kpiGradient)" strokeWidth="8" fill="none"
-                                strokeDasharray={`${overallScore * 2.51} 251`} strokeLinecap="round" />
+                                strokeDasharray={`${overallScore * 2.51} 251`} strokeLinecap="round" className="drop-shadow-md" />
                             <defs>
                                 <linearGradient id="kpiGradient" x1="0%" y1="0%" x2="100%" y2="0%">
                                     <stop offset="0%" stopColor="#3b82f6" />
@@ -33,30 +44,29 @@ function KPIScore() {
                                 </linearGradient>
                             </defs>
                         </svg>
-                        <div className="absolute inset-0 flex flex-col items-center justify-center">
-                            <span className="text-2xl md:text-3xl font-bold text-slate-800">{overallScore}</span>
-                            <span className="text-xs md:text-sm text-slate-400">/100</span>
+                        <div className="absolute inset-0 flex flex-col items-center justify-center pt-1">
+                            <span className="text-4xl md:text-5xl font-black text-slate-800 tracking-tighter">{overallScore}</span>
                         </div>
                     </div>
-                    <div className="flex gap-1.5 md:gap-2 mt-2 md:mt-3">
-                        <span className="px-1.5 md:px-2 py-0.5 text-[10px] md:text-xs font-medium rounded bg-blue-100 text-blue-700">Grade: {grade}</span>
-                        <span className="px-1.5 md:px-2 py-0.5 text-[10px] md:text-xs font-medium rounded bg-green-100 text-green-700">Above Target</span>
+                    <div className="flex gap-2 w-full justify-center">
+                        <span className="px-2.5 py-1 text-xs font-bold rounded-lg bg-indigo-100 text-indigo-700 shadow-sm border border-indigo-200">Grade: {grade}</span>
+                        <span className="px-2.5 py-1 text-xs font-bold rounded-lg bg-emerald-100 text-emerald-700 shadow-sm border border-emerald-200">Target Hit</span>
                     </div>
                 </div>
 
                 {/* Breakdown */}
-                <div className="flex-1 space-y-2 md:space-y-3">
+                <div className="flex-1 w-full space-y-3 md:space-y-4">
                     {kpiBreakdown.map((item, i) => (
-                        <div key={i} className="flex justify-between items-center text-xs md:text-sm p-2 md:p-0 bg-slate-50 md:bg-transparent rounded">
-                            <span className="text-slate-600">{item.label}</span>
-                            <span className="font-semibold text-slate-800">{item.score}/{item.max}</span>
+                        <div key={i} className="flex justify-between items-center text-sm md:text-sm p-3 md:p-3.5 bg-slate-50 hover:bg-white border border-slate-100 hover:border-slate-300 shadow-sm rounded-xl transition-all">
+                            <span className="text-slate-600 font-medium">{item.label}</span>
+                            <span className="font-extrabold text-slate-800 bg-white px-2 py-1 rounded-md border border-slate-200 shadow-sm">{item.score}/{item.max}</span>
                         </div>
                     ))}
 
-                    <div className="border-t border-slate-100 pt-3 md:pt-4 mt-3 md:mt-4">
-                        <p className="text-xs md:text-sm text-slate-500">Projected Monthly Incentive</p>
-                        <p className="text-xl md:text-2xl font-bold text-green-600">₹2.8L</p>
-                        <p className="text-[10px] md:text-xs text-slate-400 mt-0.5">Based on current achievement & quality gates</p>
+                    <div className="bg-gradient-to-r from-emerald-50 to-green-50 p-4 rounded-xl border border-emerald-100 shadow-sm mt-4">
+                        <p className="text-xs font-bold uppercase tracking-widest text-emerald-600 mb-1">Projected {rangeText} Incentive</p>
+                        <p className="text-3xl md:text-4xl font-extrabold text-emerald-700 tracking-tight drop-shadow-sm">₹{projectedIncentive}L</p>
+                        <p className="text-[11px] font-medium text-emerald-600/80 mt-1.5">Based on current achievement & quality gates</p>
                     </div>
                 </div>
             </div>

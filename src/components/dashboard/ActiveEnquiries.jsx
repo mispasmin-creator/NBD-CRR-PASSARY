@@ -1,7 +1,7 @@
 "use client"
 
-function ActiveEnquiries() {
-    const enquiries = [
+function ActiveEnquiries({ filters }) {
+    const rawEnquiries = [
         { id: "ENQ001", customer: "Acme Corp", type: "NBD", value: "₹2.5L", stage: "Proposal", stageColor: "bg-orange-100 text-orange-700", nextFollowup: "12/17/2024", overdue: false, daysOld: 15, daysOldColor: "text-slate-600", assignedTo: "Salesperson A" },
         { id: "ENQ002", customer: "TechStart Inc", type: "CRR", value: "₹1.8L", stage: "Negotiation", stageColor: "bg-purple-100 text-purple-700", nextFollowup: "12/15/2024", overdue: true, daysOld: 26, daysOldColor: "text-red-600", assignedTo: "Salesperson A" },
         { id: "ENQ003", customer: "Global Solutions", type: "NBD", value: "₹4.2L", stage: "Qualified", stageColor: "bg-blue-100 text-blue-700", nextFollowup: "12/18/2024", overdue: false, daysOld: 11, daysOldColor: "text-slate-600", assignedTo: "Salesperson B" },
@@ -11,16 +11,25 @@ function ActiveEnquiries() {
         { id: "ENQ010", customer: "Digital Wave", type: "NBD", value: "₹2.1L", stage: "New", stageColor: "bg-gray-100 text-gray-700", nextFollowup: "12/17/2024", overdue: false, daysOld: 2, daysOldColor: "text-slate-600", assignedTo: "Salesperson B" },
     ]
 
+    const enquiries = rawEnquiries.filter(e => {
+        if (!filters) return true;
+        if (filters.type !== "All" && e.type !== filters.type) return false;
+        return true;
+    });
+
     const getTypeColor = (type) => {
-        if (type === "NBD") return "bg-blue-500 text-white"
-        if (type === "CRR") return "bg-green-500 text-white"
-        return "bg-gradient-to-r from-blue-500 to-green-500 text-white"
+        if (type === "NBD") return "bg-blue-500 text-white shadow-sm shadow-blue-500/30"
+        if (type === "CRR") return "bg-green-500 text-white shadow-sm shadow-green-500/30"
+        return "bg-gradient-to-r from-blue-500 to-green-500 text-white shadow-sm"
     }
 
     return (
-        <div className="bg-white rounded-xl shadow-sm border border-slate-100 overflow-hidden">
-            <div className="p-4 md:p-6 border-b border-slate-100">
-                <h2 className="text-base md:text-lg font-semibold text-slate-800">Active Enquiries</h2>
+        <div className="bg-white rounded-2xl shadow-sm hover:shadow-lg transition-shadow duration-300 border border-slate-200 overflow-hidden">
+            <div className="p-5 md:p-6 border-b border-slate-100 flex justify-between items-center bg-gradient-to-r from-slate-50 to-white">
+                <h2 className="text-lg md:text-xl font-extrabold text-slate-800 tracking-tight flex items-center">
+                    Active Enquiries 
+                    {enquiries.length > 0 && <span className="ml-3 bg-indigo-100 border border-indigo-200 text-indigo-700 py-1 px-3 rounded-xl text-sm font-bold shadow-inner">{enquiries.length}</span>}
+                </h2>
             </div>
 
             {/* Desktop Table View */}

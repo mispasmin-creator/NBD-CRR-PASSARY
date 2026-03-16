@@ -140,16 +140,15 @@ function App() {
               <main className="flex-1 overflow-auto p-4 md:p-5">
                 {isAuthenticated && <RouteTracker />}
                 <Routes>
-                  <Route path="/login" element={!isAuthenticated ? <Login /> : <Navigate to={localStorage.getItem('lastVisitedRoute') || '/'} />} />
+                  <Route path="/login" element={!isAuthenticated ? <Login /> : <Navigate to="/" />} />
                   <Route
                     path="/"
                     element={
                       <ProtectedRoute>
-                        <Navigate to={localStorage.getItem('lastVisitedRoute') || '/dashboard'} replace />
+                        <Dashboard />
                       </ProtectedRoute>
                     }
                   />
-                  <Route path="/dashboard" element={<ProtectedRoute><Dashboard /></ProtectedRoute>} />
                   <Route path="/leads" element={<ProtectedRoute><Leads /></ProtectedRoute>} />
                   <Route path="/follow-up" element={<ProtectedRoute><FollowUp /></ProtectedRoute>} />
                   <Route path="/follow-up/new" element={<ProtectedRoute><NewFollowUp /></ProtectedRoute>} />

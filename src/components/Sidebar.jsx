@@ -16,12 +16,12 @@ function Sidebar({ mobileMenuOpen, setMobileMenuOpen }) {
         { href: "/crr-enquiry", label: "CRR Enquiry", icon: <RetentionIcon className="h-5 w-5" />, active: location.pathname.startsWith("/crr-enquiry") },
         { href: "/call-tracker", label: "NBD Enquiry", icon: <BarChartIcon className="h-5 w-5" />, active: location.pathname.startsWith("/call-tracker") },
         { href: "/offer", label: "Offer", icon: <FileTextIcon className="h-5 w-5" />, active: location.pathname.startsWith("/offer") },
-        { href: "/follow-up", label: "Call Trackers", icon: <PhoneCallIcon className="h-5 w-5" />, active: location.pathname.startsWith("/follow-up") },
-        { href: "/non-converted", label: "Non-Converted", icon: <XCircleIcon className="h-5 w-5" />, active: location.pathname.startsWith("/non-converted") },
-        { href: "/visit-fms", label: "Visit FMS", icon: <MapPinIcon className="h-5 w-5" />, active: location.pathname.startsWith("/visit-fms") },
-        { href: "/complaints", label: "Complaints", icon: <MessageSquareIcon className="h-5 w-5" />, active: location.pathname.startsWith("/complaints") },
-        { href: "/quotation", label: "Quotations", icon: <FileTextIcon className="h-5 w-5" />, active: location.pathname.startsWith("/quotation") },
-        { href: "/analytics", label: "Analytics & Reports", icon: <PieChartIcon className="h-5 w-5" />, active: location.pathname.startsWith("/analytics") },
+        // { href: "/follow-up", label: "Call Trackers", icon: <PhoneCallIcon className="h-5 w-5" />, active: location.pathname.startsWith("/follow-up") },
+        // { href: "/non-converted", label: "Non-Converted", icon: <XCircleIcon className="h-5 w-5" />, active: location.pathname.startsWith("/non-converted") },
+        // { href: "/visit-fms", label: "Visit FMS", icon: <MapPinIcon className="h-5 w-5" />, active: location.pathname.startsWith("/visit-fms") },
+        // { href: "/complaints", label: "Complaints", icon: <MessageSquareIcon className="h-5 w-5" />, active: location.pathname.startsWith("/complaints") },
+        // { href: "/quotation", label: "Quotations", icon: <FileTextIcon className="h-5 w-5" />, active: location.pathname.startsWith("/quotation") },
+        // { href: "/analytics", label: "Analytics & Reports", icon: <PieChartIcon className="h-5 w-5" />, active: location.pathname.startsWith("/analytics") },
     ]
 
     const adminRoutes = [
