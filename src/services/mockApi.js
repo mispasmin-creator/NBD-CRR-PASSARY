@@ -1,23 +1,73 @@
-
+import axios from 'axios';
 import { users, dropdowns, companies, fmsData, quotations, enquiryTracker, enquiryToOrder, products } from '../data/dummyData';
 
 const simulateDelay = () => new Promise(resolve => setTimeout(resolve, 500));
 
 export const mockApi = {
     login: async (username, password) => {
-        await simulateDelay();
-        const user = users.find(u => u.username === username && u.password === password);
-        if (user) {
-            return {
-                success: true,
-                user: {
-                    username: user.username,
-                    userType: user.userType,
-                    loginTime: new Date().toISOString()
+        try {
+            const scriptUrl = import.meta.env.VITE_GOOGLE_APPS_SCRIPT_URL;
+            const sheetName = "USER";
+            
+            if (!scriptUrl) {
+                console.error("Missing VITE_GOOGLE_APPS_SCRIPT_URL");
+                return { success: false, message: "Configuration error" };
+            }
+
+            const response = await axios.get(`${scriptUrl}?sheet=${sheetName}`);
+            
+            if (response.data && response.data.success) {
+                const sheetData = response.data.data;
+                
+                // Assuming first row is headers
+                const headers = sheetData[0];
+                
+                // Be flexible with column headers, trimming and matching case-insensitively just in case
+                const normalizeHeader = (h) => (h ? h.toString().toLowerCase().trim() : "");
+                const normalizedHeaders = headers.map(normalizeHeader);
+                
+                const usernameIdx = normalizedHeaders.indexOf("username");
+                const passwordIdx = normalizedHeaders.indexOf("password");
+                const pageAccessIdx = normalizedHeaders.indexOf("page_access");
+                const firmNameIdx = normalizedHeaders.indexOf("firm_name");
+
+                if (usernameIdx === -1 || passwordIdx === -1) {
+                    console.error("Invalid USER sheet format: missing username or password columns");
+                    return { success: false, message: "Invalid USER sheet format" };
                 }
-            };
+
+                // Search for matching user in subsequent rows
+                for (let i = 1; i < sheetData.length; i++) {
+                    const row = sheetData[i];
+                    const rowUsername = row[usernameIdx] ? row[usernameIdx].toString().trim() : "";
+                    const rowPassword = row[passwordIdx] ? row[passwordIdx].toString() : ""; // don't trim password
+
+                    if (rowUsername === username.trim() && rowPassword === password) {
+                        const pageAccess = pageAccessIdx !== -1 ? (row[pageAccessIdx] ? row[pageAccessIdx].toString().trim().toLowerCase() : "") : "";
+                        const firmName = firmNameIdx !== -1 ? (row[firmNameIdx] || "") : "";
+                        
+                        return {
+                            success: true,
+                            user: {
+                                username: rowUsername,
+                                userType: pageAccess === "all" ? "admin" : "user",
+                                pageAccess: pageAccess,
+                                firmName: firmName,
+                                loginTime: new Date().toISOString()
+                            }
+                        };
+                    }
+                }
+            } else {
+                console.error("Failed to fetch USER sheet", response.data);
+                return { success: false, message: "Failed to connect to authentication server" };
+            }
+
+            return { success: false, message: "Invalid credentials" };
+        } catch (error) {
+            console.error("Login error:", error);
+            return { success: false, message: "An error occurred during login. Please try again." };
         }
-        return { success: false, message: "Invalid credentials" };
     },
 
     fetchUserData: async (username, userType) => {

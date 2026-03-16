@@ -587,14 +587,6 @@ function Leads() {
         trackerRowData.push("")
       }
 
-      // Indices Mapping (Same as before):
-      // 9: Status (Column J)
-      // 10: Last Date Of Call (Column K)
-      // 11: Next Call Date & Time (Column L)
-      // 12: What Did The Customer Say (Column M)
-      // 13: Next Action To Be Taken (Column N)
-      // 15: Enquiry Received (Column P)
-
       trackerRowData[9] = callTrackerData.status
       trackerRowData[10] = callTrackerData.lastCallDate ? formatDateToString(callTrackerData.lastCallDate) : formatDateToString(new Date())
       trackerRowData[11] = callTrackerData.nextCallDate ? formatDateToString(callTrackerData.nextCallDate) : ""
