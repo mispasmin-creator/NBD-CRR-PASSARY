@@ -1,7 +1,7 @@
 "use client"
 
 import { useState, useEffect, createContext } from "react"
-import { BrowserRouter as Router, Routes, Route, Navigate } from "react-router-dom"
+import { BrowserRouter as Router, Routes, Route, Navigate, useLocation, useNavigate } from "react-router-dom"
 import Login from "./pages/Login"
 import Dashboard from "./pages/Dashboard"
 import Leads from "./pages/Leads"
@@ -15,6 +15,7 @@ import NonConverted from "./pages/NonConverted"
 import VisitFMS from "./pages/VisitFMS"
 import Complaints from "./pages/Complaints"
 import Analytics from "./pages/Analytics"
+import Offer from "./pages/Offer"
 import ControlPanel from "./pages/ControlPanel"
 import RiskControl from "./pages/RiskControl"
 import AdminConfig from "./pages/AdminConfig"
@@ -28,6 +29,20 @@ import { mockApi } from "./services/mockApi"
 export const AuthContext = createContext(null)
 // Create data context to manage data access based on user type
 export const DataContext = createContext(null)
+
+// Component to track route changes
+function RouteTracker() {
+  const location = useLocation()
+
+  useEffect(() => {
+    // Don't track login page
+    if (location.pathname !== '/login') {
+      localStorage.setItem('lastVisitedRoute', location.pathname)
+    }
+  }, [location])
+
+  return null
+}
 
 function App() {
   const [isAuthenticated, setIsAuthenticated] = useState(false)
@@ -116,16 +131,25 @@ function App() {
     <AuthContext.Provider value={{ isAuthenticated, login, logout, showNotification, currentUser, userType, isAdmin }}>
       <DataContext.Provider value={{ userData, fetchUserData }}>
         <Router>
-          <div className="flex h-screen bg-slate-50 text-gray-900 overflow-hidden">
+          <div className="flex h-screen bg-slate-100 text-slate-900 overflow-hidden">
             {isAuthenticated && <Sidebar mobileMenuOpen={mobileMenuOpen} setMobileMenuOpen={setMobileMenuOpen} />}
 
             <div className="flex flex-1 flex-col overflow-hidden">
               {isAuthenticated && <MainNav logout={logout} setMobileMenuOpen={setMobileMenuOpen} />}
 
-              <main className="flex-1 overflow-auto p-2 md:p-3">
+              <main className="flex-1 overflow-auto p-4 md:p-5">
+                {isAuthenticated && <RouteTracker />}
                 <Routes>
-                  <Route path="/login" element={!isAuthenticated ? <Login /> : <Navigate to="/" />} />
-                  <Route path="/" element={<ProtectedRoute><Dashboard /></ProtectedRoute>} />
+                  <Route path="/login" element={!isAuthenticated ? <Login /> : <Navigate to={localStorage.getItem('lastVisitedRoute') || '/'} />} />
+                  <Route
+                    path="/"
+                    element={
+                      <ProtectedRoute>
+                        <Navigate to={localStorage.getItem('lastVisitedRoute') || '/dashboard'} replace />
+                      </ProtectedRoute>
+                    }
+                  />
+                  <Route path="/dashboard" element={<ProtectedRoute><Dashboard /></ProtectedRoute>} />
                   <Route path="/leads" element={<ProtectedRoute><Leads /></ProtectedRoute>} />
                   <Route path="/follow-up" element={<ProtectedRoute><FollowUp /></ProtectedRoute>} />
                   <Route path="/follow-up/new" element={<ProtectedRoute><NewFollowUp /></ProtectedRoute>} />
@@ -137,13 +161,14 @@ function App() {
                   <Route path="/visit-fms" element={<ProtectedRoute><VisitFMS /></ProtectedRoute>} />
                   <Route path="/complaints" element={<ProtectedRoute><Complaints /></ProtectedRoute>} />
                   <Route path="/analytics" element={<ProtectedRoute><Analytics /></ProtectedRoute>} />
+                  <Route path="/offer" element={<ProtectedRoute><Offer /></ProtectedRoute>} />
                   <Route path="/control-panel" element={<ProtectedRoute adminOnly={true}><ControlPanel /></ProtectedRoute>} />
                   <Route path="/risk-control" element={<ProtectedRoute adminOnly={true}><RiskControl /></ProtectedRoute>} />
                   <Route path="/admin-config" element={<ProtectedRoute adminOnly={true}><AdminConfig /></ProtectedRoute>} />
                   <Route path="*" element={<Navigate to="/" />} />
                 </Routes>
               </main>
-              {isAuthenticated && <div className="bg-white border-t"><Footer /></div>}
+              {isAuthenticated && <Footer />}
             </div>
 
             {notification && <Notification message={notification.message} type={notification.type} />}

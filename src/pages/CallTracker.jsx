@@ -1,1790 +1,1459 @@
 "use client"
 
 import { useState, useEffect, useContext } from "react"
-import { Link } from "react-router-dom"
-import { PlusIcon, SearchIcon, ArrowRightIcon, BuildingIcon } from "../components/Icons"
-import { AuthContext } from "../App" // Import AuthContext just like in the FollowUp component
-import { mockApi } from "../services/mockApi"
-import CallTrackerForm from "./Call-Tracker-Form" // Add this import
+import { PlusIcon, SearchIcon, XIcon } from "../components/Icons"
+import { AuthContext } from "../App"
+import CallTrackerForm from "./Call-Tracker-Form"
+import axios from "axios"
 
-// Animation classes
-const slideIn = "animate-in slide-in-from-right duration-300"
-const slideOut = "animate-out slide-out-to-right duration-300"
-const fadeIn = "animate-in fade-in duration-300"
-const fadeOut = "animate-out fade-out duration-300"
+// All columns to display in "View" modal
+const ALL_COLUMNS = [
+  "Enquiry No.",
+  "Product No.",
+  "Firm Name",
+  "Enquiry status",
+  "Type Of Enquiry",
+  "Location",
+  "Name Of Sales Person",
+  "Party Name",
+  "Department",
+  "Total Order Qty",
+  "Expected",
+  "When Required",
+  "Area Of Application",
+  "Upload File",
+  "Contact Person Name",
+  "Contact Person Mobile No.",
+  "Email Id",
+  "Lead Time For Convert In Order",
+  "Did The Above Enquiry Come From Nbd Outgoing Sheet",
+  "Offer No.",
+  "Product Names",
+  "Quetities",
+  "Uom",
+  "Proposal Amount 1",
+  "Proposal Remarks 1",
+  "Proposal Amount 2",
+  "Proposal Remarks 2",
+  "Proposal Amount 3",
+  "Proposal Remarks 3",
+  "G-mail",
+]
+
+// Key columns to show in the table (summary view)
+const TABLE_COLUMNS = [
+  "Enquiry No.",
+  "Firm Name",
+  "Enquiry status",
+  "Name Of Sales Person",
+  "Location",
+  "Contact Person Mobile No.",
+]
+
+// Extra columns shown on Call Tracker / Order Received / Order Not Received tabs
+const CALL_TRACKER_COLUMNS = [
+  "Current Stage",
+  "Tracker Status",
+  "Actual 1",
+]
+
+/**
+ * Google Apps Script returns date cells as UTC ISO-8601 strings (e.g. "2026-02-14T18:30:00.000Z").
+ * Sending these back as-is via setValues() stores them as TEXT — corrupting the date format.
+ *
+ * Fix: convert to IST (Asia/Kolkata) and format as DD/MM/YYYY HH:mm:ss — the Indian date
+ * format that an Indian-locale Google Sheet correctly parses as a real date via setValues().
+ * e.g. "2026-02-14T18:30:00.000Z" (UTC) → "15/02/2026" (IST midnight = Feb 15 in India)
+ */
+const normalizeForGSheets = (value) => {
+  if (typeof value !== "string" || !value) return value
+  if (!/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}/.test(value)) return value
+  const d = new Date(value)
+  if (isNaN(d.getTime())) return value
+  // Convert UTC → IST
+  const istDate = new Date(d.toLocaleString("en-US", { timeZone: "Asia/Kolkata" }))
+  const dd = String(istDate.getDate()).padStart(2, "0")
+  const mo = String(istDate.getMonth() + 1).padStart(2, "0")
+  const yr = istDate.getFullYear()
+  const hh = String(istDate.getHours()).padStart(2, "0")
+  const min = String(istDate.getMinutes()).padStart(2, "0")
+  const ss = String(istDate.getSeconds()).padStart(2, "0")
+  // Date-only if IST time is exactly midnight
+  const isDateOnly = istDate.getHours() === 0 && istDate.getMinutes() === 0 && istDate.getSeconds() === 0
+  return isDateOnly ? `${dd}/${mo}/${yr}` : `${dd}/${mo}/${yr} ${hh}:${min}:${ss}`
+}
+
 
 function CallTracker() {
-  const { currentUser, userType, isAdmin } = useContext(AuthContext) // Get user info and admin function
+  const { showNotification } = useContext(AuthContext)
   const [searchTerm, setSearchTerm] = useState("")
-  const [activeTab, setActiveTab] = useState("pending")
-  const [pendingCallTrackers, setPendingCallTrackers] = useState([])
-  const [historyCallTrackers, setHistoryCallTrackers] = useState([])
   const [isLoading, setIsLoading] = useState(true)
+
+  // Enquiry data
+  const [enquiryRows, setEnquiryRows] = useState([])
+
+  // Active Tab — persisted in localStorage so page refreshes / remounts don't reset it
+  const [activeTab, setActiveTab] = useState(
+    () => localStorage.getItem("ct_activeTab") || "all"
+  )
+
+  // View Modal
+  const [showViewModal, setShowViewModal] = useState(false)
+  const [viewRow, setViewRow] = useState(null)
+
+  // New Enquiry Modal
   const [showNewCallTrackerForm, setShowNewCallTrackerForm] = useState(false)
-  const [showPopup, setShowPopup] = useState(false)
-  const [selectedTracker, setSelectedTracker] = useState(null)
-  const [directEnquiryPendingTrackers, setDirectEnquiryPendingTrackers] = useState([])
-  const [callingDaysFilter, setCallingDaysFilter] = useState([])
-  const [enquiryNoFilter, setEnquiryNoFilter] = useState([])
-  const [currentStageFilter, setCurrentStageFilter] = useState([])
-  const [availableEnquiryNos, setAvailableEnquiryNos] = useState([])
 
-  // Dropdown visibility states
-  const [showCallingDaysDropdown, setShowCallingDaysDropdown] = useState(false)
-  const [showEnquiryNoDropdown, setShowEnquiryNoDropdown] = useState(false)
-  const [showCurrentStageDropdown, setShowCurrentStageDropdown] = useState(false)
-
-  const [visibleColumns, setVisibleColumns] = useState({
-    timestamp: true,
-    enquiryNo: true,
-    enquiryStatus: true,
-    customerFeedback: true,
-    currentStage: true,
-    sendQuotationNo: true,
-    quotationSharedBy: true,
-    quotationNumber: true,
-    valueWithoutTax: true,
-    valueWithTax: true,
-    quotationUpload: true,
-    quotationRemarks: true,
-    validatorName: true,
-    sendStatus: true,
-    validationRemark: true,
-    faqVideo: true,
-    productVideo: true,
-    offerVideo: true,
-    productCatalog: true,
-    productImage: true,
-    nextCallDate: true,
-    nextCallTime: true,
-    orderStatus: true,
-    acceptanceVia: true,
-    paymentMode: true,
-    paymentTerms: true,
-    transportMode: true,
-    registrationFrom: true,
-    orderVideo: true,
-    acceptanceFile: true,
-    orderRemark: true,
-    apologyVideo: true,
-    reasonStatus: true,
-    reasonRemark: true,
-    holdReason: true,
-    holdingDate: true,
-    holdRemark: true,
+  // Call Tracker Modal (per row)
+  const [showCallTrackerModal, setShowCallTrackerModal] = useState(false)
+  const [callTrackerRow, setCallTrackerRow] = useState(null)
+  const [callTrackerForm, setCallTrackerForm] = useState({
+    currentStage: "",
+    customerSay: "",
+    orderReceived: "",
+    status: "",
+    nextCallDate: "",
   })
-  const [showColumnDropdown, setShowColumnDropdown] = useState(false)
+  const [isSubmitting, setIsSubmitting] = useState(false)
+  const [updatingStage, setUpdatingStage] = useState({}) // tracks rows being saved inline
+  const [trackerDetails, setTrackerDetails] = useState(null) // for display in View Modal
 
-  // Helper function to determine priority based on status
-  const determinePriority = (status) => {
-    if (!status) return "Low"
+  // Order Cancel Modal
+  const [showCancelModal, setShowCancelModal] = useState(false)
+  const [cancelModalForm, setCancelModalForm] = useState({ personName: "", orderNo: "", fmsName: "", cancelQty: "" })
 
-    const statusLower = status.toLowerCase()
-    if (statusLower === "hot") return "High"
-    if (statusLower === "warm") return "Medium"
-    return "Low"
-  }
+  // Master sheet dropdowns
+  const [masterStageOptions, setMasterStageOptions] = useState([])
+  const [masterStatusOptions, setMasterStatusOptions] = useState([])
 
-  // Helper function to format date to DD/MM/YYYY
-  const formatDateToDDMMYYYY = (dateValue) => {
-    if (!dateValue) return ""
-
-    try {
-      // Check if it's a Date object-like string (e.g. "Date(2025,3,22)")
-      if (typeof dateValue === "string" && dateValue.startsWith("Date(")) {
-        // Extract the parts from Date(YYYY,MM,DD) format
-        const dateString = dateValue.substring(5, dateValue.length - 1)
-        const [year, month, day] = dateString.split(",").map((part) => Number.parseInt(part.trim()))
-
-        // JavaScript months are 0-indexed, but we need to display them as 1-indexed
-        // Also ensure day and month are padded with leading zeros if needed
-        return `${day.toString().padStart(2, "0")}/${(month + 1).toString().padStart(2, "0")}/${year}`
-      }
-
-      // Handle other date formats if needed
-      const date = new Date(dateValue)
-      if (!isNaN(date.getTime())) {
-        return `${date.getDate().toString().padStart(2, "0")}/${(date.getMonth() + 1).toString().padStart(2, "0")}/${date.getFullYear()}`
-      }
-
-      // If it's already in the correct format, return as is
-      return dateValue
-    } catch (error) {
-      console.error("Error formatting date:", error)
-      return dateValue // Return the original value if formatting fails
-    }
-  }
-
-  // Helper function to format time to 12-hour format with AM/PM
-  const formatTimeTo12Hour = (timeValue) => {
-    if (!timeValue) return ""
-
-    try {
-      // Check if it's a Date object-like string (e.g. "Date(1899,11,30,17,9,0)")
-      if (typeof timeValue === "string" && timeValue.startsWith("Date(")) {
-        // Extract the parts from Date(YYYY,MM,DD,HH,MM,SS) format
-        const dateString = timeValue.substring(5, timeValue.length - 1)
-        const parts = dateString.split(",")
-
-        // If we have at least 5 parts (year, month, day, hour, minute)
-        if (parts.length >= 5) {
-          const hour = Number.parseInt(parts[3].trim())
-          const minute = Number.parseInt(parts[4].trim())
-
-          // Convert to 12-hour format
-          const period = hour >= 12 ? "PM" : "AM"
-          const displayHour = hour % 12 || 12 // Convert 0 to 12 for 12 AM
-
-          // Format as h:mm AM/PM with leading zero for minutes when needed
-          return `${displayHour}:${minute.toString().padStart(2, "0")} ${period}`
-        }
-      }
-
-      // Handle HH:MM:SS format
-      if (typeof timeValue === "string" && timeValue.includes(":")) {
-        const [hour, minute] = timeValue.split(":").map((part) => Number.parseInt(part))
-
-        // Convert to 12-hour format
-        const period = hour >= 12 ? "PM" : "AM"
-        const displayHour = hour % 12 || 12 // Convert 0 to 12 for 12 AM
-
-        // Format as h:mm AM/PM
-        return `${displayHour}:${minute.toString().padStart(2, "0")} ${period}`
-      }
-
-      // If it's already in the correct format or we can't parse it, return as is
-      return timeValue
-    } catch (error) {
-      console.error("Error formatting time:", error)
-      return timeValue // Return the original value if formatting fails
-    }
-  }
-
-  // Helper function to check if a date is today
-  const isToday = (dateStr) => {
-    if (!dateStr) return false
-    try {
-      const date = new Date(dateStr.split("/").reverse().join("-")) // Convert DD/MM/YYYY to YYYY-MM-DD
-      const today = new Date()
-      return date.toDateString() === today.toDateString()
-    } catch {
-      return false
-    }
-  }
-
-  // Helper function to check if a date is overdue
-  const isOverdue = (dateStr) => {
-    if (!dateStr) return false
-    try {
-      const date = new Date(dateStr.split("/").reverse().join("-"))
-      const today = new Date()
-      return date < today
-    } catch {
-      return false
-    }
-  }
-
-  // Helper function to check if a date is upcoming
-  const isUpcoming = (dateStr) => {
-    if (!dateStr) return false
-    try {
-      const date = new Date(dateStr.split("/").reverse().join("-"))
-      const today = new Date()
-      return date > today
-    } catch {
-      return false
-    }
-  }
-
-  const formatItemQty = (itemQtyString) => {
-    if (!itemQtyString) return ""
-
-    try {
-      const items = JSON.parse(itemQtyString)
-      return items
-        .filter(item => item.name && item.quantity && item.quantity !== "0")
-        .map(item => `${item.name} : ${item.quantity}`)
-        .join(", ")
-    } catch (error) {
-      console.error("Error parsing item quantity:", error)
-      return itemQtyString // Return original string if parsing fails
-    }
-  }
-
-
-  // Replace the matchesCallingDaysFilter function with this updated version
-  const matchesCallingDaysFilter = (dateStr, activeTab) => {
-    if (callingDaysFilter.length === 0) return true;
-
-    // Convert to lowercase for case-insensitive comparison
-    const dateText = dateStr ? dateStr.toLowerCase() : '';
-
-    return callingDaysFilter.some((filter) => {
-      if (activeTab === "history") {
-        // Special handling for history tab
-        switch (filter) {
-          case "today":
-            return isToday(dateStr); // Use the isToday helper function
-          case "older":
-            return !isToday(dateStr); // Older days call
-          default:
-            return false;
-        }
-      } else {
-        // Original handling for other tabs
-        switch (filter) {
-          case "today":
-            return dateText.includes("today");
-          case "overdue":
-            return dateText.includes("overdue");
-          case "upcoming":
-            return dateText.includes("upcoming");
-          default:
-            return false;
-        }
-      }
-    });
-  };
-
-  const handleColumnToggle = (columnKey) => {
-    setVisibleColumns((prev) => ({
-      ...prev,
-      [columnKey]: !prev[columnKey],
-    }))
-  }
-
-  const handleSelectAll = () => {
-    const allSelected = Object.values(visibleColumns).every(Boolean)
-    const newState = Object.fromEntries(Object.keys(visibleColumns).map((key) => [key, !allSelected]))
-    setVisibleColumns(newState)
-  }
-
-  const columnOptions = [
-    { key: "timestamp", label: "Timestamp" },
-    { key: "enquiryNo", label: "Enquiry No." },
-    { key: "enquiryStatus", label: "Enquiry Status" },
-    { key: "customerFeedback", label: "What Did Customer Say" },
-    { key: "currentStage", label: "Current Stage" },
-    { key: "sendQuotationNo", label: "Send Quotation No." },
-    { key: "quotationSharedBy", label: "Quotation Shared By" },
-    { key: "quotationNumber", label: "Quotation Number" },
-    { key: "valueWithoutTax", label: "Value Without Tax" },
-    { key: "valueWithTax", label: "Value With Tax" },
-    { key: "quotationUpload", label: "Quotation Upload" },
-    { key: "quotationRemarks", label: "Quotation Remarks" },
-    { key: "validatorName", label: "Validator Name" },
-    { key: "sendStatus", label: "Send Status" },
-    { key: "validationRemark", label: "Validation Remark" },
-    { key: "faqVideo", label: "FAQ Video" },
-    { key: "productVideo", label: "Product Video" },
-    { key: "offerVideo", label: "Offer Video" },
-    { key: "productCatalog", label: "Product Catalog" },
-    { key: "productImage", label: "Product Image" },
-    { key: "nextCallDate", label: "Next Call Date" },
-    { key: "nextCallTime", label: "Next Call Time" },
-    { key: "orderStatus", label: "Order Status" },
-    { key: "acceptanceVia", label: "Acceptance Via" },
-    { key: "paymentMode", label: "Payment Mode" },
-    { key: "paymentTerms", label: "Payment Terms" },
-    { key: "transportMode", label: "Transport Mode" },
-    { key: "registrationFrom", label: "Registration From" },
-    { key: "orderVideo", label: "Order Video" },
-    { key: "acceptanceFile", label: "Acceptance File" },
-    { key: "orderRemark", label: "Remark" },
-    { key: "apologyVideo", label: "Apology Video" },
-    { key: "reasonStatus", label: "Reason Status" },
-    { key: "reasonRemark", label: "Reason Remark" },
-    { key: "holdReason", label: "Hold Reason" },
-    { key: "holdingDate", label: "Holding Date" },
-    { key: "holdRemark", label: "Hold Remark" },
-  ]
-
-  // Close dropdowns when clicking outside
+  // Persist activeTab so it survives refreshes and component remounts
   useEffect(() => {
-    const handleClickOutside = (event) => {
-      if (!event.target.closest('.dropdown-container')) {
-        setShowCallingDaysDropdown(false)
-        setShowEnquiryNoDropdown(false)
-        setShowCurrentStageDropdown(false)
-        setShowColumnDropdown(false)
-      }
-    }
+    localStorage.setItem("ct_activeTab", activeTab)
+  }, [activeTab])
 
-    document.addEventListener('mousedown', handleClickOutside)
-    return () => {
-      document.removeEventListener('mousedown', handleClickOutside)
-    }
+  // ── Fetch on mount ────────────────────────────────────────────────────────
+  useEffect(() => {
+    fetchNBDEnquiryData()
+    fetchMasterDropdowns()
   }, [])
 
-  // Function to fetch data from FMS and Enquiry Tracker sheets
-  useEffect(() => {
-    const fetchCallTrackerData = async () => {
-      try {
-        setIsLoading(true)
+  // ── Fetch Master Sheet (Col G = Status, Col I = Stage) ───────────────────
+  const fetchMasterDropdowns = async () => {
+    const scriptUrl = import.meta.env.VITE_GOOGLE_APPS_SCRIPT_URL
+    const masterSheet = import.meta.env.VITE_MASTER_SHEET_NAME
+    if (!scriptUrl || !masterSheet) return
+    try {
+      const response = await axios.get(`${scriptUrl}?sheet=${masterSheet}`)
+      if (!response.data || !response.data.success) return
+      const rows = response.data.data || []
+      // Data starts from row 2 (index 1)
+      const dataRows = rows.slice(1)
+      const getUnique = (colIdx) =>
+        [...new Set(dataRows.map(r => String(r[colIdx] || "").trim()).filter(Boolean))]
+      setMasterStatusOptions(getUnique(6))  // Col G = index 6
+      setMasterStageOptions(getUnique(8))   // Col I = index 8
+    } catch (error) {
+      console.error("Error fetching master sheet:", error)
+    }
+  }
 
-        const data = await mockApi.fetchCallTrackers(currentUser, isAdmin)
+  const fetchNBDEnquiryData = async () => {
+    const scriptUrl = import.meta.env.VITE_GOOGLE_APPS_SCRIPT_URL
+    const sheetName = import.meta.env.VITE_NBD_ENQUIRY_SHEET_NAME
 
-        setPendingCallTrackers(data.pending)
-        setHistoryCallTrackers(data.history)
-        setDirectEnquiryPendingTrackers(data.directEnquiry)
+    if (!scriptUrl || !sheetName) {
+      showNotification("NBD Enquiry sheet config missing in .env", "error")
+      setIsLoading(false)
+      return
+    }
 
-        // Extract unique enquiry numbers for filter dropdown based on mock data
-        const allEnquiryNos = new Set()
+    try {
+      setIsLoading(true)
+      const response = await axios.get(`${scriptUrl}?sheet=${sheetName}`)
+      if (!response.data || !response.data.success) throw new Error("Failed to fetch sheet data")
 
-        data.pending.forEach(item => { if (item.leadId) allEnquiryNos.add(item.leadId); });
-        data.directEnquiry.forEach(item => { if (item.leadId) allEnquiryNos.add(item.leadId); });
-        data.history.forEach(item => { if (item.enquiryNo) allEnquiryNos.add(item.enquiryNo); });
+      const allRows = response.data.data || []
 
-        setAvailableEnquiryNos(Array.from(allEnquiryNos).sort())
-
-      } catch (error) {
-        console.error("Error fetching call tracker data:", error)
-        // Fallback or empty state
-        setPendingCallTrackers([])
-        setHistoryCallTrackers([])
-        setDirectEnquiryPendingTrackers([])
-      } finally {
-        setIsLoading(false)
+      // Find header row — scan first 10 rows for a cell matching "Enquiry No."
+      let headerRowIndex = 4 // default row 5 = index 4
+      for (let i = 0; i < Math.min(allRows.length, 10); i++) {
+        const row = allRows[i].map(c => String(c || "").trim())
+        if (row.some(cell => cell.toLowerCase().replace(/\.$/, "") === "enquiry no")) {
+          headerRowIndex = i
+          break
+        }
       }
+
+      const headerRow = (allRows[headerRowIndex] || []).map(c => String(c || "").trim())
+
+      // Data rows start after header
+      const dataRows = allRows.slice(headerRowIndex + 1)
+
+      const mappedRows = dataRows
+        .map((row, rowOffset) => {
+          if (row.every(cell => !cell)) return null
+          const obj = {
+            _sheetRowIdx: headerRowIndex + 1 + rowOffset  // 0-based index in raw sheet array
+          }
+          headerRow.forEach((h, idx) => {
+            if (h) {
+              let val = String(row[idx] || "").trim()
+              if (/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}/.test(val)) {
+                const d = new Date(val);
+                if (!isNaN(d.getTime())) {
+                  val = new Intl.DateTimeFormat('en-US', {
+                    timeZone: 'Asia/Kolkata',
+                    month: 'numeric', day: 'numeric', year: 'numeric',
+                    hour: 'numeric', minute: 'numeric', second: 'numeric',
+                    hour12: false,
+                  }).format(d).replace(",", "")
+                }
+              }
+              obj[h] = val
+            }
+          })
+          return obj
+        })
+        .filter(Boolean)
+
+      // Sort latest Enquiry No. first (EN-10 before EN-1)
+      mappedRows.sort((a, b) => {
+        const aNo = parseEnquiryNo(a["Enquiry No."] || a["Enquiry No"] || "")
+        const bNo = parseEnquiryNo(b["Enquiry No."] || b["Enquiry No"] || "")
+        return bNo - aNo
+      })
+
+      setEnquiryRows(mappedRows)
+    } catch (error) {
+      console.error("Error fetching NBD Enquiry data:", error)
+      showNotification("Failed to fetch enquiry data: " + error.message, "error")
+    } finally {
+      setIsLoading(false)
+    }
+  }
+
+  // Parse Enquiry No like "EN-5" → 5
+  const parseEnquiryNo = (val) => {
+    if (!val) return 0
+    const match = String(val).match(/\d+/)
+    return match ? parseInt(match[0]) : 0
+  }
+
+  // ── Filter by tab + search ─────────────────────────────────────────────────
+  const filteredRows = enquiryRows.filter((row) => {
+    const trackerStatus = String(row["Tracker Status"] || "").trim()
+    // Tab-level filter
+    if (activeTab === "callTracker") {
+      // Pending only: exclude rows that are already actioned (Yes, No, or Tracker No)
+      if (trackerStatus === "Yes" || trackerStatus === "Tracker No" || trackerStatus === "No") return false
+    } else if (activeTab === "orderReceived") {
+      if (trackerStatus !== "Yes") return false
+    } else if (activeTab === "orderNotReceived") {
+      if (trackerStatus !== "Tracker No" && trackerStatus !== "No") return false
+    }
+    // Search filter
+    if (!searchTerm) return true
+    const term = searchTerm.toLowerCase()
+    return Object.values(row).some(v => v && v.toString().toLowerCase().includes(term))
+  })
+
+  // ── Open Call Tracker Modal ───────────────────────────────────────────────
+  const handleOpenCallTracker = async (row) => {
+    setCallTrackerRow(row)
+
+    // Start with FMS row data for fields stored there
+    const prefilled = {
+      currentStage: row["Current Stage"] || "",
+      orderReceived: row["Tracker Status"] || "",
+      status: "",
+      customerSay: "",
+      nextCallDate: "",
     }
 
-    fetchCallTrackerData()
-  }, [currentUser, isAdmin]) // Add isAdmin to dependencies like in FollowUp
+    // Fetch Status & What Did The Customer Say from NBD CALL TRACKER sheet
+    try {
+      const scriptUrl = import.meta.env.VITE_GOOGLE_APPS_SCRIPT_URL
+      const trackerSheet = import.meta.env.VITE_NBD_CALL_TRACKER_SHEET_NAME
+      const enquiryNo = row["Enquiry No."] || row["Enquiry No"] || ""
 
-  // Enhanced filter function for search and dropdown filters
-  const filterTrackers = (tracker, searchTerm, activeTab) => {
-    // Search term filter
-    if (searchTerm) {
-      const term = searchTerm.toLowerCase()
-      const matchesSearch = Object.values(tracker).some(
-        (value) => value && value.toString().toLowerCase().includes(term),
+      if (scriptUrl && trackerSheet && enquiryNo) {
+        const res = await axios.get(`${scriptUrl}?sheet=${trackerSheet}`)
+        if (res.data?.success) {
+          const data = res.data.data || []
+
+          // Headers are in row 2 → index 1
+          const headers = (data[1] || []).map(h => String(h || "").trim())
+          const findH = (name) => headers.findIndex(h => h.toLowerCase() === name.toLowerCase())
+
+          const enqColIdx = findH("Enquiry No.")
+          const statusColIdx = findH("Status")
+          const customerSayColIdx = findH("What Did the Customer say")
+          const nextDateColIdx = findH("Next Date of Call")
+
+          // Walk from the bottom — find the most recent entry for this enquiry
+          for (let i = data.length - 1; i >= 2; i--) {
+            const r = data[i]
+            if (enqColIdx !== -1 && String(r[enqColIdx] || "").trim() === enquiryNo) {
+              if (statusColIdx !== -1) prefilled.status = String(r[statusColIdx] || "")
+              if (customerSayColIdx !== -1) prefilled.customerSay = String(r[customerSayColIdx] || "")
+              if (nextDateColIdx !== -1) {
+                // Sheet stores DD/MM/YYYY — convert to YYYY-MM-DD for HTML date input
+                const raw = String(r[nextDateColIdx] || "").trim()
+                if (raw) {
+                  const [dd, mm, yyyy] = raw.split("/")
+                  if (dd && mm && yyyy) prefilled.nextCallDate = `${yyyy}-${mm}-${dd}`
+                }
+              }
+              break
+            }
+          }
+        }
+      }
+    } catch (err) {
+      console.warn("Could not pre-fill from CALL TRACKER sheet:", err)
+    }
+
+    setCallTrackerForm(prefilled)
+    setShowCallTrackerModal(true)
+  }
+
+  // ── Open View Modal with Tracker Data ──────────────────────────────────────
+  const handleOpenViewModal = async (row) => {
+    setViewRow(row)
+    setShowViewModal(true)
+    setTrackerDetails(null) // Start fresh
+
+    try {
+      const scriptUrl = import.meta.env.VITE_GOOGLE_APPS_SCRIPT_URL
+      const trackerSheet = import.meta.env.VITE_NBD_CALL_TRACKER_SHEET_NAME
+      const enquiryNo = row["Enquiry No."] || row["Enquiry No"] || ""
+
+      if (scriptUrl && trackerSheet && enquiryNo) {
+        const res = await axios.get(`${scriptUrl}?sheet=${trackerSheet}`)
+        if (res.data?.success) {
+          const data = res.data.data || []
+          const headers = (data[1] || []).map(h => String(h || "").trim())
+          const findH = (name) => headers.findIndex(h => h.toLowerCase() === name.toLowerCase())
+
+          const enqColIdx = findH("Enquiry No.")
+          const statusColIdx = findH("Status")
+          const stageColIdx = findH("Current Stage")
+          const lastDateColIdx = findH("Last Date Of Call")
+          const customerSayColIdx = findH("What Did the Customer say")
+          const nextDateColIdx = findH("Next Date of Call")
+          const noOfCallsColIdx = findH("No. Of Calls Made")
+          const orderRecivedColIdx = findH("Order Recived")
+
+          let callCount = 0
+          let latestEntry = null
+
+          // Count and find latest
+          for (let i = 2; i < data.length; i++) {
+            const r = data[i]
+            if (enqColIdx !== -1 && String(r[enqColIdx] || "").trim() === enquiryNo) {
+              callCount++
+              latestEntry = r
+            }
+          }
+
+          if (latestEntry) {
+            setTrackerDetails({
+              status: statusColIdx !== -1 ? String(latestEntry[statusColIdx] || "") : "",
+              currentStage: stageColIdx !== -1 ? String(latestEntry[stageColIdx] || "") : "",
+              lastDateOfCall: lastDateColIdx !== -1 ? String(latestEntry[lastDateColIdx] || "") : "",
+              customerSay: customerSayColIdx !== -1 ? String(latestEntry[customerSayColIdx] || "") : "",
+              nextDateOfCall: nextDateColIdx !== -1 ? String(latestEntry[nextDateColIdx] || "") : "",
+              noOfCallsMade: noOfCallsColIdx !== -1 ? String(latestEntry[noOfCallsColIdx] || "") : callCount,
+              orderRecived: orderRecivedColIdx !== -1 ? String(latestEntry[orderRecivedColIdx] || "") : "",
+            })
+          }
+        }
+      }
+    } catch (err) {
+      console.warn("Could not fetch tracker details for view:", err)
+    }
+  }
+
+  // ── Inline Current Stage update (header-name driven, matches row by Enquiry No.) ──
+  const handleInlineStageUpdate = async (row, newStage) => {
+    const scriptUrl = import.meta.env.VITE_GOOGLE_APPS_SCRIPT_URL
+    const fmsSheetName = import.meta.env.VITE_NBD_ENQUIRY_SHEET_NAME
+    const trackerSheetName = import.meta.env.VITE_NBD_CALL_TRACKER_SHEET_NAME
+    const sheetRowIdx = row._sheetRowIdx
+    if (!scriptUrl || !fmsSheetName || sheetRowIdx === undefined) return
+
+    const enquiryNo = row["Enquiry No."] || row["Enquiry No"] || ""
+
+    // Optimistic local update
+    setEnquiryRows(prev =>
+      prev.map(r => r._sheetRowIdx === sheetRowIdx ? { ...r, "Current Stage": newStage } : r)
+    )
+    setUpdatingStage(prev => ({ ...prev, [sheetRowIdx]: true }))
+
+    try {
+      // ── A. Update NBD ENQUIRY FMS sheet (partial row — avoids touching date columns) ──
+      const fmsResponse = await axios.get(`${scriptUrl}?sheet=${fmsSheetName}`)
+      if (!fmsResponse.data?.success) throw new Error("Failed to fetch FMS sheet")
+      const fmsData = fmsResponse.data.data || []
+
+      // Dynamically find the header row
+      let fmsHeaderIdx = 4
+      for (let i = 0; i < Math.min(fmsData.length, 10); i++) {
+        const r = (fmsData[i] || []).map(c => String(c || "").trim())
+        if (r.some(cell => cell.toLowerCase().replace(/\.$/, "") === "enquiry no")) {
+          fmsHeaderIdx = i; break
+        }
+      }
+      const fmsHeaders = (fmsData[fmsHeaderIdx] || []).map(c => String(c || "").trim())
+      const findFmsCol = (name) => fmsHeaders.findIndex(h => h.toLowerCase() === name.toLowerCase())
+
+      const fmsCurrentStageCol = findFmsCol("Current Stage")
+      if (fmsCurrentStageCol === -1) throw new Error('"Current Stage" column not found in FMS')
+      const fmsEnqNoCol = findFmsCol("Enquiry No.")
+
+      // Match exact row by Enquiry No.
+      let fmsTargetIdx = sheetRowIdx
+      if (fmsEnqNoCol !== -1 && enquiryNo) {
+        for (let i = fmsHeaderIdx + 1; i < fmsData.length; i++) {
+          if (String(fmsData[i][fmsEnqNoCol] || "").trim() === enquiryNo) {
+            fmsTargetIdx = i; break
+          }
+        }
+      }
+
+      // Full row: normalize existing cells so ISO date strings survive the round-trip
+      const existingFmsRow = (fmsData[fmsTargetIdx] || []).map(normalizeForGSheets)
+      while (existingFmsRow.length <= fmsCurrentStageCol) existingFmsRow.push("")
+      existingFmsRow[fmsCurrentStageCol] = newStage
+
+      const fmsPayload = new URLSearchParams()
+      fmsPayload.append("action", "update")
+      fmsPayload.append("sheetName", fmsSheetName)
+      fmsPayload.append("rowIndex", (fmsTargetIdx + 1).toString())
+      fmsPayload.append("rowData", JSON.stringify(existingFmsRow))
+      await axios.post(scriptUrl, fmsPayload)
+
+      // ── B. Update NBD CALL TRACKER sheet ────────────────────────────────────
+      if (trackerSheetName && enquiryNo) {
+        const trackerResponse = await axios.get(`${scriptUrl}?sheet=${trackerSheetName}`)
+        if (trackerResponse.data?.success) {
+          const trackerData = trackerResponse.data.data || []
+
+          // Headers are in row 2 → index 1
+          const trackerHeaders = (trackerData[1] || []).map(h => String(h || "").trim())
+          const findTrackerCol = (name) => trackerHeaders.findIndex(h => h.toLowerCase() === name.toLowerCase())
+
+          const tkEnqNoCol = findTrackerCol("Enquiry No.")
+          const tkCurrentStageCol = findTrackerCol("Current Stage")
+
+          if (tkCurrentStageCol !== -1 && tkEnqNoCol !== -1) {
+            // Find the LAST matching row (most recent call entry for this enquiry)
+            let tkTargetIdx = -1
+            for (let i = trackerData.length - 1; i >= 2; i--) {
+              if (String(trackerData[i][tkEnqNoCol] || "").trim() === enquiryNo) {
+                tkTargetIdx = i; break
+              }
+            }
+
+            if (tkTargetIdx !== -1) {
+              const tkRow = [...(trackerData[tkTargetIdx] || [])]
+              while (tkRow.length <= tkCurrentStageCol) tkRow.push("")
+              tkRow[tkCurrentStageCol] = newStage
+
+              const tkPayload = new URLSearchParams()
+              tkPayload.append("action", "update")
+              tkPayload.append("sheetName", trackerSheetName)
+              tkPayload.append("rowIndex", (tkTargetIdx + 1).toString())
+              tkPayload.append("rowData", JSON.stringify(tkRow))
+              await axios.post(scriptUrl, tkPayload)
+            }
+          }
+        }
+      }
+
+      showNotification("Current Stage updated in both sheets", "success")
+    } catch (err) {
+      console.error("Inline stage update error:", err)
+      showNotification("Failed to update stage: " + err.message, "error")
+      // Revert optimistic update
+      setEnquiryRows(prev =>
+        prev.map(r => r._sheetRowIdx === sheetRowIdx ? { ...r, "Current Stage": row["Current Stage"] || "" } : r)
       )
-      if (!matchesSearch) return false
-    }
-
-    // Enquiry number filter
-    if (enquiryNoFilter.length > 0) {
-      const enquiryNo = activeTab === "history" ? tracker.enquiryNo : tracker.leadId
-      if (!enquiryNoFilter.includes(enquiryNo)) return false
-    }
-
-    // Current stage filter
-    if (currentStageFilter.length > 0) {
-      const currentStage = tracker.currentStage || ""
-      if (!currentStageFilter.includes(currentStage)) return false
-    }
-
-    // Calling days filter
-    if (callingDaysFilter.length > 0) {
-      const callingDate = tracker.callingDate || ""
-      if (!matchesCallingDaysFilter(callingDate, activeTab)) return false
-    }
-
-    return true
-  }
-
-  const filteredPendingCallTrackers = pendingCallTrackers.filter((tracker) =>
-    filterTrackers(tracker, searchTerm, "pending"),
-  )
-
-  const filteredHistoryCallTrackers = historyCallTrackers.filter((tracker) =>
-    filterTrackers(tracker, searchTerm, "history"),
-  )
-
-  const filteredDirectEnquiryPendingTrackers = directEnquiryPendingTrackers.filter((tracker) =>
-    filterTrackers(tracker, searchTerm, "directEnquiry"),
-  )
-
-  // Toggle dropdown visibility
-  const toggleCallingDaysDropdown = (e) => {
-    e.stopPropagation()
-    setShowCallingDaysDropdown(!showCallingDaysDropdown)
-    setShowEnquiryNoDropdown(false)
-    setShowCurrentStageDropdown(false)
-  }
-
-  const toggleEnquiryNoDropdown = (e) => {
-    e.stopPropagation()
-    setShowEnquiryNoDropdown(!showEnquiryNoDropdown)
-    setShowCallingDaysDropdown(false)
-    setShowCurrentStageDropdown(false)
-  }
-
-  const toggleCurrentStageDropdown = (e) => {
-    e.stopPropagation()
-    setShowCurrentStageDropdown(!showCurrentStageDropdown)
-    setShowCallingDaysDropdown(false)
-    setShowEnquiryNoDropdown(false)
-  }
-
-  // Handle checkbox changes
-  const handleCallingDaysChange = (value) => {
-    if (callingDaysFilter.includes(value)) {
-      setCallingDaysFilter(callingDaysFilter.filter(item => item !== value))
-    } else {
-      setCallingDaysFilter([...callingDaysFilter, value])
+    } finally {
+      setUpdatingStage(prev => ({ ...prev, [sheetRowIdx]: false }))
     }
   }
 
-  const handleEnquiryNoChange = (value) => {
-    if (enquiryNoFilter.includes(value)) {
-      setEnquiryNoFilter(enquiryNoFilter.filter(item => item !== value))
-    } else {
-      setEnquiryNoFilter([...enquiryNoFilter, value])
+  // ── Submit Call Tracker Form ──────────────────────────────────────────────
+  const handleCallTrackerSubmit = async (e) => {
+    e.preventDefault()
+    if (!callTrackerRow) return
+
+    const scriptUrl = import.meta.env.VITE_GOOGLE_APPS_SCRIPT_URL
+    const fmsSheetName = import.meta.env.VITE_NBD_ENQUIRY_SHEET_NAME
+    const trackerSheetName = import.meta.env.VITE_NBD_CALL_TRACKER_SHEET_NAME
+
+    if (!scriptUrl || !fmsSheetName || !trackerSheetName) {
+      showNotification("Sheet configuration missing in .env", "error")
+      return
+    }
+
+    const enquiryNo = callTrackerRow["Enquiry No."] || callTrackerRow["Enquiry No"] || ""
+
+    setIsSubmitting(true)
+    try {
+      // ── Step 1: Update latest matching row in NBD CALL TRACKER (by Enquiry No.) ──
+      const trackerSheetRes = await axios.get(`${scriptUrl}?sheet=${trackerSheetName}`)
+      const trackerData = trackerSheetRes.data?.data || []
+
+      // Headers are in row 2 (index 1)
+      const trackerHeaders = (trackerData[1] || []).map(h => String(h || "").trim())
+      const findTrackerCol = (name) =>
+        trackerHeaders.findIndex(h => h.toLowerCase() === name.toLowerCase())
+
+      const tkEnqNoCol = findTrackerCol("Enquiry No.")
+      const tkStatusCol = findTrackerCol("Status")
+      const tkStageCol = findTrackerCol("Current Stage")
+      const tkCustomerSayCol = findTrackerCol("What Did the Customer say")
+      const tkOrderCol = findTrackerCol("Order Recived") || findTrackerCol("Order Received")
+      const tkNextDateCol = findTrackerCol("Next Date of Call")
+      const tkLastDateCol = findTrackerCol("Last Date Of Call")
+      const tkNoOfCallsCol = findTrackerCol("No. Of Calls Made")
+
+      // Convert Next Date of Call from YYYY-MM-DD (HTML input) to DD/MM/YYYY (Indian format)
+      const nextDateFormatted = (() => {
+        if (!callTrackerForm.nextCallDate) return ""
+        const [yr, mo, dy] = callTrackerForm.nextCallDate.split("-")
+        return `${dy}/${mo}/${yr}`
+      })()
+
+      // Find the LATEST (bottom-most) row matching this Enquiry No.
+      let tkTargetIdx = -1
+      if (tkEnqNoCol !== -1 && enquiryNo) {
+        for (let i = trackerData.length - 1; i >= 2; i--) {
+          if (String(trackerData[i]?.[tkEnqNoCol] || "").trim() === enquiryNo) {
+            tkTargetIdx = i; break
+          }
+        }
+      }
+
+      if (tkTargetIdx !== -1) {
+        // UPDATE the existing latest row
+        const existingTrackerRow = [...(trackerData[tkTargetIdx] || [])]
+        if (tkStatusCol !== -1) existingTrackerRow[tkStatusCol] = callTrackerForm.status
+        if (tkStageCol !== -1) existingTrackerRow[tkStageCol] = callTrackerForm.currentStage
+        if (tkCustomerSayCol !== -1) existingTrackerRow[tkCustomerSayCol] = callTrackerForm.customerSay
+        if (tkOrderCol !== -1) existingTrackerRow[tkOrderCol] = callTrackerForm.orderReceived
+        if (tkNextDateCol !== -1) {
+          existingTrackerRow[tkNextDateCol] = (callTrackerForm.orderReceived === "Pending" && nextDateFormatted)
+            ? nextDateFormatted
+            : ""
+        }
+
+        // New fields
+        const nowISTStr = new Date().toLocaleDateString("en-GB", { timeZone: "Asia/Kolkata" }) // DD/MM/YYYY
+        if (tkLastDateCol !== -1) existingTrackerRow[tkLastDateCol] = nowISTStr
+
+        if (tkNoOfCallsCol !== -1) {
+          let count = 0
+          for (let i = 2; i < trackerData.length; i++) {
+            if (String(trackerData[i]?.[tkEnqNoCol] || "").trim() === enquiryNo) count++
+          }
+          existingTrackerRow[tkNoOfCallsCol] = count
+        }
+
+        const trackerPayload = new URLSearchParams()
+        trackerPayload.append("action", "update")
+        trackerPayload.append("sheetName", trackerSheetName)
+        trackerPayload.append("rowIndex", (tkTargetIdx + 1).toString()) // 1-based
+        trackerPayload.append("rowData", JSON.stringify(existingTrackerRow))
+        await axios.post(scriptUrl, trackerPayload)
+
+      } else {
+        // INSERT new row if no existing entry found for this Enquiry No.
+        const maxCol = Math.max(17,
+          tkEnqNoCol, tkStatusCol, tkStageCol,
+          tkCustomerSayCol, tkOrderCol, tkNextDateCol
+        )
+        const newRow = new Array(maxCol + 1).fill("")
+        if (tkEnqNoCol !== -1) newRow[tkEnqNoCol] = enquiryNo
+        if (tkStatusCol !== -1) newRow[tkStatusCol] = callTrackerForm.status
+        if (tkStageCol !== -1) newRow[tkStageCol] = callTrackerForm.currentStage
+        if (tkCustomerSayCol !== -1) newRow[tkCustomerSayCol] = callTrackerForm.customerSay
+        if (tkOrderCol !== -1) newRow[tkOrderCol] = callTrackerForm.orderReceived
+        if (tkNextDateCol !== -1 && callTrackerForm.orderReceived === "Pending" && nextDateFormatted) {
+          newRow[tkNextDateCol] = nextDateFormatted
+        }
+
+        // New fields
+        const nowISTStr = new Date().toLocaleDateString("en-GB", { timeZone: "Asia/Kolkata" }) // DD/MM/YYYY
+        if (tkLastDateCol !== -1) newRow[tkLastDateCol] = nowISTStr
+        if (tkNoOfCallsCol !== -1) newRow[tkNoOfCallsCol] = 1 // First call
+
+        const trackerPayload = new URLSearchParams()
+        trackerPayload.append("action", "insert")
+        trackerPayload.append("sheetName", trackerSheetName)
+        trackerPayload.append("rowData", JSON.stringify(newRow))
+        await axios.post(scriptUrl, trackerPayload)
+      }
+
+      // ── Step 2: Update specific tracker columns in NBD ENQUIRY FMS (partial row, no date corruption) ──
+      const fmsResponse = await axios.get(`${scriptUrl}?sheet=${fmsSheetName}`)
+      if (!fmsResponse.data?.success) throw new Error("Failed to fetch NBD ENQUIRY FMS")
+      const fmsData = fmsResponse.data.data || []
+
+      // Dynamically find header row
+      let fmsHeaderIdx = 4
+      for (let i = 0; i < Math.min(fmsData.length, 10); i++) {
+        const r = (fmsData[i] || []).map(c => String(c || "").trim())
+        if (r.some(cell => cell.toLowerCase().replace(/\.$/, "") === "enquiry no")) {
+          fmsHeaderIdx = i; break
+        }
+      }
+      const fmsHeaders = (fmsData[fmsHeaderIdx] || []).map(c => String(c || "").trim())
+      const findFmsCol = (name) => fmsHeaders.findIndex(h => h.toLowerCase() === name.toLowerCase())
+
+      const fmsCurrentStageCol = findFmsCol("Current Stage")
+      const fmsTrackerStatusCol = findFmsCol("Tracker Status")
+      const fmsActual1Col = findFmsCol("Actual 1")
+      const fmsStatusCol = findFmsCol("Status")
+      const fmsWhatCustomerSayCol = findFmsCol("What Did The Customer Say")
+      const fmsEnqNoCol = findFmsCol("Enquiry No.")
+
+      // Match row by Enquiry No. (more reliable than _sheetRowIdx after sorts/inserts)
+      const sheetRowIdx = callTrackerRow._sheetRowIdx
+      let fmsTargetIdx = sheetRowIdx
+      if (fmsEnqNoCol !== -1 && enquiryNo) {
+        for (let i = fmsHeaderIdx + 1; i < fmsData.length; i++) {
+          if (String(fmsData[i][fmsEnqNoCol] || "").trim() === enquiryNo) {
+            fmsTargetIdx = i; break
+          }
+        }
+      }
+
+      const nowIST = new Date()
+      // Use IST format "MM/dd/yyyy HH:mm:ss" without double conversion which leads to offset shifts.
+      const formattedTs = new Intl.DateTimeFormat('en-US', {
+        timeZone: 'Asia/Kolkata',
+        month: 'numeric', day: 'numeric', year: 'numeric',
+        hour: 'numeric', minute: 'numeric', second: 'numeric',
+        hour12: false,
+      }).format(nowIST).replace(",", "")
+
+      // Full row: normalize existing cells so ISO date strings survive the round-trip
+      const existingFmsRow = (fmsData[fmsTargetIdx] || []).map(normalizeForGSheets)
+      const maxFmsCol = Math.max(
+        fmsCurrentStageCol, fmsTrackerStatusCol, fmsActual1Col, fmsStatusCol, fmsWhatCustomerSayCol
+      )
+      while (existingFmsRow.length <= maxFmsCol) existingFmsRow.push("")
+
+      if (fmsCurrentStageCol !== -1) existingFmsRow[fmsCurrentStageCol] = callTrackerForm.currentStage
+      if (fmsTrackerStatusCol !== -1) existingFmsRow[fmsTrackerStatusCol] = callTrackerForm.orderReceived
+      if (fmsActual1Col !== -1) existingFmsRow[fmsActual1Col] = formattedTs
+      if (fmsStatusCol !== -1) existingFmsRow[fmsStatusCol] = callTrackerForm.status
+      if (fmsWhatCustomerSayCol !== -1) existingFmsRow[fmsWhatCustomerSayCol] = callTrackerForm.customerSay
+
+      const fmsPayload = new URLSearchParams()
+      fmsPayload.append("action", "update")
+      fmsPayload.append("sheetName", fmsSheetName)
+      fmsPayload.append("rowIndex", (fmsTargetIdx + 1).toString())
+      fmsPayload.append("rowData", JSON.stringify(existingFmsRow))
+      await axios.post(scriptUrl, fmsPayload)
+
+      // Optimistic local update — reflect submitted values immediately so no page refresh needed
+      // (page refresh would reset the active tab back to "All Enquiry")
+      setEnquiryRows(prev => prev.map(r => {
+        if (r._sheetRowIdx !== callTrackerRow._sheetRowIdx) return r
+        return {
+          ...r,
+          "Current Stage": callTrackerForm.currentStage,
+          "Tracker Status": callTrackerForm.orderReceived,
+          "Actual 1": formattedTs,
+          "Status": callTrackerForm.status,
+          "What Did The Customer Say": callTrackerForm.customerSay,
+        }
+      }))
+
+      showNotification("Call Tracker details submitted successfully!", "success")
+      setShowCallTrackerModal(false)
+      setCallTrackerRow(null)
+      setCallTrackerForm({ currentStage: "", customerSay: "", orderReceived: "", status: "", nextCallDate: "" })
+
+    } catch (error) {
+      console.error("Call Tracker Submit Error:", error)
+      showNotification("Error: " + error.message, "error")
+    } finally {
+      setIsSubmitting(false)
     }
   }
 
-  const handleCurrentStageChange = (value) => {
-    if (currentStageFilter.includes(value)) {
-      setCurrentStageFilter(currentStageFilter.filter(item => item !== value))
-    } else {
-      setCurrentStageFilter([...currentStageFilter, value])
+  // ── Submit Cancel Order Form ──────────────────────────────────────────────
+  const handleOpenCancelModal = (row) => {
+    setCancelModalForm({
+      personName: row["Contact Person Name"] || row["Name Of Sales Person"] || row["Name Of The Person"] || "",
+      orderNo: row["Enquiry No."] || row["Enquiry No"] || "",
+      fmsName: import.meta.env.VITE_NBD_ENQUIRY_SHEET_NAME || "NBD ENQUIRY FMS",
+      cancelQty: "",
+    })
+    setShowCancelModal(true)
+  }
+
+  const handleCancelSubmit = async (e) => {
+    e.preventDefault()
+    setIsSubmitting(true)
+
+    const scriptUrl = import.meta.env.VITE_GOOGLE_APPS_SCRIPT_URL
+    const cancelSheetName = import.meta.env.VITE_NBD_ORDER_CANCEL_SHEET_NAME
+
+    if (!scriptUrl || !cancelSheetName) {
+      showNotification("Order Cancel Sheet config missing in .env", "error")
+      setIsSubmitting(false)
+      return
+    }
+
+    try {
+      const res = await axios.get(`${scriptUrl}?sheet=${cancelSheetName}`)
+      const data = res.data?.data || []
+
+      // Header is at row index 0
+      const headers = (data[0] || []).map(h => String(h || "").trim())
+      const findCol = (name) => headers.findIndex(h => h.toLowerCase() === name.toLowerCase())
+
+      const tsCol = findCol("Timestamp")
+      const personCol = findCol("Name Of The Person")
+      const orderNoCol = findCol("Order No.")
+      const fmsNameCol = findCol("FMS Name")
+      const cancelQtyCol = findCol("Order Cancel Qty")
+
+      const maxCol = Math.max(0, tsCol, personCol, orderNoCol, fmsNameCol, cancelQtyCol)
+      const newRow = new Array(maxCol + 1).fill("")
+
+      if (tsCol !== -1) {
+        const nowIST = new Date()
+        const formattedTs = new Intl.DateTimeFormat('en-US', {
+          timeZone: 'Asia/Kolkata',
+          month: 'numeric', day: 'numeric', year: 'numeric',
+          hour: 'numeric', minute: 'numeric', second: 'numeric',
+          hour12: false,
+        }).format(nowIST).replace(",", "")
+        newRow[tsCol] = formattedTs
+      }
+
+      if (personCol !== -1) newRow[personCol] = cancelModalForm.personName
+      if (orderNoCol !== -1) newRow[orderNoCol] = cancelModalForm.orderNo
+      if (fmsNameCol !== -1) newRow[fmsNameCol] = cancelModalForm.fmsName
+      if (cancelQtyCol !== -1) newRow[cancelQtyCol] = cancelModalForm.cancelQty
+
+      const payload = new URLSearchParams()
+      payload.append("action", "insert")
+      payload.append("sheetName", cancelSheetName)
+      payload.append("rowData", JSON.stringify(newRow))
+
+      const postRes = await axios.post(scriptUrl, payload)
+      if (postRes.data?.success) {
+        showNotification("Cancel order saved successfully!", "success")
+        setShowCancelModal(false)
+      } else {
+        throw new Error("Failed to insert row")
+      }
+    } catch (err) {
+      console.error(err)
+      showNotification("Error: " + err.message, "error")
+    } finally {
+      setIsSubmitting(false)
     }
   }
 
-  // Add this function inside your CallTracker component
-  const calculateFilterCounts = () => {
-    const counts = {
-      today: 0,
-      overdue: 0,
-      upcoming: 0,
-      older: 0
-    };
-
-    // Calculate counts based on active tab
-    if (activeTab === "pending" || activeTab === "directEnquiry") {
-      const trackers = activeTab === "pending" ? pendingCallTrackers : directEnquiryPendingTrackers;
-
-      trackers.forEach(tracker => {
-        const dateStr = tracker.callingDate ? tracker.callingDate.toLowerCase() : "";
-        if (dateStr.includes("today")) counts.today++;
-        else if (dateStr.includes("overdue")) counts.overdue++;
-        else if (dateStr.includes("upcoming")) counts.upcoming++;
-      });
-    } else if (activeTab === "history") {
-      historyCallTrackers.forEach(tracker => {
-        const dateStr = tracker.callingDate;
-        if (isToday(dateStr)) counts.today++;
-        else counts.older++;
-      });
-    }
-
-    return counts;
-  };
-
-  const filterCounts = calculateFilterCounts();
 
   return (
     <div className="py-2">
+
+      {/* ── Top Controls ── */}
       <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-6 gap-4">
-
-
-        <div className="flex gap-2 flex-wrap">
-          <div className="relative">
-            <SearchIcon className="absolute left-2.5 top-2.5 h-4 w-4 text-slate-500" />
-            <input
-              type="search"
-              placeholder="Search Enquiry trackers..."
-              className="pl-8 w-[200px] md:w-[300px] px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-sky-500"
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-            />
-          </div>
-
-          {/* Calling Days Filter */}
-          {/* Calling Days Filter */}
-          <div className="relative dropdown-container">
-            <button
-              className="px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-sky-500 bg-white flex items-center"
-              onClick={toggleCallingDaysDropdown}
-            >
-              <span>Calling Days {callingDaysFilter.length > 0 && `(${callingDaysFilter.length})`}</span>
-              <svg
-                xmlns="http://www.w3.org/2000/svg"
-                className={`h-4 w-4 ml-2 transition-transform ${showCallingDaysDropdown ? 'rotate-180' : ''}`}
-                fill="none"
-                viewBox="0 0 24 24"
-                stroke="currentColor"
-              >
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-              </svg>
-            </button>
-            {showCallingDaysDropdown && (
-              <div className="absolute top-full left-0 mt-1 bg-white border border-gray-300 rounded-md shadow-lg z-10 min-w-full">
-                <div className="p-2">
-                  {activeTab === "history" ? (
-                    <>
-                      <label className="flex items-center justify-between p-2 hover:bg-gray-50 cursor-pointer w-full">
-                        <div className="flex items-center">
-                          <input
-                            type="checkbox"
-                            className="mr-2"
-                            checked={callingDaysFilter.includes("today")}
-                            onChange={() => handleCallingDaysChange("today")}
-                          />
-                          <span>Today's Calls</span>
-                        </div>
-                        <span className="text-xs text-gray-500 ml-2">({filterCounts.today})</span>
-                      </label>
-                      <label className="flex items-center justify-between p-2 hover:bg-gray-50 cursor-pointer w-full">
-                        <div className="flex items-center">
-                          <input
-                            type="checkbox"
-                            className="mr-2"
-                            checked={callingDaysFilter.includes("older")}
-                            onChange={() => handleCallingDaysChange("older")}
-                          />
-                          <span>Older Calls</span>
-                        </div>
-                        <span className="text-xs text-gray-500 ml-2">({filterCounts.older})</span>
-                      </label>
-                    </>
-                  ) : (
-                    <>
-                      <label className="flex items-center justify-between p-2 hover:bg-gray-50 cursor-pointer w-full">
-                        <div className="flex items-center">
-                          <input
-                            type="checkbox"
-                            className="mr-2"
-                            checked={callingDaysFilter.includes("today")}
-                            onChange={() => handleCallingDaysChange("today")}
-                          />
-                          <span>Today</span>
-                        </div>
-                        <span className="text-xs text-gray-500 ml-2">({filterCounts.today})</span>
-                      </label>
-                      <label className="flex items-center justify-between p-2 hover:bg-gray-50 cursor-pointer w-full">
-                        <div className="flex items-center">
-                          <input
-                            type="checkbox"
-                            className="mr-2"
-                            checked={callingDaysFilter.includes("overdue")}
-                            onChange={() => handleCallingDaysChange("overdue")}
-                          />
-                          <span>Overdue</span>
-                        </div>
-                        <span className="text-xs text-gray-500 ml-2">({filterCounts.overdue})</span>
-                      </label>
-                      <label className="flex items-center justify-between p-2 hover:bg-gray-50 cursor-pointer w-full">
-                        <div className="flex items-center">
-                          <input
-                            type="checkbox"
-                            className="mr-2"
-                            checked={callingDaysFilter.includes("upcoming")}
-                            onChange={() => handleCallingDaysChange("upcoming")}
-                          />
-                          <span>Upcoming</span>
-                        </div>
-                        <span className="text-xs text-gray-500 ml-2">({filterCounts.upcoming})</span>
-                      </label>
-                    </>
-                  )}
-                </div>
-              </div>
-            )}
-            {callingDaysFilter.length > 0 && (
-              <div className="mt-1 flex flex-wrap gap-1">
-                {callingDaysFilter.map((filter) => (
-                  <span key={filter} className="inline-flex items-center px-2 py-1 bg-sky-100 text-sky-800 text-xs rounded">
-                    {filter}
-                    <button
-                      onClick={() => setCallingDaysFilter(callingDaysFilter.filter((item) => item !== filter))}
-                      className="ml-1 text-sky-600 hover:text-sky-800"
-                    >
-                      ×
-                    </button>
-                  </span>
-                ))}
-              </div>
-            )}
-          </div>
-
-          {/* Enquiry No Filter */}
-          <div className="relative dropdown-container">
-            <button
-              className="px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-sky-500 bg-white flex items-center"
-              onClick={toggleEnquiryNoDropdown}
-            >
-              <span>Enquiry No. {enquiryNoFilter.length > 0 && `(${enquiryNoFilter.length})`}</span>
-              <svg
-                xmlns="http://www.w3.org/2000/svg"
-                className={`h-4 w-4 ml-2 transition-transform ${showEnquiryNoDropdown ? 'rotate-180' : ''}`}
-                fill="none"
-                viewBox="0 0 24 24"
-                stroke="currentColor"
-              >
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-              </svg>
-            </button>
-            {showEnquiryNoDropdown && (
-              <div className="absolute top-full left-0 mt-1 bg-white border border-gray-300 rounded-md shadow-lg z-10 min-w-full max-h-60 overflow-y-auto">
-                <div className="p-2">
-                  {availableEnquiryNos.map((enquiryNo) => (
-                    <label key={enquiryNo} className="flex items-center p-2 hover:bg-gray-50 cursor-pointer">
-                      <input
-                        type="checkbox"
-                        className="mr-2"
-                        checked={enquiryNoFilter.includes(enquiryNo)}
-                        onChange={() => handleEnquiryNoChange(enquiryNo)}
-                      />
-                      <span>{enquiryNo}</span>
-                    </label>
-                  ))}
-                </div>
-              </div>
-            )}
-            {enquiryNoFilter.length > 0 && (
-              <div className="mt-1 flex flex-wrap gap-1">
-                {enquiryNoFilter.map((filter) => (
-                  <span key={filter} className="inline-flex items-center px-2 py-1 bg-sky-100 text-sky-800 text-xs rounded">
-                    {filter}
-                    <button
-                      onClick={() => setEnquiryNoFilter(enquiryNoFilter.filter((item) => item !== filter))}
-                      className="ml-1 text-sky-600 hover:text-sky-800"
-                    >
-                      ×
-                    </button>
-                  </span>
-                ))}
-              </div>
-            )}
-          </div>
-
-          {/* Current Stage Filter */}
-          <div className="relative dropdown-container">
-            <button
-              className="px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-sky-500 bg-white flex items-center"
-              onClick={toggleCurrentStageDropdown}
-            >
-              <span>Current Stage {currentStageFilter.length > 0 && `(${currentStageFilter.length})`}</span>
-              <svg
-                xmlns="http://www.w3.org/2000/svg"
-                className={`h-4 w-4 ml-2 transition-transform ${showCurrentStageDropdown ? 'rotate-180' : ''}`}
-                fill="none"
-                viewBox="0 0 24 24"
-                stroke="currentColor"
-              >
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-              </svg>
-            </button>
-            {showCurrentStageDropdown && (
-              <div className="absolute top-full left-0 mt-1 bg-white border border-gray-300 rounded-md shadow-lg z-10 min-w-full">
-                <div className="p-2">
-                  <label className="flex items-center p-2 hover:bg-gray-50 cursor-pointer">
-                    <input
-                      type="checkbox"
-                      className="mr-2"
-                      checked={currentStageFilter.includes("make-quotation")}
-                      onChange={() => handleCurrentStageChange("make-quotation")}
-                    />
-                    <span>Make Quotation</span>
-                  </label>
-                  <label className="flex items-center p-2 hover:bg-gray-50 cursor-pointer">
-                    <input
-                      type="checkbox"
-                      className="mr-2"
-                      checked={currentStageFilter.includes("quotation-validation")}
-                      onChange={() => handleCurrentStageChange("quotation-validation")}
-                    />
-                    <span>Quotation Validation</span>
-                  </label>
-                  <label className="flex items-center p-2 hover:bg-gray-50 cursor-pointer">
-                    <input
-                      type="checkbox"
-                      className="mr-2"
-                      checked={currentStageFilter.includes("order-status")}
-                      onChange={() => handleCurrentStageChange("order-status")}
-                    />
-                    <span>Order Status</span>
-                  </label>
-                  <label className="flex items-center p-2 hover:bg-gray-50 cursor-pointer">
-                    <input
-                      type="checkbox"
-                      className="mr-2"
-                      checked={currentStageFilter.includes("order-expected")}
-                      onChange={() => handleCurrentStageChange("order-expected")}
-                    />
-                    <span>Order Expected</span>
-                  </label>
-                </div>
-              </div>
-            )}
-            {currentStageFilter.length > 0 && (
-              <div className="mt-1 flex flex-wrap gap-1">
-                {currentStageFilter.map((filter) => (
-                  <span key={filter} className="inline-flex items-center px-2 py-1 bg-sky-100 text-sky-800 text-xs rounded">
-                    {filter.replace("-", " ").replace(/\b\w/g, (l) => l.toUpperCase())}
-                    <button
-                      onClick={() => setCurrentStageFilter(currentStageFilter.filter((item) => item !== filter))}
-                      className="ml-1 text-sky-600 hover:text-sky-800"
-                    >
-                      ×
-                    </button>
-                  </span>
-                ))}
-              </div>
-            )}
-          </div>
-
-          {/* Column Selection Dropdown - Only show for history tab */}
-          {activeTab === "history" && (
-            <div className="relative dropdown-container">
-              <button
-                onClick={() => setShowColumnDropdown(!showColumnDropdown)}
-                className="px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-sky-500 bg-white flex items-center"
-              >
-                <span>Select Columns</span>
-                <svg
-                  className={`w-4 h-4 ml-2 transition-transform ${showColumnDropdown ? "rotate-180" : ""}`}
-                  fill="none"
-                  stroke="currentColor"
-                  viewBox="0 0 24 24"
-                >
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-                </svg>
-              </button>
-
-              {showColumnDropdown && (
-                <div className="absolute top-full left-0 mt-1 w-64 bg-white border border-gray-300 rounded-md shadow-lg z-50 max-h-80 overflow-y-auto">
-                  <div className="p-2">
-                    {/* Select All Option */}
-                    <div className="flex items-center p-2 hover:bg-gray-50 rounded">
-                      <input
-                        type="checkbox"
-                        id="select-all-history"
-                        checked={Object.values(visibleColumns).every(Boolean)}
-                        onChange={handleSelectAll}
-                        className="h-4 w-4 text-sky-600 focus:ring-sky-500 border-gray-300 rounded"
-                      />
-                      <label htmlFor="select-all-history" className="ml-2 text-sm font-medium text-gray-900 cursor-pointer">
-                        All Columns
-                      </label>
-                    </div>
-
-                    <hr className="my-2" />
-
-                    {/* Individual Column Options */}
-                    {columnOptions.map((option) => (
-                      <div key={option.key} className="flex items-center p-2 hover:bg-gray-50 rounded">
-                        <input
-                          type="checkbox"
-                          id={`column-${option.key}`}
-                          checked={visibleColumns[option.key]}
-                          onChange={() => handleColumnToggle(option.key)}
-                          className="h-4 w-4 text-sky-600 focus:ring-sky-500 border-gray-300 rounded"
-                        />
-                        <label
-                          htmlFor={`column-${option.key}`}
-                          className="ml-2 text-sm text-gray-700 cursor-pointer flex-1"
-                        >
-                          {option.label}
-                        </label>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              )}
-            </div>
-          )}
-
-          {/* Clear Filters Button */}
-          {(callingDaysFilter.length > 0 || enquiryNoFilter.length > 0 || currentStageFilter.length > 0) && (
-            <button
-              className="px-3 py-2 text-sm border border-gray-300 rounded-md text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-sky-500"
-              onClick={() => {
-                setCallingDaysFilter([])
-                setEnquiryNoFilter([])
-                setCurrentStageFilter([])
-              }}
-            >
-              Clear Filters
-            </button>
-          )}
-
+        <div className="relative">
+          <SearchIcon className="absolute left-2.5 top-2.5 h-4 w-4 text-slate-500" />
+          <input
+            type="search"
+            placeholder="Search Enquiry..."
+            className="pl-8 w-[220px] md:w-[300px] px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-sky-500 text-sm"
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+          />
+        </div>
+        <div className="flex gap-2">
           <button
-            className="px-4 py-2 bg-gradient-to-r from-sky-600 to-blue-600 hover:from-sky-700 hover:to-blue-700 text-white font-medium rounded-md focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-sky-500"
-            onClick={() => setShowNewCallTrackerForm(true)}
+            onClick={fetchNBDEnquiryData}
+            className="px-4 py-2 bg-white border border-gray-300 text-gray-600 font-medium rounded-md hover:bg-gray-50 text-sm"
           >
-            <PlusIcon className="inline-block mr-2 h-4 w-4" /> Direct Enquiry
+            ↻ Refresh
+          </button>
+          <button
+            onClick={() => setShowNewCallTrackerForm(true)}
+            className="px-4 py-2 bg-gradient-to-r from-sky-600 to-blue-600 hover:from-sky-700 hover:to-blue-700 text-white font-medium rounded-md text-sm"
+          >
+            <PlusIcon className="inline-block mr-1.5 h-4 w-4" /> New Enquiry
           </button>
         </div>
       </div>
 
-      <div className="bg-white rounded-lg shadow-md">
-        <div className="p-6 border-b">
-          <h2 className="text-xl font-bold">All Enquiry Trackers</h2>
-        </div>
-        <div className="p-6">
-          <div className="mb-4">
-            <div className="inline-flex rounded-md shadow-sm">
-              <button
-                onClick={() => setActiveTab("pending")}
-                className={`px-4 py-2 text-sm font-medium ${activeTab === "pending"
-                  ? "bg-sky-100 text-sky-800"
-                  : "bg-white text-slate-700 hover:bg-slate-50"
-                  }`}
-              >
-                Pending
-              </button>
-              <button
-                onClick={() => setActiveTab("directEnquiry")}
-                className={`px-4 py-2 text-sm font-medium ${activeTab === "directEnquiry"
-                  ? "bg-sky-100 text-sky-800"
-                  : "bg-white text-slate-700 hover:bg-slate-50"
-                  }`}
-              >
-                Direct Enquiry Pending
-              </button>
-              <button
-                onClick={() => setActiveTab("history")}
-                className={`px-4 py-2 text-sm font-medium rounded-r-md ${activeTab === "history"
-                  ? "bg-sky-100 text-sky-800"
-                  : "bg-white text-slate-700 hover:bg-slate-50"
-                  }`}
-              >
-                History
-              </button>
-            </div>
-          </div>
-
-          {isLoading ? (
-            <div className="p-8 text-center">
-              <p className="text-slate-500">Loading Enquiry tracker data...</p>
-            </div>
-          ) : (
-            <>
-              {activeTab === "pending" && (
-                <div>
-                  <div className="md:hidden space-y-4 mb-4">
-                    {filteredPendingCallTrackers.map((tracker) => (
-                      <div key={tracker.id} className="bg-white rounded-lg shadow-sm border border-gray-200 p-4 space-y-3">
-                        <div className="flex justify-between items-start">
-                          <div className="flex-1">
-                            <span className="text-xs font-semibold text-gray-500">{tracker.timestamp}</span>
-                            <h3 className="font-bold text-gray-900 mt-1">{tracker.companyName}</h3>
-                            <p className="text-xs text-blue-600 font-medium">{tracker.leadId}</p>
-                          </div>
-                          <div className="text-right">
-                            <span className="block text-xs text-gray-400">Salesperson</span>
-                            <span className="text-sm font-medium">{tracker.salespersonName}</span>
-                          </div>
-                        </div>
-
-                        <div className="grid grid-cols-2 gap-2 text-sm text-gray-600">
-                          <div>
-                            <span className="block text-xs text-gray-400">Phone</span>
-                            <p className="font-medium">{tracker.phoneNumber}</p>
-                          </div>
-                          <div>
-                            <span className="block text-xs text-gray-400">Current Stage</span>
-                            <p className="text-sky-600 font-medium">{tracker.currentStage || "Pending"}</p>
-                          </div>
-                          <div>
-                            <span className="block text-xs text-gray-400">Calling Date</span>
-                            <p>{tracker.callingDate || "-"}</p>
-                          </div>
-                        </div>
-
-                        <div className="pt-2 border-t border-gray-100 flex justify-end">
-                          <Link to={`/call-tracker/new?leadId=${tracker.leadId}`} className="w-full">
-                            <button className="flex items-center justify-center w-full px-3 py-2 text-sm border border-sky-200 text-sky-600 hover:bg-sky-50 rounded-md font-medium">
-                              Process <ArrowRightIcon className="ml-1 h-3 w-3" />
-                            </button>
-                          </Link>
-                        </div>
-                      </div>
-                    ))}
-                    {filteredPendingCallTrackers.length === 0 && <div className="text-center py-8 text-gray-500">No pending enquiries found</div>}
-                  </div>
-
-                  <div className="hidden md:block rounded-md border overflow-x-auto">
-                    <table className="min-w-full divide-y divide-gray-200">
-                      <thead className="bg-slate-50">
-                        <tr>
-                          <th
-                            scope="col"
-                            className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
-                          >
-                            Actions
-                          </th>
-                          <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                            Timestamp
-                          </th>
-                          <th
-                            scope="col"
-                            className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
-                          >
-                            Lead No.
-                          </th>
-                          <th
-                            scope="col"
-                            className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
-                          >
-                            Lead Receiver Name
-                          </th>
-                          <th
-                            scope="col"
-                            className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
-                          >
-                            Lead Source
-                          </th>
-                          <th
-                            scope="col"
-                            className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
-                          >
-                            Phone No.
-                          </th>
-                          <th
-                            scope="col"
-                            className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
-                          >
-                            Salesperson Name
-                          </th>
-                          <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                            Company Name
-                          </th>
-                          <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                            Current Stage
-                          </th>
-                          <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                            Calling Date
-                          </th>
-                          {isAdmin() && (
-                            <th
-                              scope="col"
-                              className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
-                            >
-                              Assigned To
-                            </th>
-                          )}
-                          <th
-                            scope="col"
-                            className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
-                          >
-                            Item/Qty
-                          </th>
-                        </tr>
-                      </thead>
-                      <tbody className="bg-white divide-y divide-gray-200">
-                        {filteredPendingCallTrackers.length > 0 ? (
-                          filteredPendingCallTrackers.map((tracker) => (
-                            <tr key={tracker.id} className="hover:bg-slate-50">
-                              <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
-                                <div className="flex space-x-2">
-                                  <Link to={`/call-tracker/new?leadId=${tracker.leadId}`}>
-                                    <button className="px-3 py-1 text-xs border border-sky-200 text-sky-600 hover:bg-sky-50 rounded-md">
-                                      Process <ArrowRightIcon className="ml-1 h-3 w-3 inline" />
-                                    </button>
-                                  </Link>
-                                  {/* <button
-                                  onClick={() => {
-                                    setSelectedTracker(tracker)
-                                    setShowPopup(true)
-                                  }}
-                                  className="px-3 py-1 text-xs border border-slate-200 text-slate-600 hover:bg-slate-50 rounded-md"
-                                >
-                                  View
-                                </button> */}
-                                </div>
-                              </td>
-                              <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                                {tracker.timestamp}
-                              </td>
-                              <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
-                                {tracker.leadId}
-                              </td>
-                              <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                                {tracker.receiverName}
-                              </td>
-                              <td className="px-6 py-4 whitespace-nowrap">
-                                <span
-                                  className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${tracker.priority === "High"
-                                    ? "bg-red-100 text-red-800"
-                                    : tracker.priority === "Medium"
-                                      ? "bg-blue-100 text-blue-800"
-                                      : "bg-slate-100 text-slate-800"
-                                    }`}
-                                >
-                                  {tracker.leadSource}
-                                </span>
-                              </td>
-                              <td className="px-4 py-4 text-sm text-gray-500">{tracker.phoneNumber}</td>
-                              <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                                {tracker.salespersonName}
-                              </td>
-                              <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                                <div className="flex items-center">
-                                  <BuildingIcon className="h-4 w-4 mr-2 text-slate-400" />
-                                  {tracker.companyName}
-                                </div>
-                              </td>
-                              <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                                {tracker.currentStage}
-                              </td>
-                              <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                                {tracker.callingDate}
-                              </td>
-                              {isAdmin() && (
-                                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                                  {tracker.assignedTo}
-                                </td>
-                              )}
-                              <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                                <div
-                                  className="min-w-[300px] break-words whitespace-normal"
-                                  title={formatItemQty(tracker.itemQty)}
-                                >
-                                  {formatItemQty(tracker.itemQty)}
-                                </div>
-                              </td>
-                            </tr>
-                          ))
-                        ) : (
-                          <tr>
-                            <td
-                              colSpan={isAdmin() ? 11 : 10} // Updated to include the new Item/Qty column
-                              className="px-6 py-4 text-center text-sm text-slate-500"
-                            >
-                              No pending call trackers found
-                            </td>
-                          </tr>
-                        )}
-                      </tbody>
-                    </table>
-                  </div>
-                </div>
-              )}
-
-              {activeTab === "directEnquiry" && (
-                <div>
-                  <div className="md:hidden space-y-4 mb-4">
-                    {filteredDirectEnquiryPendingTrackers.map((tracker, index) => (
-                      <div key={tracker.id || index} className="bg-white rounded-lg shadow-sm border border-gray-200 p-4 space-y-3">
-                        <div className="flex justify-between items-start">
-                          <div className="flex-1">
-                            <span className="text-xs font-semibold text-gray-500">{tracker.timestamp}</span>
-                            <h3 className="font-bold text-gray-900 mt-1">{tracker.companyName}</h3>
-                            <p className="text-xs text-blue-600 font-medium">{tracker.leadId}</p>
-                          </div>
-                          <div className="text-right">
-                            <p className="text-sm font-medium text-gray-700">{tracker.phoneNumber}</p>
-                          </div>
-                        </div>
-                        <div className="grid grid-cols-2 gap-2 text-sm text-gray-600">
-                          <div>
-                            <span className="block text-xs text-gray-400">Source</span>
-                            <span>{tracker.leadSource}</span>
-                          </div>
-                          <div>
-                            <span className="block text-xs text-gray-400">Stage</span>
-                            <span className="text-sky-600">{tracker.currentStage}</span>
-                          </div>
-                          <div className="col-span-2">
-                            <span className="block text-xs text-gray-400">Location</span>
-                            <span>{tracker.location}</span>
-                          </div>
-                        </div>
-                        <div className="pt-2 border-t border-gray-100 flex justify-end">
-                          <Link to={`/call-tracker/new?leadId=${tracker.leadId}`} className="w-full">
-                            <button className="flex items-center justify-center w-full px-3 py-2 text-sm border border-sky-200 text-sky-600 hover:bg-sky-50 rounded-md font-medium">
-                              Process <ArrowRightIcon className="ml-1 h-3 w-3" />
-                            </button>
-                          </Link>
-                        </div>
-                      </div>
-                    ))}
-                    {filteredDirectEnquiryPendingTrackers.length === 0 && <div className="text-center py-8 text-gray-500">No direct enquiries found</div>}
-                  </div>
-
-                  <div className="hidden md:block rounded-md border overflow-x-auto">
-                    <table className="min-w-full divide-y divide-gray-200">
-                      <thead className="bg-slate-50">
-                        <tr>
-                          <th
-                            scope="col"
-                            className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
-                          >
-                            Actions
-                          </th>
-                          <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                            Timestamp
-                          </th>
-                          <th
-                            scope="col"
-                            className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
-                          >
-                            Lead No.
-                          </th>
-                          <th
-                            scope="col"
-                            className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
-                          >
-                            Lead Source
-                          </th>
-                          <th
-                            scope="col"
-                            className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
-                          >
-                            Company Name
-                          </th>
-                          <th
-                            scope="col"
-                            className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
-                          >
-                            Current Stage
-                          </th>
-                          <th
-                            scope="col"
-                            className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
-                          >
-                            Calling Date
-                          </th>
-                          <th
-                            scope="col"
-                            className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
-                          >
-                            Item/Qty
-                          </th>
-                        </tr>
-                      </thead>
-                      <tbody className="bg-white divide-y divide-gray-200">
-                        {filteredDirectEnquiryPendingTrackers.length > 0 ? (
-                          filteredDirectEnquiryPendingTrackers.map((tracker) => (
-                            <tr key={tracker.id} className="hover:bg-slate-50">
-                              <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
-                                <div className="flex space-x-2">
-                                  <Link to={`/call-tracker/new?leadId=${tracker.leadId}`}>
-                                    <button className="px-3 py-1 text-xs border border-sky-200 text-sky-600 hover:bg-sky-50 rounded-md">
-                                      Process <ArrowRightIcon className="ml-1 h-3 w-3 inline" />
-                                    </button>
-                                  </Link>
-                                  <button
-                                    onClick={() => {
-                                      setSelectedTracker(tracker)
-                                      setShowPopup(true)
-                                    }}
-                                    className="px-3 py-1 text-xs border border-slate-200 text-slate-600 hover:bg-slate-50 rounded-md"
-                                  >
-                                    View
-                                  </button>
-                                </div>
-                              </td>
-                              <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                                {tracker.timestamp}
-                              </td>
-                              <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
-                                {tracker.leadId}
-                              </td>
-                              <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                                {tracker.receiverName}
-                              </td>
-                              <td className="px-6 py-4 whitespace-nowrap">
-                                <span
-                                  className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${tracker.priority === "High"
-                                    ? "bg-red-100 text-red-800"
-                                    : tracker.priority === "Medium"
-                                      ? "bg-blue-100 text-blue-800"
-                                      : "bg-slate-100 text-slate-800"
-                                    }`}
-                                >
-                                  {tracker.leadSource}
-                                </span>
-                              </td>
-                              <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                                {tracker.currentStage}
-                              </td>
-                              <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                                {tracker.callingDate1}
-                              </td>
-                              <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                                <div
-                                  className="min-w-[300px] break-words whitespace-normal"
-                                  title={formatItemQty(tracker.itemQty)}
-                                >
-                                  {formatItemQty(tracker.itemQty)}
-                                </div>
-                              </td>
-                            </tr>
-                          ))
-                        ) : (
-                          <tr>
-                            <td colSpan={7} className="px-6 py-4 text-center text-sm text-slate-500">
-                              No direct enquiry pending trackers found
-                            </td>
-                          </tr>
-                        )}
-                      </tbody>
-                    </table>
-                  </div>
-                </div>
-              )}
-
-              {activeTab === "history" && (
-                <div>
-                  <div className="md:hidden space-y-4 mb-4">
-                    {filteredHistoryCallTrackers.map((tracker) => (
-                      <div key={tracker.id} className="bg-white rounded-lg shadow-sm border border-gray-200 p-4 space-y-3">
-                        <div className="flex justify-between items-start">
-                          <div>
-                            <span className="text-xs font-semibold text-gray-500">{tracker.timestamp}</span>
-                            <h3 className="font-bold text-gray-900 mt-1">{tracker.enquiryNo}</h3>
-                          </div>
-                          <span className={`inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-slate-100 text-slate-800`}>
-                            {tracker.enquiryStatus}
-                          </span>
-                        </div>
-                        <div>
-                          <span className="block text-xs text-gray-400">Customer Feedback</span>
-                          <p className="text-sm text-gray-600 line-clamp-2">{tracker.customerFeedback}</p>
-                        </div>
-
-                        <div className="grid grid-cols-2 gap-2 text-sm text-gray-600">
-                          <div>
-                            <span className="block text-xs text-gray-400">Current Stage</span>
-                            <p>{tracker.currentStage}</p>
-                          </div>
-                          <div>
-                            <span className="block text-xs text-gray-400">Next Call</span>
-                            <p>{tracker.nextCallDate || "-"}</p>
-                          </div>
-                        </div>
-                      </div>
-                    ))}
-                    {filteredHistoryCallTrackers.length === 0 && <div className="text-center py-8 text-gray-500">No history found</div>}
-                  </div>
-
-                  <div className="hidden md:block rounded-md border overflow-x-auto">
-                    <table className="min-w-full divide-y divide-gray-200">
-                      <thead className="bg-slate-50">
-                        <tr>
-                          {visibleColumns.timestamp && (
-                            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Timestamp</th>
-                          )}
-                          {visibleColumns.enquiryNo && (
-                            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Enquiry No.</th>
-                          )}
-                          {visibleColumns.enquiryStatus && (
-                            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Enquiry Status</th>
-                          )}
-                          {visibleColumns.customerFeedback && (
-                            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">What Did Customer Say</th>
-                          )}
-                          {visibleColumns.currentStage && (
-                            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Current Stage</th>
-                          )}
-                          {visibleColumns.sendQuotationNo && (
-                            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Send Quotation No.</th>
-                          )}
-                          {visibleColumns.quotationSharedBy && (
-                            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Quotation Shared By</th>
-                          )}
-                          {visibleColumns.quotationNumber && (
-                            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Quotation Number</th>
-                          )}
-                          {visibleColumns.valueWithoutTax && (
-                            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Quotation Value Without Tax</th>
-                          )}
-                          {visibleColumns.valueWithTax && (
-                            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Quotation Value With Tax</th>
-                          )}
-                          {visibleColumns.quotationUpload && (
-                            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Quotation Upload</th>
-                          )}
-                          {visibleColumns.quotationRemarks && (
-                            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Quotation Remarks</th>
-                          )}
-                          {visibleColumns.validatorName && (
-                            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Quotation Validator Name</th>
-                          )}
-                          {visibleColumns.sendStatus && (
-                            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Quotation Send Status</th>
-                          )}
-                          {visibleColumns.validationRemark && (
-                            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Quotation Validation Remark</th>
-                          )}
-                          {visibleColumns.faqVideo && (
-                            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Send FAQ Video</th>
-                          )}
-                          {visibleColumns.productVideo && (
-                            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Send Product Video</th>
-                          )}
-                          {visibleColumns.offerVideo && (
-                            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Send Offer Video</th>
-                          )}
-                          {visibleColumns.productCatalog && (
-                            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Send Product Catalog</th>
-                          )}
-                          {visibleColumns.productImage && (
-                            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Send Product Image</th>
-                          )}
-                          {visibleColumns.nextCallDate && (
-                            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Next Call Date</th>
-                          )}
-                          {visibleColumns.nextCallTime && (
-                            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Next Call Time</th>
-                          )}
-                          {visibleColumns.orderStatus && (
-                            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Is Order Received? Status</th>
-                          )}
-                          {visibleColumns.acceptanceVia && (
-                            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Acceptance Via</th>
-                          )}
-                          {visibleColumns.paymentMode && (
-                            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Payment Mode</th>
-                          )}
-                          {visibleColumns.paymentTerms && (
-                            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Payment Terms (In Days)</th>
-                          )}
-                          {visibleColumns.transportMode && (
-                            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Transport Mode</th>
-                          )}
-                          {visibleColumns.registrationFrom && (
-                            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">CONVEYED FOR REGISTRATION FORM</th>
-                          )}
-                          {visibleColumns.orderVideo && (
-                            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Order Video</th>
-                          )}
-                          {visibleColumns.acceptanceFile && (
-                            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Acceptance File Upload</th>
-                          )}
-                          {visibleColumns.orderRemark && (
-                            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Remark</th>
-                          )}
-                          {visibleColumns.apologyVideo && (
-                            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Order Lost Apology Video</th>
-                          )}
-                          {visibleColumns.reasonStatus && (
-                            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">If No Then Get Relevant Reason Status</th>
-                          )}
-                          {visibleColumns.reasonRemark && (
-                            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">If No Then Get Relevant Reason Remark</th>
-                          )}
-                          {visibleColumns.holdReason && (
-                            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Customer Order Hold Reason Category</th>
-                          )}
-                          {visibleColumns.holdingDate && (
-                            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Holding Date</th>
-                          )}
-                          {visibleColumns.holdRemark && (
-                            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Hold Remark</th>
-                          )}
-                        </tr>
-                      </thead>
-                      <tbody className="bg-white divide-y divide-gray-200">
-                        {filteredHistoryCallTrackers.length > 0 ? (
-                          filteredHistoryCallTrackers.map((tracker) => (
-                            <tr key={tracker.id} className="hover:bg-slate-50">
-                              {visibleColumns.timestamp && (
-                                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{tracker.timestamp}</td>
-                              )}
-                              {visibleColumns.enquiryNo && (
-                                <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">{tracker.enquiryNo}</td>
-                              )}
-                              {visibleColumns.enquiryStatus && (
-                                <td className="px-6 py-4 whitespace-nowrap">
-                                  <span
-                                    className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${tracker.priority === "High"
-                                      ? "bg-red-100 text-red-800"
-                                      : tracker.priority === "Medium"
-                                        ? "bg-blue-100 text-blue-800"
-                                        : "bg-slate-100 text-slate-800"
-                                      }`}
-                                  >
-                                    {tracker.enquiryStatus}
-                                  </span>
-                                </td>
-                              )}
-                              {visibleColumns.customerFeedback && (
-                                <td className="px-6 py-4 text-sm text-gray-500 max-w-[200px] truncate" title={tracker.customerFeedback}>{tracker.customerFeedback}</td>
-                              )}
-                              {visibleColumns.currentStage && (
-                                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{tracker.currentStage}</td>
-                              )}
-                              {visibleColumns.sendQuotationNo && (
-                                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{tracker.sendQuotationNo}</td>
-                              )}
-                              {visibleColumns.quotationSharedBy && (
-                                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{tracker.quotationSharedBy}</td>
-                              )}
-                              {visibleColumns.quotationNumber && (
-                                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{tracker.quotationNumber}</td>
-                              )}
-                              {visibleColumns.valueWithoutTax && (
-                                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{tracker.valueWithoutTax}</td>
-                              )}
-                              {visibleColumns.valueWithTax && (
-                                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{tracker.valueWithTax}</td>
-                              )}
-                              {visibleColumns.quotationUpload && (
-                                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                                  {tracker.quotationUpload && (
-                                    <a
-                                      href={tracker.quotationUpload}
-                                      target="_blank"
-                                      rel="noopener noreferrer"
-                                      className="text-blue-600 hover:underline"
-                                    >
-                                      View File
-                                    </a>
-                                  )}
-                                </td>
-                              )}
-                              {visibleColumns.quotationRemarks && (
-                                <td className="px-6 py-4 text-sm text-gray-500 max-w-[200px] truncate" title={tracker.quotationRemarks}>{tracker.quotationRemarks}</td>
-                              )}
-                              {visibleColumns.validatorName && (
-                                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{tracker.validatorName}</td>
-                              )}
-                              {visibleColumns.sendStatus && (
-                                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{tracker.sendStatus}</td>
-                              )}
-                              {visibleColumns.validationRemark && (
-                                <td className="px-6 py-4 text-sm text-gray-500 max-w-[200px] truncate" title={tracker.validationRemark}>{tracker.validationRemark}</td>
-                              )}
-                              {visibleColumns.faqVideo && (
-                                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{tracker.faqVideo}</td>
-                              )}
-                              {visibleColumns.productVideo && (
-                                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{tracker.productVideo}</td>
-                              )}
-                              {visibleColumns.offerVideo && (
-                                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{tracker.offerVideo}</td>
-                              )}
-                              {visibleColumns.productCatalog && (
-                                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{tracker.productCatalog}</td>
-                              )}
-                              {visibleColumns.productImage && (
-                                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{tracker.productImage}</td>
-                              )}
-                              {visibleColumns.nextCallDate && (
-                                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{tracker.nextCallDate}</td>
-                              )}
-                              {visibleColumns.nextCallTime && (
-                                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{tracker.nextCallTime}</td>
-                              )}
-                              {visibleColumns.orderStatus && (
-                                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{tracker.orderStatus}</td>
-                              )}
-                              {visibleColumns.acceptanceVia && (
-                                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{tracker.acceptanceVia}</td>
-                              )}
-                              {visibleColumns.paymentMode && (
-                                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{tracker.paymentMode}</td>
-                              )}
-                              {visibleColumns.paymentTerms && (
-                                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{tracker.paymentTerms}</td>
-                              )}
-                              {visibleColumns.transportMode && (
-                                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{tracker.transportMode}</td>
-                              )}
-                              {visibleColumns.registrationFrom && (
-                                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{tracker.registrationFrom}</td>
-                              )}
-                              {visibleColumns.orderVideo && (
-                                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{tracker.orderVideo}</td>
-                              )}
-                              {visibleColumns.acceptanceFile && (
-                                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                                  {tracker.acceptanceFile && (
-                                    <a
-                                      href={tracker.acceptanceFile}
-                                      target="_blank"
-                                      rel="noopener noreferrer"
-                                      className="text-blue-600 hover:underline"
-                                    >
-                                      View File
-                                    </a>
-                                  )}
-                                </td>
-                              )}
-                              {visibleColumns.orderRemark && (
-                                <td className="px-6 py-4 text-sm text-gray-500 max-w-[200px] truncate" title={tracker.orderRemark}>{tracker.orderRemark}</td>
-                              )}
-                              {visibleColumns.apologyVideo && (
-                                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                                  {tracker.apologyVideo && (
-                                    <a href={tracker.apologyVideo} target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:underline">
-                                      View Video
-                                    </a>
-                                  )}
-                                </td>
-                              )}
-                              {visibleColumns.reasonStatus && (
-                                <td className="px-6 py-4 text-sm text-gray-500 max-w-[200px] truncate" title={tracker.reasonStatus}>{tracker.reasonStatus}</td>
-                              )}
-                              {visibleColumns.reasonRemark && (
-                                <td className="px-6 py-4 text-sm text-gray-500 max-w-[200px] truncate" title={tracker.reasonRemark}>{tracker.reasonRemark}</td>
-                              )}
-                              {visibleColumns.holdReason && (
-                                <td className="px-6 py-4 text-sm text-gray-500 max-w-[200px] truncate" title={tracker.holdReason}>{tracker.holdReason}</td>
-                              )}
-                              {visibleColumns.holdingDate && (
-                                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{tracker.holdingDate}</td>
-                              )}
-                              {visibleColumns.holdRemark && (
-                                <td className="px-6 py-4 text-sm text-gray-500 max-w-[200px] truncate" title={tracker.holdRemark}>{tracker.holdRemark}</td>
-                              )}
-                            </tr>
-                          ))
-                        ) : (
-                          <tr>
-                            <td colSpan={Object.values(visibleColumns).filter(Boolean).length} className="px-6 py-4 text-center text-sm text-slate-500">
-                              No history found
-                            </td>
-                          </tr>
-                        )}
-                      </tbody>
-                    </table>
-                  </div>
-                </div>
-              )}
-            </>
-          )}
-        </div>
-      </div>
-
-      {/* New Call Tracker Form Modal */}
+      {/* ── New Enquiry Modal ── */}
       {showNewCallTrackerForm && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-lg shadow-xl max-w-2xl w-full max-h-[90vh] overflow-y-auto">
-            <div className="p-6 border-b">
-              <div className="flex justify-between items-center">
-                <h2 className="text-xl font-bold">New Call Tracker</h2>
-                <button onClick={() => setShowNewCallTrackerForm(false)} className="text-gray-500 hover:text-gray-700">
-                  <svg
-                    xmlns="http://www.w3.org/2000/svg"
-                    className="h-6 w-6"
-                    fill="none"
-                    viewBox="0 0 24 24"
-                    stroke="currentColor"
-                  >
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                  </svg>
-                </button>
-              </div>
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
+          <div className="bg-white rounded-lg shadow-xl w-full max-w-5xl h-[90vh] overflow-hidden relative flex flex-col">
+            <button
+              onClick={() => setShowNewCallTrackerForm(false)}
+              className="absolute top-4 right-4 text-gray-500 hover:text-gray-700 z-10 p-2 bg-white rounded-full shadow-sm"
+              style={{ zIndex: 60 }}
+            >
+              <XIcon className="h-6 w-6" />
+            </button>
+            <div className="flex-1 overflow-hidden">
+              <CallTrackerForm
+                onClose={() => { setShowNewCallTrackerForm(false); fetchNBDEnquiryData() }}
+              />
             </div>
-            <CallTrackerForm />
           </div>
         </div>
       )}
 
-      {/* View Popup Modal */}
-      {showPopup && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center">
-          <div
-            className={`absolute inset-0 bg-black/50 backdrop-blur-sm ${fadeIn}`}
-            onClick={() => setShowPopup(false)}
-          ></div>
-          <div
-            className={`relative bg-white rounded-lg shadow-xl w-full max-w-3xl max-h-[90vh] overflow-auto ${slideIn}`}
-          >
-            <div className="sticky top-0 bg-white border-b p-4 flex justify-between items-center">
-              <h3 className="text-lg font-bold text-gray-900">
-                {activeTab === "pending" || activeTab === "directEnquiry"
-                  ? `Call Tracker Details: ${selectedTracker?.leadId}`
-                  : `Call Tracker History: ${selectedTracker?.enquiryNo}`}
-              </h3>
+      {/* ── View Details Modal ── */}
+      {showViewModal && viewRow && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
+          <div className="bg-white rounded-lg shadow-xl w-full max-w-2xl max-h-[90vh] overflow-y-auto relative">
+            <div className="flex justify-between items-center p-6 border-b sticky top-0 bg-white z-10">
+              <div>
+                <h2 className="text-lg font-bold text-gray-800">Enquiry Details</h2>
+                <p className="text-sm text-sky-600 font-medium mt-0.5">
+                  {viewRow["Enquiry No."] || viewRow["Enquiry No"] || ""}
+                </p>
+              </div>
               <button
-                onClick={() => setShowPopup(false)}
-                className="text-gray-500 hover:text-gray-700 focus:outline-none"
+                onClick={() => { setShowViewModal(false); setViewRow(null) }}
+                className="text-gray-400 hover:text-gray-600 p-1"
               >
-                <svg
-                  xmlns="http://www.w3.org/2000/svg"
-                  className="h-6 w-6"
-                  fill="none"
-                  viewBox="0 0 24 24"
-                  stroke="currentColor"
-                >
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                </svg>
+                <XIcon className="h-6 w-6" />
               </button>
             </div>
-
-            <div className="p-6 space-y-6">
-              {activeTab === "pending" || activeTab === "directEnquiry" ? (
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                  {/* Column B - Lead ID */}
-                  <div className="space-y-2">
-                    <p className="text-sm font-medium text-gray-500">Lead Number</p>
-                    <p className="text-base font-semibold">{selectedTracker?.leadId}</p>
+            <div className="p-6 space-y-1">
+              {ALL_COLUMNS.map((col) => {
+                const val = viewRow[col]
+                const isLink = col === "Upload File" && val && (val.startsWith("http://") || val.startsWith("https://"))
+                return (
+                  <div key={col} className="grid grid-cols-5 border-b border-gray-50 py-2 gap-2">
+                    <span className="col-span-2 font-medium text-gray-500 text-sm">{col}</span>
+                    <span className="col-span-3 text-gray-800 text-sm font-medium break-words">
+                      {isLink ? (
+                        <a
+                          href={val}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="text-sky-600 underline hover:text-sky-800 transition-colors"
+                        >
+                          View File ↗
+                        </a>
+                      ) : val ? val : <span className="text-gray-300">—</span>}
+                    </span>
                   </div>
-
-                  {/* Column C - Receiver Name */}
-                  <div className="space-y-2">
-                    <p className="text-sm font-medium text-gray-500">Lead Receiver Name</p>
-                    <p className="text-base">{selectedTracker?.receiverName}</p>
-                  </div>
-
-                  {/* Column D - Lead Source */}
-                  <div className="space-y-2">
-                    <p className="text-sm font-medium text-gray-500">Lead Source</p>
-                    <p className="text-base">
-                      <span
-                        className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${selectedTracker?.priority === "High"
-                          ? "bg-red-100 text-red-800"
-                          : selectedTracker?.priority === "Medium"
-                            ? "bg-blue-100 text-blue-800"
-                            : "bg-slate-100 text-slate-800"
-                          }`}
-                      >
-                        {selectedTracker?.leadSource}
-                      </span>
-                    </p>
-                  </div>
-
-                  {/* Column E - Salesperson Name */}
-                  <div className="space-y-2">
-                    <p className="text-sm font-medium text-gray-500">Salesperson Name</p>
-                    <p className="text-base">{selectedTracker?.salespersonName}</p>
-                  </div>
-
-                  {/* Column G - Company Name */}
-                  <div className="space-y-2">
-                    <p className="text-sm font-medium text-gray-500">Company Name</p>
-                    <p className="text-base">{selectedTracker?.companyName}</p>
-                  </div>
-
-                  {/* Created Date */}
-                  <div className="space-y-2">
-                    <p className="text-sm font-medium text-gray-500">Created Date</p>
-                    <p className="text-base">{selectedTracker?.createdAt}</p>
-                  </div>
-
-                  {/* Status */}
-                  <div className="space-y-2">
-                    <p className="text-sm font-medium text-gray-500">Status</p>
-                    <p className="text-base">{selectedTracker?.status}</p>
-                  </div>
-
-                  {/* Priority */}
-                  <div className="space-y-2">
-                    <p className="text-sm font-medium text-gray-500">Priority</p>
-                    <p className="text-base">
-                      <span
-                        className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${selectedTracker?.priority === "High"
-                          ? "bg-red-100 text-red-800"
-                          : selectedTracker?.priority === "Medium"
-                            ? "bg-blue-100 text-blue-800"
-                            : "bg-slate-100 text-slate-800"
-                          }`}
-                      >
-                        {selectedTracker?.priority}
-                      </span>
-                    </p>
-                  </div>
-
-                  {/* Stage */}
-                  <div className="space-y-2">
-                    <p className="text-sm font-medium text-gray-500">Stage</p>
-                    <p className="text-base">{selectedTracker?.stage}</p>
-                  </div>
-                </div>
-              ) : (
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                  {/* Enquiry No */}
-                  <div className="space-y-2">
-                    <p className="text-sm font-medium text-gray-500">Enquiry No.</p>
-                    <p className="text-base font-semibold">{selectedTracker?.enquiryNo}</p>
-                  </div>
-
-                  {/* Timestamp */}
-                  <div className="space-y-2">
-                    <p className="text-sm font-medium text-gray-500">Timestamp</p>
-                    <p className="text-base">{selectedTracker?.timestamp}</p>
-                  </div>
-
-                  {/* Enquiry Status */}
-                  <div className="space-y-2">
-                    <p className="text-sm font-medium text-gray-500">Enquiry Status</p>
-                    <p className="text-base">
-                      <span
-                        className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${selectedTracker?.priority === "High"
-                          ? "bg-red-100 text-red-800"
-                          : selectedTracker?.priority === "Medium"
-                            ? "bg-blue-100 text-blue-800"
-                            : "bg-slate-100 text-slate-800"
-                          }`}
-                      >
-                        {selectedTracker?.enquiryStatus}
-                      </span>
-                    </p>
-                  </div>
-
-                  {/* Current Stage */}
-                  <div className="space-y-2">
-                    <p className="text-sm font-medium text-gray-500">Current Stage</p>
-                    <p className="text-base">{selectedTracker?.currentStage}</p>
-                  </div>
-
-                  {/* Next Call Date */}
-                  <div className="space-y-2">
-                    <p className="text-sm font-medium text-gray-500">Next Call Date</p>
-                    <p className="text-base">{selectedTracker?.nextCallDate}</p>
-                  </div>
-
-                  {/* Next Call Time */}
-                  <div className="space-y-2">
-                    <p className="text-sm font-medium text-gray-500">Next Call Time</p>
-                    <p className="text-base">{selectedTracker?.nextCallTime}</p>
-                  </div>
-
-                  {/* Holding Date */}
-                  <div className="space-y-2">
-                    <p className="text-sm font-medium text-gray-500">Holding Date</p>
-                    <p className="text-base">{selectedTracker?.holdingDate}</p>
-                  </div>
-
-                  {/* Order Status */}
-                  <div className="space-y-2">
-                    <p className="text-sm font-medium text-gray-500">Order Status</p>
-                    <p className="text-base">{selectedTracker?.orderStatus}</p>
-                  </div>
-
-                  {/* Payment Mode */}
-                  <div className="space-y-2">
-                    <p className="text-sm font-medium text-gray-500">Payment Mode</p>
-                    <p className="text-base">{selectedTracker?.paymentMode}</p>
-                  </div>
-
-                  {/* Payment Terms */}
-                  <div className="space-y-2">
-                    <p className="text-sm font-medium text-gray-500">Payment Terms</p>
-                    <p className="text-base">{selectedTracker?.paymentTerms}</p>
-                  </div>
-                </div>
-              )}
-
-              {/* Customer Feedback - Full width */}
-              <div className="space-y-2">
-                <p className="text-sm font-medium text-gray-500">What Did Customer Say</p>
-                <div className="p-4 bg-gray-50 rounded-md">
-                  <p className="text-base">
-                    {activeTab === "pending" || activeTab === "directEnquiry"
-                      ? "No feedback yet"
-                      : selectedTracker?.customerFeedback}
-                  </p>
-                </div>
-              </div>
+                )
+              })}
             </div>
 
-            <div className="border-t p-4 flex justify-end space-x-3">
+            {/* ── Call Tracker Details Section ── */}
+            {(trackerDetails || viewRow["Current Stage"] || viewRow["Tracker Status"]) && (
+              <div className="px-6 pb-6 mt-4">
+                <div className="rounded-xl border border-indigo-100 bg-indigo-50/60 overflow-hidden shadow-sm">
+                  <div className="flex items-center gap-2 px-4 py-3 bg-indigo-600">
+                    <svg className="h-4 w-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 5a2 2 0 012-2h3.28a1 1 0 01.948.684l1.498 4.493a1 1 0 01-.502 1.21l-2.257 1.13a11.042 11.042 0 005.516 5.516l1.13-2.257a1 1 0 011.21-.502l4.493 1.498a1 1 0 01.684.949V19a2 2 0 01-2 2h-1C9.716 21 3 14.284 3 6V5z" />
+                    </svg>
+                    <span className="text-[13px] font-bold text-white uppercase tracking-wide">Call Tracker Details</span>
+                  </div>
+                  <div className="p-4 grid grid-cols-1 gap-3">
+                    {/* Status */}
+                    <div className="grid grid-cols-5 gap-2 border-b border-indigo-100 pb-2">
+                      <span className="col-span-2 text-[13px] font-medium text-indigo-700">Status</span>
+                      <span className="col-span-3 text-[13px] font-semibold text-slate-800">
+                        {trackerDetails?.status || <span className="text-slate-300">—</span>}
+                      </span>
+                    </div>
+
+                    {/* Current Stage */}
+                    <div className="grid grid-cols-5 gap-2 border-b border-indigo-100 pb-2">
+                      <span className="col-span-2 text-[13px] font-medium text-indigo-700">Current Stage</span>
+                      <span className="col-span-3 text-[13px] font-semibold text-slate-800">
+                        {trackerDetails?.currentStage || viewRow["Current Stage"] || <span className="text-slate-300">—</span>}
+                      </span>
+                    </div>
+
+                    {/* What Did the Customer say */}
+                    <div className="grid grid-cols-5 gap-2 border-b border-indigo-100 pb-2">
+                      <span className="col-span-2 text-[13px] font-medium text-indigo-700">What Did the Customer say</span>
+                      <span className="col-span-3 text-[13px] font-semibold text-slate-800 break-words italic">
+                        {trackerDetails?.customerSay || <span className="text-slate-300">—</span>}
+                      </span>
+                    </div>
+
+                    {/* Next Date of Call */}
+                    <div className="grid grid-cols-5 gap-2 border-b border-indigo-100 pb-2">
+                      <span className="col-span-2 text-[13px] font-medium text-indigo-700">Next Date of Call</span>
+                      <span className="col-span-3 text-[13px] font-semibold text-slate-800">
+                        {trackerDetails?.nextDateOfCall || <span className="text-slate-300">—</span>}
+                      </span>
+                    </div>
+
+                    {/* Order Received */}
+                    <div className="grid grid-cols-5 gap-2">
+                      <span className="col-span-2 text-[13px] font-medium text-indigo-700">Order Received</span>
+                      <span className="col-span-3">
+                        {trackerDetails?.orderRecived || viewRow["Tracker Status"] ? (
+                          <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-[12px] font-semibold ${(trackerDetails?.orderRecived || viewRow["Tracker Status"]) === "Yes"
+                            ? "bg-emerald-100 text-emerald-700"
+                            : (trackerDetails?.orderRecived || viewRow["Tracker Status"]) === "Tracker No" || (trackerDetails?.orderRecived || viewRow["Tracker Status"]) === "No"
+                              ? "bg-rose-100 text-rose-700"
+                              : "bg-slate-100 text-slate-600"
+                            }`}>
+                            {trackerDetails?.orderRecived || viewRow["Tracker Status"]}
+                          </span>
+                        ) : <span className="text-slate-300 text-[13px]">—</span>}
+                      </span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            <div className="p-4 border-t flex justify-end">
               <button
-                onClick={() => setShowPopup(false)}
-                className="px-4 py-2 border border-gray-300 rounded-md text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-sky-500"
+                onClick={() => { setShowViewModal(false); setViewRow(null) }}
+                className="px-4 py-2 bg-gray-100 text-gray-700 rounded-md hover:bg-gray-200 text-sm"
               >
                 Close
               </button>
-              {(activeTab === "pending" || activeTab === "directEnquiry") && (
-                <Link to={`/call-tracker/new?leadId=${selectedTracker?.leadId}`}>
-                  <button className="px-4 py-2 bg-gradient-to-r from-sky-600 to-blue-600 hover:from-sky-700 hover:to-blue-700 text-white font-medium rounded-md focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-sky-500">
-                    Process <ArrowRightIcon className="ml-1 h-4 w-4 inline" />
-                  </button>
-                </Link>
-              )}
             </div>
           </div>
         </div>
       )}
+
+
+      {/* ── Call Tracker Modal ── */}
+      {showCallTrackerModal && callTrackerRow && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 modal-backdrop p-4">
+          <div className="bg-white rounded-2xl shadow-2xl shadow-black/15 w-full max-w-lg animate-scale-in">
+            {/* Header */}
+            <div className="flex justify-between items-start p-6 border-b border-slate-100">
+              <div>
+                <div className="flex items-center gap-2 mb-1">
+                  <div className="h-8 w-8 rounded-lg bg-indigo-100 flex items-center justify-center">
+                    <svg className="h-4 w-4 text-indigo-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 5a2 2 0 012-2h3.28a1 1 0 01.948.684l1.498 4.493a1 1 0 01-.502 1.21l-2.257 1.13a11.042 11.042 0 005.516 5.516l1.13-2.257a1 1 0 011.21-.502l4.493 1.498a1 1 0 01.684.949V19a2 2 0 01-2 2h-1C9.716 21 3 14.284 3 6V5z" />
+                    </svg>
+                  </div>
+                  <h2 className="text-[16px] font-bold text-slate-800">Call Tracker</h2>
+                </div>
+                <p className="text-[12px] text-slate-500 pl-10">
+                  {callTrackerRow["Firm Name"] || ""}
+                  {" · "}
+                  <span className="text-sky-600 font-semibold">
+                    {callTrackerRow["Enquiry No."] || callTrackerRow["Enquiry No"] || ""}
+                  </span>
+                </p>
+              </div>
+              <button
+                onClick={() => { setShowCallTrackerModal(false); setCallTrackerRow(null) }}
+                className="text-slate-400 hover:text-slate-600 hover:bg-slate-100 p-1.5 rounded-lg transition-colors"
+              >
+                <XIcon className="h-5 w-5" />
+              </button>
+            </div>
+
+            {/* Form */}
+            <form onSubmit={handleCallTrackerSubmit} className="p-6 space-y-4">
+
+              {/* Current Stage */}
+              <div>
+                <label className="block text-[11px] font-semibold text-slate-500 uppercase tracking-wide mb-1.5">
+                  Current Stage <span className="text-red-400 normal-case tracking-normal">*</span>
+                </label>
+                <select
+                  value={callTrackerForm.currentStage}
+                  onChange={(e) => setCallTrackerForm(p => ({ ...p, currentStage: e.target.value }))}
+                  className="w-full h-10 px-3 border border-slate-300 rounded-xl text-[13px] text-slate-800 bg-white focus:outline-none focus:ring-2 focus:ring-sky-500 focus:border-sky-500 transition-all"
+                  required
+                >
+                  <option value="">Select Stage</option>
+                  {(() => {
+                    const baseOptions = masterStageOptions.length > 0
+                      ? masterStageOptions
+                      : ["Initial Contact", "Qualified", "Proposal Sent", "Negotiation", "Closed Won", "Closed Lost"]
+                    // Ensure the pre-filled value is always available as an option
+                    const prefill = callTrackerForm.currentStage
+                    const allOptions = prefill && !baseOptions.includes(prefill)
+                      ? [prefill, ...baseOptions]
+                      : baseOptions
+                    return allOptions.map((opt, i) => <option key={i} value={opt}>{opt}</option>)
+                  })()}
+                </select>
+              </div>
+
+              {/* Status */}
+              <div>
+                <label className="block text-[11px] font-semibold text-slate-500 uppercase tracking-wide mb-1.5">
+                  Status
+                </label>
+                <select
+                  value={callTrackerForm.status}
+                  onChange={(e) => setCallTrackerForm(p => ({ ...p, status: e.target.value }))}
+                  className="w-full h-10 px-3 border border-slate-300 rounded-xl text-[13px] text-slate-800 bg-white focus:outline-none focus:ring-2 focus:ring-sky-500 focus:border-sky-500 transition-all"
+                >
+                  <option value="">Select Status</option>
+                  {masterStatusOptions.map((opt, i) => (<option key={i} value={opt}>{opt}</option>))}
+                </select>
+              </div>
+
+              {/* What Did the Customer Say */}
+              <div>
+                <label className="block text-[11px] font-semibold text-slate-500 uppercase tracking-wide mb-1.5">
+                  What Did the Customer Say <span className="text-red-400 normal-case tracking-normal">*</span>
+                </label>
+                <textarea
+                  value={callTrackerForm.customerSay}
+                  onChange={(e) => setCallTrackerForm(p => ({ ...p, customerSay: e.target.value }))}
+                  rows={3}
+                  className="w-full px-3 py-2.5 border border-slate-300 rounded-xl text-[13px] text-slate-800 bg-white focus:outline-none focus:ring-2 focus:ring-sky-500 focus:border-sky-500 resize-none transition-all"
+                  placeholder="Enter customer feedback or remarks..."
+                  required
+                />
+              </div>
+
+              {/* Order Received */}
+              <div>
+                <label className="block text-[11px] font-semibold text-slate-500 uppercase tracking-wide mb-1.5">
+                  Order Received
+                </label>
+                <select
+                  value={callTrackerForm.orderReceived}
+                  onChange={(e) => setCallTrackerForm(p => ({ ...p, orderReceived: e.target.value }))}
+                  className="w-full h-10 px-3 border border-slate-300 rounded-xl text-[13px] text-slate-800 bg-white focus:outline-none focus:ring-2 focus:ring-sky-500 focus:border-sky-500 transition-all"
+                >
+                  <option value="">Select Status</option>
+                  <option value="Yes">Yes</option>
+                  <option value="No">No</option>
+                  <option value="Pending">Pending</option>
+                </select>
+              </div>
+
+              {/* Next Date of Call — only when Order Received = Pending */}
+              {callTrackerForm.orderReceived === "Pending" && (
+                <div>
+                  <label className="block text-[11px] font-semibold text-slate-500 uppercase tracking-wide mb-1.5">
+                    Next Date of Call
+                  </label>
+                  <input
+                    type="date"
+                    value={callTrackerForm.nextCallDate}
+                    onChange={(e) => setCallTrackerForm(p => ({ ...p, nextCallDate: e.target.value }))}
+                    className="w-full h-10 px-3 border border-slate-300 rounded-xl text-[13px] text-slate-800 bg-white focus:outline-none focus:ring-2 focus:ring-sky-500 focus:border-sky-500 transition-all"
+                  />
+                </div>
+              )}
+
+              {/* Buttons */}
+              <div className="flex justify-end gap-3 pt-3 border-t border-slate-100">
+                <button
+                  type="button"
+                  onClick={() => { setShowCallTrackerModal(false); setCallTrackerRow(null) }}
+                  className="h-10 px-5 border border-slate-300 rounded-xl text-[13px] font-semibold text-slate-600 hover:bg-slate-50 transition-colors"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  disabled={isSubmitting}
+                  className="h-10 px-6 bg-indigo-600 hover:bg-indigo-700 disabled:opacity-50 text-white rounded-xl font-semibold text-[13px] flex items-center gap-2 shadow-md shadow-indigo-200 transition-colors"
+                >
+                  {isSubmitting && <div className="animate-spin rounded-full h-3.5 w-3.5 border-2 border-white/40 border-t-white"></div>}
+                  {isSubmitting ? "Submitting..." : "Submit"}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* ── Cancel Order Modal ── */}
+      {showCancelModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 modal-backdrop p-4">
+          <div className="bg-white rounded-2xl shadow-2xl shadow-black/15 w-full max-w-md animate-scale-in">
+            {/* Header */}
+            <div className="flex justify-between items-center p-6 border-b border-slate-100">
+              <div className="flex items-center gap-2">
+                <div className="h-8 w-8 rounded-lg bg-rose-100 flex items-center justify-center">
+                  <XIcon className="h-4 w-4 text-rose-600" />
+                </div>
+                <h2 className="text-[16px] font-bold text-slate-800">Cancel Order Form</h2>
+              </div>
+              <button
+                onClick={() => setShowCancelModal(false)}
+                className="text-slate-400 hover:text-slate-600 hover:bg-slate-100 p-1.5 rounded-lg transition-colors"
+              >
+                <XIcon className="h-5 w-5" />
+              </button>
+            </div>
+
+            {/* Form */}
+            <form onSubmit={handleCancelSubmit} className="p-6 space-y-4">
+              <div>
+                <label className="block text-[11px] font-semibold text-slate-500 uppercase tracking-wide mb-1.5">
+                  Name Of The Person
+                </label>
+                <input
+                  type="text"
+                  value={cancelModalForm.personName}
+                  onChange={(e) => setCancelModalForm((p) => ({ ...p, personName: e.target.value }))}
+                  className="w-full h-10 px-3 border border-slate-300 rounded-xl text-[13px] text-slate-800 bg-white focus:outline-none focus:ring-2 focus:ring-rose-500 focus:border-rose-500 transition-all"
+                  required
+                />
+              </div>
+
+              <div>
+                <label className="block text-[11px] font-semibold text-slate-500 uppercase tracking-wide mb-1.5">
+                  Order No.
+                </label>
+                <input
+                  type="text"
+                  value={cancelModalForm.orderNo}
+                  onChange={(e) => setCancelModalForm((p) => ({ ...p, orderNo: e.target.value }))}
+                  className="w-full h-10 px-3 border border-slate-300 rounded-xl text-[13px] text-slate-800 bg-slate-50 focus:outline-none focus:ring-2 focus:ring-rose-500 focus:border-rose-500 transition-all cursor-not-allowed"
+                  readOnly
+                />
+              </div>
+
+              <div>
+                <label className="block text-[11px] font-semibold text-slate-500 uppercase tracking-wide mb-1.5">
+                  FMS Name
+                </label>
+                <input
+                  type="text"
+                  value={cancelModalForm.fmsName}
+                  onChange={(e) => setCancelModalForm((p) => ({ ...p, fmsName: e.target.value }))}
+                  className="w-full h-10 px-3 border border-slate-300 rounded-xl text-[13px] text-slate-800 bg-slate-50 focus:outline-none focus:ring-2 focus:ring-rose-500 focus:border-rose-500 transition-all cursor-not-allowed"
+                  readOnly
+                />
+              </div>
+
+              <div>
+                <label className="block text-[11px] font-semibold text-slate-500 uppercase tracking-wide mb-1.5">
+                  Order Cancel Qty <span className="text-red-400 normal-case tracking-normal">*</span>
+                </label>
+                <input
+                  type="number"
+                  value={cancelModalForm.cancelQty}
+                  onChange={(e) => setCancelModalForm((p) => ({ ...p, cancelQty: e.target.value }))}
+                  className="w-full h-10 px-3 border border-slate-300 rounded-xl text-[13px] text-slate-800 bg-white focus:outline-none focus:ring-2 focus:ring-rose-500 focus:border-rose-500 transition-all"
+                  required
+                />
+              </div>
+
+              {/* Buttons */}
+              <div className="flex justify-end gap-3 pt-3 border-t border-slate-100">
+                <button
+                  type="button"
+                  onClick={() => setShowCancelModal(false)}
+                  className="h-10 px-5 border border-slate-300 rounded-xl text-[13px] font-semibold text-slate-600 hover:bg-slate-50 transition-colors"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  disabled={isSubmitting}
+                  className="h-10 px-6 bg-rose-600 hover:bg-rose-700 disabled:opacity-50 text-white rounded-xl font-semibold text-[13px] flex items-center gap-2 shadow-md shadow-rose-200 transition-colors"
+                >
+                  {isSubmitting && <div className="animate-spin rounded-full h-3.5 w-3.5 border-2 border-white/40 border-t-white"></div>}
+                  {isSubmitting ? "Submitting..." : "Submit Cancel"}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* ── Tab Bar ── */}
+      <div className="flex items-center gap-1 mb-4 bg-white border border-slate-200 rounded-xl p-1 w-fit shadow-sm">
+        <button
+          onClick={() => setActiveTab("all")}
+          className={`flex items-center gap-2 px-4 py-2 rounded-lg text-[13px] font-semibold transition-all duration-150 ${activeTab === "all"
+            ? "bg-sky-600 text-white shadow-sm shadow-sky-200"
+            : "text-slate-500 hover:text-slate-700 hover:bg-slate-50"
+            }`}
+        >
+          <svg className="h-3.5 w-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
+          </svg>
+          All Enquiry
+          <span className={`text-[11px] px-2 py-0.5 rounded-full font-bold ${activeTab === "all" ? "bg-white/25 text-white" : "bg-slate-100 text-slate-600"
+            }`}>
+            {enquiryRows.length}
+          </span>
+        </button>
+        <button
+          onClick={() => setActiveTab("callTracker")}
+          className={`flex items-center gap-2 px-4 py-2 rounded-lg text-[13px] font-semibold transition-all duration-150 ${activeTab === "callTracker"
+            ? "bg-indigo-600 text-white shadow-sm shadow-indigo-200"
+            : "text-slate-500 hover:text-slate-700 hover:bg-slate-50"
+            }`}
+        >
+          <svg className="h-3.5 w-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 5a2 2 0 012-2h3.28a1 1 0 01.948.684l1.498 4.493a1 1 0 01-.502 1.21l-2.257 1.13a11.042 11.042 0 005.516 5.516l1.13-2.257a1 1 0 011.21-.502l4.493 1.498a1 1 0 01.684.949V19a2 2 0 01-2 2h-1C9.716 21 3 14.284 3 6V5z" />
+          </svg>
+          Call Tracker
+          <span className={`text-[11px] px-2 py-0.5 rounded-full font-bold ${activeTab === "callTracker" ? "bg-white/25 text-white" : "bg-slate-100 text-slate-600"
+            }`}>
+            {enquiryRows.length}
+          </span>
+        </button>
+        <button
+          onClick={() => setActiveTab("orderReceived")}
+          className={`flex items-center gap-2 px-4 py-2 rounded-lg text-[13px] font-semibold transition-all duration-150 ${activeTab === "orderReceived"
+            ? "bg-emerald-600 text-white shadow-sm shadow-emerald-200"
+            : "text-slate-500 hover:text-slate-700 hover:bg-slate-50"
+            }`}
+        >
+          <svg className="h-3.5 w-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+          </svg>
+          Order Received
+          <span className={`text-[11px] px-2 py-0.5 rounded-full font-bold ${activeTab === "orderReceived" ? "bg-white/25 text-white" : "bg-slate-100 text-slate-600"
+            }`}>
+            {enquiryRows.filter(r => String(r["Tracker Status"] || "").trim() === "Yes").length}
+          </span>
+        </button>
+        <button
+          onClick={() => setActiveTab("orderNotReceived")}
+          className={`flex items-center gap-2 px-4 py-2 rounded-lg text-[13px] font-semibold transition-all duration-150 ${activeTab === "orderNotReceived"
+            ? "bg-rose-600 text-white shadow-sm shadow-rose-200"
+            : "text-slate-500 hover:text-slate-700 hover:bg-slate-50"
+            }`}
+        >
+          <svg className="h-3.5 w-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 14l2-2m0 0l2-2m-2 2l-2-2m2 2l2 2m7-2a9 9 0 11-18 0 9 9 0 0118 0z" />
+          </svg>
+          Order Not Received
+          <span className={`text-[11px] px-2 py-0.5 rounded-full font-bold ${activeTab === "orderNotReceived" ? "bg-white/25 text-white" : "bg-slate-100 text-slate-600"
+            }`}>
+            {enquiryRows.filter(r => String(r["Tracker Status"] || "").trim() === "Tracker No" || String(r["Tracker Status"] || "").trim() === "No").length}
+          </span>
+        </button>
+      </div>
+
+      {/* ── Main Table ── */}
+      <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
+        {/* Table Header Bar */}
+        <div className="px-6 py-4 border-b border-slate-100 flex items-center justify-between bg-slate-50/60">
+          <div>
+            <h2 className="text-[15px] font-bold text-slate-800">
+              {activeTab === "all" ? "All Enquiry"
+                : activeTab === "callTracker" ? "Call Tracker"
+                  : activeTab === "orderReceived" ? "Order Received"
+                    : "Order Not Received"}
+            </h2>
+            {!isLoading && (
+              <p className="text-[11px] text-slate-400 mt-0.5">
+                {filteredRows.length} record{filteredRows.length !== 1 ? "s" : ""} found
+              </p>
+            )}
+          </div>
+        </div>
+
+        {isLoading ? (
+          <div className="flex flex-col justify-center items-center py-20 text-slate-400">
+            <div className="animate-spin rounded-full h-7 w-7 border-2 border-slate-200 border-t-sky-500 mb-3"></div>
+            <p className="text-[13px] font-medium">Loading from NBD ENQUIRY FMS...</p>
+          </div>
+        ) : (
+          <div className="overflow-x-auto">
+            <table className="min-w-full">
+              <thead>
+                <tr className="bg-slate-50 border-b border-slate-200">
+                  {/* Call button column — only on Call Tracker tab */}
+                  {activeTab === "callTracker" && (
+                    <th className="px-5 py-3.5 text-left text-[11px] font-bold text-indigo-600 uppercase tracking-widest whitespace-nowrap w-24">
+                      Action
+                    </th>
+                  )}
+                  {/* Cancel button column — only on Order Not Received tab */}
+                  {activeTab === "orderNotReceived" && (
+                    <th className="px-5 py-3.5 text-left text-[11px] font-bold text-rose-600 uppercase tracking-widest whitespace-nowrap w-24">
+                      Action
+                    </th>
+                  )}
+                  {TABLE_COLUMNS.map((col) => (
+                    <th
+                      key={col}
+                      className="px-5 py-3.5 text-left text-[11px] font-bold text-slate-500 uppercase tracking-widest whitespace-nowrap"
+                    >
+                      {col}
+                    </th>
+                  ))}
+                  {/* Extra Call Tracker columns for tracker tabs */}
+                  {["callTracker", "orderReceived", "orderNotReceived"].includes(activeTab) &&
+                    CALL_TRACKER_COLUMNS.map((col) => (
+                      <th
+                        key={col}
+                        className="px-5 py-3.5 text-left text-[11px] font-bold text-indigo-500 uppercase tracking-widest whitespace-nowrap"
+                      >
+                        {col}
+                      </th>
+                    ))
+                  }
+                  {/* View chevron column */}
+                  <th className="px-5 py-3.5 w-14"></th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-slate-100">
+                {filteredRows.map((row, index) => (
+                  <tr key={index} className="hover:bg-blue-50/40 transition-colors group">
+                    {/* Call button — first column, only on Call Tracker tab */}
+                    {activeTab === "callTracker" && (
+                      <td className="px-5 py-3.5 whitespace-nowrap">
+                        <button
+                          onClick={() => handleOpenCallTracker(row)}
+                          className="inline-flex items-center gap-1.5 px-3.5 py-1.5 text-[12px] font-semibold bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg shadow-sm shadow-indigo-200 transition-colors"
+                        >
+                          <svg className="h-3 w-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M3 5a2 2 0 012-2h3.28a1 1 0 01.948.684l1.498 4.493a1 1 0 01-.502 1.21l-2.257 1.13a11.042 11.042 0 005.516 5.516l1.13-2.257a1 1 0 011.21-.502l4.493 1.498a1 1 0 01.684.949V19a2 2 0 01-2 2h-1C9.716 21 3 14.284 3 6V5z" />
+                          </svg>
+                          Call
+                        </button>
+                      </td>
+                    )}
+                    {/* Cancel Action button — only on Order Not Received tab */}
+                    {activeTab === "orderNotReceived" && (
+                      <td className="px-5 py-3.5 whitespace-nowrap">
+                        <button
+                          onClick={() => handleOpenCancelModal(row)}
+                          className="inline-flex items-center gap-1.5 px-3.5 py-1.5 text-[12px] font-semibold bg-rose-600 hover:bg-rose-700 text-white rounded-lg shadow-sm shadow-rose-200 transition-colors"
+                        >
+                          Cancel Form
+                        </button>
+                      </td>
+                    )}
+                    {/* Data Cells */}
+                    {TABLE_COLUMNS.map((col) => {
+                      const val = row[col] || ""
+                      return (
+                        <td key={col} className="px-5 py-3.5 whitespace-nowrap" title={val}>
+                          {col === "Enquiry No." ? (
+                            <span className="text-[13px] font-bold text-sky-700 bg-sky-50 px-2.5 py-1 rounded-lg">{val || "—"}</span>
+                          ) : col === "Firm Name" ? (
+                            <span className="text-[13px] font-semibold text-slate-800">{val || <span className="text-slate-300">—</span>}</span>
+                          ) : val ? (
+                            <span className="text-[13px] text-slate-600">{val}</span>
+                          ) : (
+                            <span className="text-slate-300 text-[13px]">—</span>
+                          )}
+                        </td>
+                      )
+                    })}
+                    {/* Extra Call Tracker columns for tracker tabs */}
+                    {["callTracker", "orderReceived", "orderNotReceived"].includes(activeTab) &&
+                      CALL_TRACKER_COLUMNS.map((col) => {
+                        const val = row[col] || ""
+
+                        // ── Current Stage → inline editable dropdown ──
+                        if (col === "Current Stage") {
+                          const isSaving = updatingStage[row._sheetRowIdx]
+                          const baseOpts = masterStageOptions.length > 0
+                            ? masterStageOptions
+                            : ["Initial Contact", "Qualified", "Proposal Sent", "Negotiation", "Closed Won", "Closed Lost"]
+                          const allOpts = val && !baseOpts.includes(val) ? [val, ...baseOpts] : baseOpts
+                          return (
+                            <td key={col} className="px-3 py-2.5 whitespace-nowrap">
+                              <div className="flex items-center gap-1.5">
+                                <select
+                                  value={val}
+                                  disabled={isSaving}
+                                  onChange={(e) => handleInlineStageUpdate(row, e.target.value)}
+                                  onClick={(e) => e.stopPropagation()}
+                                  className="h-8 px-2 pr-6 border border-indigo-200 rounded-lg text-[12px] font-semibold text-indigo-700 bg-indigo-50 hover:bg-indigo-100 focus:outline-none focus:ring-2 focus:ring-indigo-400 disabled:opacity-50 cursor-pointer transition-all"
+                                >
+                                  <option value="">— Select —</option>
+                                  {allOpts.map((opt, i) => <option key={i} value={opt}>{opt}</option>)}
+                                </select>
+                                {isSaving && (
+                                  <div className="animate-spin h-3.5 w-3.5 border-2 border-indigo-300 border-t-indigo-600 rounded-full flex-shrink-0" />
+                                )}
+                              </div>
+                            </td>
+                          )
+                        }
+
+                        return (
+                          <td key={col} className="px-5 py-3.5 whitespace-nowrap" title={val}>
+                            {col === "Tracker Status" && val ? (
+                              <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-[11px] font-semibold ${val === "Yes"
+                                ? "bg-emerald-100 text-emerald-700"
+                                : val === "Tracker No" || val === "No"
+                                  ? "bg-rose-100 text-rose-700"
+                                  : "bg-slate-100 text-slate-600"
+                                }`}>
+                                {val}
+                              </span>
+                            ) : val ? (
+                              <span className="text-[13px] text-slate-500">{val}</span>
+                            ) : (
+                              <span className="text-slate-300 text-[13px]">—</span>
+                            )}
+                          </td>
+                        )
+                      })
+                    }
+                    {/* Chevron — View full details */}
+                    <td className="px-4 py-3.5 whitespace-nowrap">
+                      <button
+                        onClick={() => handleOpenViewModal(row)}
+                        title="View Details"
+                        className="p-2 text-slate-300 hover:text-sky-600 hover:bg-sky-50 rounded-lg transition-colors group-hover:text-slate-400"
+                      >
+                        <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                        </svg>
+                      </button>
+                    </td>
+                  </tr>
+                ))}
+                {filteredRows.length === 0 && (
+                  <tr>
+                    <td
+                      colSpan={
+                        TABLE_COLUMNS.length +
+                        (["callTracker", "orderReceived", "orderNotReceived"].includes(activeTab) ? CALL_TRACKER_COLUMNS.length : 0) +
+                        (activeTab === "callTracker" || activeTab === "orderNotReceived" ? 1 : 0) + // Action button col
+                        1 // chevron col
+                      }
+                      className="px-6 py-20 text-center"
+                    >
+                      <div className="flex flex-col items-center gap-3">
+                        <div className="h-12 w-12 rounded-full bg-slate-100 flex items-center justify-center">
+                          <svg className="h-6 w-6 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                          </svg>
+                        </div>
+                        <div>
+                          <p className="text-[14px] font-semibold text-slate-600">
+                            {searchTerm ? `No results for "${searchTerm}"` : "No enquiry data found"}
+                          </p>
+                          <p className="text-[12px] text-slate-400 mt-1">Try adjusting your search or refresh the data</p>
+                        </div>
+                      </div>
+                    </td>
+                  </tr>
+                )}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </div>
+
     </div>
   )
 }
