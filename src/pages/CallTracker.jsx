@@ -660,6 +660,67 @@ function CallTracker() {
       fmsPayload.append("rowData", JSON.stringify(existingFmsRow))
       await axios.post(scriptUrl, fmsPayload)
 
+      // ── Step 3: Insert into NBD OFFER FMS if Tracker Status is "Yes" ──
+      const offerSheetName = import.meta.env.VITE_NBD_OFFER_FMS_SHEET_NAME
+      if (callTrackerForm.orderReceived === "Yes" && offerSheetName) {
+        try {
+          const offerResponse = await axios.get(`${scriptUrl}?sheet=${offerSheetName}`)
+          if (offerResponse.data?.success) {
+            const offerData = offerResponse.data.data || []
+            
+            // Find header row for Offer sheet
+            let offerHeaderIdx = 0
+            for (let i = 0; i < Math.min(offerData.length, 10); i++) {
+              const r = (offerData[i] || []).map(c => String(c || "").trim())
+              if (r.some(cell => cell.toLowerCase().replace(/\.$/, "") === "enquiry no")) {
+                offerHeaderIdx = i; break
+              }
+            }
+            
+            const offerHeaders = (offerData[offerHeaderIdx] || []).map(c => String(c || "").trim())
+            const findOfferCol = (name) => offerHeaders.findIndex(h => h.toLowerCase() === name.toLowerCase() || h.toLowerCase().replace(/\.$/, "") === name.toLowerCase())
+            
+            const oTimestampCol = findOfferCol("Timestamp")
+            const oEnqCol = findOfferCol("Enquiry No.")
+            const oFirmCol = findOfferCol("Firm Name")
+            const oPartyCol = findOfferCol("Party Name")
+            const oStageCol = findOfferCol("Stage") !== -1 ? findOfferCol("Stage") : findOfferCol("Current Stage")
+            const oOfferNoCol = findOfferCol("Offer Number") !== -1 ? findOfferCol("Offer Number") : findOfferCol("Offer No.")
+            
+            // Check if this Enquiry No already exists
+            let alreadyExists = false
+            if (oEnqCol !== -1 && enquiryNo) {
+                for (let i = offerHeaderIdx + 1; i < offerData.length; i++) {
+                    if (String(offerData[i][oEnqCol] || "").trim() === enquiryNo) {
+                        alreadyExists = true; break
+                    }
+                }
+            }
+
+            if (!alreadyExists) {
+                const maxCol = Math.max(oTimestampCol, oEnqCol, oFirmCol, oPartyCol, oStageCol, oOfferNoCol, 0)
+                const newOfferRow = new Array(maxCol + 1).fill("")
+                
+                if (oTimestampCol !== -1) newOfferRow[oTimestampCol] = "=TODAY()" // Insert Google sheets formula for today's date
+                if (oEnqCol !== -1) newOfferRow[oEnqCol] = enquiryNo
+                if (oFirmCol !== -1) newOfferRow[oFirmCol] = callTrackerRow["Firm Name"] || ""
+                if (oPartyCol !== -1) newOfferRow[oPartyCol] = callTrackerRow["Party Name"] || ""
+                if (oStageCol !== -1) newOfferRow[oStageCol] = callTrackerForm.currentStage || callTrackerRow["Current Stage"] || ""
+                if (oOfferNoCol !== -1) newOfferRow[oOfferNoCol] = callTrackerRow["Offer No."] || callTrackerRow["Offer No"] || callTrackerRow["Offer Number"] || ""
+                
+                const offerPayload = new URLSearchParams()
+                offerPayload.append("action", "insert")
+                offerPayload.append("sheetName", offerSheetName)
+                offerPayload.append("rowData", JSON.stringify(newOfferRow))
+                
+                await axios.post(scriptUrl, offerPayload)
+            }
+          }
+        } catch (err) {
+          console.error("Error inserting into Offer FMS:", err)
+        }
+      }
+
       // Optimistic local update — reflect submitted values immediately so no page refresh needed
       // (page refresh would reset the active tab back to "All Enquiry")
       setEnquiryRows(prev => prev.map(r => {
