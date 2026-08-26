@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState, useEffect, useContext, useMemo, useCallback } from "react";
+import { useLocation, useNavigate } from "react-router-dom";
 import { AuthContext } from "../context/AuthContext";
 import axios from "axios";
 import { X, ClipboardList, Send, Plus, Locate, MapPin, Search, FileText, PhoneCall, History, CheckCircle, XCircle } from "lucide-react";
@@ -210,6 +211,8 @@ const isCancelledOrRejected = (...values) => {
 
 export default function MarketingVisitTracker() {
   const { showNotification = () => {}, currentUser = null, isAdmin = () => false } = useContext(AuthContext) || {};
+  const location = useLocation();
+  const navigate = useNavigate();
   const [visits, setVisits] = useState([]);
   const [activeTab, setActiveTab] = useState("All");
   const [searchQuery, setSearchQuery] = useState("");
@@ -298,6 +301,24 @@ export default function MarketingVisitTracker() {
     resetForm();
     setShowNewModal(true);
   };
+
+  // Handoff from NBD Lead: "Arrange Visit" opens this Log Client Plant Visit Report form, prefilled
+  useEffect(() => {
+    if (location.state?.openNewVisit) {
+      const lead = location.state.lead || {};
+      resetForm();
+      setFormData((prev) => ({
+        ...prev,
+        nameOfPlant: lead.companyName || prev.nameOfPlant,
+        department: lead.department || prev.department,
+      }));
+      if (lead.salesPerson) setSelectedSalesPerson(lead.salesPerson);
+      setShowNewModal(true);
+      // Clear the handoff state so a refresh/back doesn't reopen it
+      navigate(location.pathname, { replace: true, state: {} });
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [location.state]);
 
   // Status Modal states (for Assign Marketing and Report)
   const [showStatusModal, setShowStatusModal] = useState(false);

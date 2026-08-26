@@ -665,6 +665,7 @@ function Leads() {
     nextCallDate: "",
     lastCallDate: ""
   })
+  const isArrangeVisitSelected = String(callTrackerData.nextAction || "").trim().toLowerCase().includes("arrange visit")
 
   // Open Call Tracker Modal
   const handleCallTrackerClick = (lead) => {
@@ -797,6 +798,8 @@ function Leads() {
           navigate("/crr-enquiry", { state: { openNewEnquiry: true, lead: leadForHandoff } })
         } else if (isYes && callTrackerData.targetSystem === "NBD") {
           navigate("/call-tracker", { state: { openNewEnquiry: true, lead: leadForHandoff } })
+        } else if (isArrangeVisitSelected) {
+          navigate("/marketing-visit-tracker", { state: { openNewVisit: true, lead: leadForHandoff } })
         } else {
           fetchLeadsFromSheet(false)
         }
@@ -1001,9 +1004,9 @@ function Leads() {
                           </select>
                         </div>
 
-                        {/* Status & Enquiry Received — hidden once Next Action = "Enquiry Received",
-                            since that already implies Enquiry Received = Yes; go straight to routing it. */}
-                        {callTrackerData.enquiryReceived !== "Yes" && (
+                        {/* Status & Enquiry Received — hidden once Next Action = "Enquiry Received" (implies
+                            Enquiry Received = Yes) or "Arrange Visit" (goes straight to Marketing Visit). */}
+                        {callTrackerData.enquiryReceived !== "Yes" && !isArrangeVisitSelected && (
                           <>
                             <div>
                               <label className="block text-[13px] font-bold text-slate-700 text-left mb-1.5 uppercase tracking-wider">Status</label>
@@ -1049,6 +1052,12 @@ function Leads() {
                               <option value="CRR">CRR Enquiry</option>
                             </select>
                             <p className="text-xs text-slate-500 mt-1">Its New Enquiry form will open automatically after saving.</p>
+                          </div>
+                        )}
+
+                        {isArrangeVisitSelected && (
+                          <div className="rounded-xl bg-emerald-50 border border-emerald-200 px-4 py-3 text-sm text-emerald-800">
+                            The "Log Client Plant Visit Report" form (Marketing Visit Tracker) will open automatically after saving.
                           </div>
                         )}
 
