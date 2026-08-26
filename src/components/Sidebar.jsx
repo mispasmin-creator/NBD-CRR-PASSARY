@@ -39,6 +39,7 @@ function Sidebar({ mobileMenuOpen, setMobileMenuOpen }) {
     () => [
       { to: "/", label: "Dashboard", icon: <HomeIcon className="h-6 w-6" /> },
       { to: "/leads", label: "NBD Lead", icon: <UsersIcon className="h-6 w-6" /> },
+      { to: "/crr-enquiry", label: "CRR Enquiry", icon: <RetentionIcon className="h-6 w-6" /> },
       { to: "/call-tracker", label: "NBD Enquiry", icon: <BarChartIcon className="h-6 w-6" /> },
       { to: "/offer", label: "Offer", icon: <FileTextIcon className="h-6 w-6" /> },
       {
@@ -51,7 +52,6 @@ function Sidebar({ mobileMenuOpen, setMobileMenuOpen }) {
         label: "Marketing Visit Tracker",
         icon: <MapPinIcon className="h-6 w-6" />,
       },
-      { to: "/crr-enquiry", label: "CRR Enquiry", icon: <RetentionIcon className="h-6 w-6" /> },
       {
         to: "/order-not-received-fms",
         label: "Order Not Received",
