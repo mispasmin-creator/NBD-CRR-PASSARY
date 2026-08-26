@@ -18,6 +18,22 @@ const statusColors = {
 // Lead status options
 const leadStatusOptions = ["Cold", "Warm", "Hot"]
 
+// Classify a "Next Call" date against today, for the Call Tracking due-calls filter
+const getCallDateCategory = (rawVal) => {
+  if (!rawVal) return null
+  const d = new Date(rawVal)
+  if (isNaN(d.getTime())) return null
+  const dayOnly = new Date(d.getFullYear(), d.getMonth(), d.getDate())
+  const now = new Date()
+  const today = new Date(now.getFullYear(), now.getMonth(), now.getDate())
+  const diffDays = Math.round((dayOnly - today) / 86400000)
+  if (diffDays < 0) return "overdue"
+  if (diffDays === 0) return "today"
+  if (diffDays === 1) return "tomorrow"
+  if (diffDays <= 7) return "week"
+  return "later"
+}
+
 // Initial form state
 const initialFormData = {
   ourFirmName: "",
@@ -72,6 +88,7 @@ function Leads() {
   const [notification, setNotification] = useState(null)
   const [isLoading, setIsLoading] = useState(true)
   const [activeTab, setActiveTab] = useState("updateStatus")
+  const [callDateFilter, setCallDateFilter] = useState("all") // "all" | "overdue" | "today" | "tomorrow" | "week"
 
   const [masterFirmOptions, setMasterFirmOptions] = useState([])
   const [masterLeadReceivedFromOptions, setMasterLeadReceivedFromOptions] = useState([])
@@ -236,6 +253,7 @@ function Leads() {
               trackerEnquiry: row[18] || '',     // Column S: Enquiry Received
               trackerRemarks: row[19] || '',     // Column T: Cust Remarks
               trackerNextCall: (row[20] ? displayDate(row[20]) : "") || '', // Column U: Next Call Date
+              trackerNextCallRaw: row[20] || '',  // Column U raw value, for date-based filtering
               trackerFreq: (row[freqColIdx] !== undefined && row[freqColIdx] !== null && String(row[freqColIdx]).trim() !== "") ? (parseInt(row[freqColIdx], 10) || 0) : (parseInt(row[21], 10) || 0)
             }
           })
@@ -455,6 +473,16 @@ function Leads() {
       // those now live under their own tabs, only active/pending ones stay here
       const enquiryReceived = String(lead.trackerEnquiry || "").trim()
       if (enquiryReceived === "Yes" || enquiryReceived === "Cancel") return false
+
+      // "Who do I need to call today / tomorrow / this week" filter, based on Next Call date
+      if (callDateFilter !== "all") {
+        const category = getCallDateCategory(lead.trackerNextCallRaw)
+        if (callDateFilter === "week") {
+          if (category !== "overdue" && category !== "today" && category !== "tomorrow" && category !== "week") return false
+        } else if (category !== callDateFilter) {
+          return false
+        }
+      }
     }
     if (activeTab === "history") {
       // Show resolved leads: Enquiry Received (Yes) or Enquiry Not Received (Cancel)
@@ -1054,7 +1082,7 @@ function Leads() {
       {/* Tabs */}
       <div className="flex space-x-2 rounded-2xl bg-white p-1.5 mb-8 w-fit mx-auto overflow-x-auto border border-slate-200 shadow-sm">
         <button
-          onClick={() => setActiveTab("updateStatus")}
+          onClick={() => { setActiveTab("updateStatus"); setCallDateFilter("all") }}
           className={`flex min-w-0 flex-col items-center justify-center gap-1 rounded-lg px-1 py-2 text-center text-xs font-medium leading-4 transition-all duration-200 [&>svg]:hidden sm:flex-row sm:gap-2 sm:px-4 sm:text-left sm:text-sm sm:leading-5 sm:whitespace-nowrap sm:[&>svg]:block ${activeTab === "updateStatus"
             ? "bg-teal-50 text-teal-700 shadow-sm ring-1 ring-teal-200"
             : "text-gray-500 hover:text-gray-700 hover:bg-gray-50"
@@ -1076,7 +1104,7 @@ function Leads() {
           <span className={`text-xs px-2 py-0.5 rounded-full font-semibold ${activeTab === "callTracking" ? "bg-indigo-100 text-indigo-700" : "bg-gray-100 text-gray-500"}`}>{leads.filter(l => { const ci = l.rawData && l.rawData[8] ? l.rawData[8].toString().trim() : ""; const cj = l.rawData && l.rawData[9] ? l.rawData[9].toString().trim() : ""; const er = String(l.trackerEnquiry || "").trim(); return ci && cj && er !== "Yes" && er !== "Cancel"; }).length}</span>
         </button>
         <button
-          onClick={() => setActiveTab("history")}
+          onClick={() => { setActiveTab("history"); setCallDateFilter("all") }}
           className={`flex min-w-0 flex-col items-center justify-center gap-1 rounded-lg px-1 py-2 text-center text-xs font-medium leading-4 transition-all duration-200 [&>svg]:hidden sm:flex-row sm:gap-2 sm:px-4 sm:text-left sm:text-sm sm:leading-5 sm:whitespace-nowrap sm:[&>svg]:block ${activeTab === "history"
             ? "bg-slate-100 text-slate-700 shadow-sm ring-1 ring-slate-300"
             : "text-gray-500 hover:text-gray-700 hover:bg-gray-50"
@@ -1207,6 +1235,62 @@ function Leads() {
       {/* ===================== TAB 3: CALL TRACKING ===================== */}
       {activeTab === "callTracking" && (
         <>
+          {/* Who do I need to call — Today / Tomorrow / This Week */}
+          {(() => {
+            const eligible = leads.filter(l => {
+              const colI = l.rawData && l.rawData[8] ? l.rawData[8].toString().trim() : ""
+              const colJ = l.rawData && l.rawData[9] ? l.rawData[9].toString().trim() : ""
+              const er = String(l.trackerEnquiry || "").trim()
+              return colI && colJ && er !== "Yes" && er !== "Cancel"
+            })
+            const countFor = (cat) => eligible.filter(l => {
+              const c = getCallDateCategory(l.trackerNextCallRaw)
+              if (cat === "week") return c === "overdue" || c === "today" || c === "tomorrow" || c === "week"
+              return c === cat
+            }).length
+
+            const cards = [
+              { key: "overdue", label: "Overdue", color: "red" },
+              { key: "today", label: "Call Today", color: "orange" },
+              { key: "tomorrow", label: "Call Tomorrow", color: "amber" },
+              { key: "week", label: "This Week", color: "sky" },
+            ]
+            const colorClasses = {
+              red: { base: "bg-red-50 border-red-200 text-red-700", active: "bg-red-100 border-red-400 ring-2 ring-red-300 text-red-800", count: "bg-red-200 text-red-800", countBase: "bg-red-100 text-red-700" },
+              orange: { base: "bg-orange-50 border-orange-200 text-orange-700", active: "bg-orange-100 border-orange-400 ring-2 ring-orange-300 text-orange-800", count: "bg-orange-200 text-orange-800", countBase: "bg-orange-100 text-orange-700" },
+              amber: { base: "bg-amber-50 border-amber-200 text-amber-700", active: "bg-amber-100 border-amber-400 ring-2 ring-amber-300 text-amber-800", count: "bg-amber-200 text-amber-800", countBase: "bg-amber-100 text-amber-700" },
+              sky: { base: "bg-sky-50 border-sky-200 text-sky-700", active: "bg-sky-100 border-sky-400 ring-2 ring-sky-300 text-sky-800", count: "bg-sky-200 text-sky-800", countBase: "bg-sky-100 text-sky-700" },
+            }
+
+            return (
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-5">
+                {cards.map(c => {
+                  const isActive = callDateFilter === c.key
+                  const cls = colorClasses[c.color]
+                  return (
+                    <button
+                      key={c.key}
+                      onClick={() => setCallDateFilter(isActive ? "all" : c.key)}
+                      className={`flex items-center justify-between gap-2 rounded-xl border p-4 text-left transition-all hover:shadow-md ${isActive ? cls.active : cls.base
+                        }`}
+                    >
+                      <span className="text-sm font-semibold">{c.label}</span>
+                      <span className={`text-sm font-bold px-2.5 py-1 rounded-full ${isActive ? cls.count : cls.countBase}`}>
+                        {countFor(c.key)}
+                      </span>
+                    </button>
+                  )
+                })}
+              </div>
+            )
+          })()}
+          {callDateFilter !== "all" && (
+            <div className="mb-4 flex items-center gap-2 text-sm text-gray-600">
+              Showing only leads to call for: <span className="font-semibold text-gray-800">{callDateFilter === "week" ? "This Week (incl. today & overdue)" : callDateFilter.charAt(0).toUpperCase() + callDateFilter.slice(1)}</span>
+              <button onClick={() => setCallDateFilter("all")} className="text-sky-600 hover:text-sky-800 font-medium underline">Clear</button>
+            </div>
+          )}
+
           {/* Desktop Table */}
           <div className="hidden md:block bg-card rounded-lg shadow-md overflow-hidden">
             <div className="overflow-x-auto">
@@ -1294,7 +1378,20 @@ function Leads() {
                             ) : '-'}
                           </td>
                           <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-600 max-w-xs truncate" title={lead.trackerRemarks}>{lead.trackerRemarks || '-'}</td>
-                          <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-600">{lead.trackerNextCall || '-'}</td>
+                          <td className="px-4 py-3 whitespace-nowrap text-sm">
+                            {(() => {
+                              const cat = getCallDateCategory(lead.trackerNextCallRaw)
+                              const badgeCls = cat === "overdue" ? "bg-red-100 text-red-700"
+                                : cat === "today" ? "bg-orange-100 text-orange-700"
+                                  : cat === "tomorrow" ? "bg-amber-100 text-amber-700"
+                                    : "text-gray-600"
+                              return (
+                                <span className={`${cat ? `px-2 py-0.5 rounded font-medium ${badgeCls}` : "text-gray-600"}`}>
+                                  {lead.trackerNextCall || '-'}{cat === "overdue" ? " (Overdue)" : cat === "today" ? " (Today)" : cat === "tomorrow" ? " (Tomorrow)" : ""}
+                                </span>
+                              )
+                            })()}
+                          </td>
                           <td className="px-4 py-3 whitespace-nowrap text-sm">
                             <span className="inline-flex items-center px-2 py-0.5 rounded font-bold bg-indigo-50 text-indigo-700 text-xs border border-indigo-200">
                               {lead.trackerFreq || 0}
