@@ -224,7 +224,8 @@ export default function MarketingVisitTracker() {
     "XYZ Ltd",
   ]);
 
-  const [salesPersonsList, setSalesPersonsList] = useState(["Shadab", "Sajit", "Musaib", "Faizan"]);
+  // Sales person options come strictly from the live Master sheet — populated by fetchAllData below
+  const [salesPersonsList, setSalesPersonsList] = useState([]);
   const [departmentsList, setDepartmentsList] = useState(DEPARTMENT_OPTIONS);
 
   // Form modals state

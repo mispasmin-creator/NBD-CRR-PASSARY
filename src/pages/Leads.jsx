@@ -15,12 +15,6 @@ const statusColors = {
   Hot: "bg-red-100 text-red-800"
 }
 
-// Lead sources options
-const leadSourceOptions = ["Indiamart", "Justdial", "Social Media", "Website", "Referral", "Cold Call", "Exhibition", "Other"]
-
-// Sales person options
-const salesPersonOptions = ["Rahul Sharma", "Priya Patel", "Amit Kumar", "Sneha Gupta", "Vikram Singh"]
-
 // Lead status options
 const leadStatusOptions = ["Cold", "Warm", "Hot"]
 
@@ -128,14 +122,11 @@ function Leads() {
           if (firms.length > 0) setMasterFirmOptions(firms)
 
           // 2. Lead Received From column
-          let leadReceivedIdx = firstRow.findIndex(h =>
+          const leadReceivedIdx = firstRow.findIndex(h =>
             h.includes("lead received") || h.includes("lead source") || h.includes("received from")
           )
           if (leadReceivedIdx !== -1) {
             const leadSources = [...new Set(rows.map(r => String(r[leadReceivedIdx] || "").trim()).filter(Boolean))]
-            if (leadSources.length > 0) setMasterLeadReceivedFromOptions(leadSources)
-          } else {
-            const leadSources = [...new Set(rows.map(r => String(r[3] || "").trim()).filter(Boolean))]
             if (leadSources.length > 0) setMasterLeadReceivedFromOptions(leadSources)
           }
 
@@ -289,35 +280,14 @@ function Leads() {
     return result
   }
 
-  const defaultFirmOptions = ["Passary Minerals", "Passary Refractories"]
+  // All dropdown options below come strictly from the live Master sheet — no hardcoded fallback lists.
+  const firmDropdownOptions = cleanUniqueOptions(masterFirmOptions)
 
-  // Derived firm options: master options > defaults + existing lead firm names
-  const firmDropdownOptions = cleanUniqueOptions(
-    masterFirmOptions.length > 0
-      ? masterFirmOptions
-      : [...defaultFirmOptions, ...leads.map(l => l.ourFirmName).filter(Boolean)]
-  )
+  const leadReceivedFromDropdownOptions = cleanUniqueOptions(masterLeadReceivedFromOptions)
 
-  // Derived lead received from options: master options > leadSourceOptions
-  const leadReceivedFromDropdownOptions = cleanUniqueOptions(
-    masterLeadReceivedFromOptions.length > 0
-      ? masterLeadReceivedFromOptions
-      : leadSourceOptions
-  )
+  const salesPersonDropdownOptions = cleanUniqueOptions(masterSalesPersonOptions)
 
-  // Derived sales person options: master options > salesPersonOptions
-  const salesPersonDropdownOptions = cleanUniqueOptions(
-    masterSalesPersonOptions.length > 0
-      ? masterSalesPersonOptions
-      : salesPersonOptions
-  )
-
-  // Derived department options: master options > existing leads departments
-  const departmentDropdownOptions = cleanUniqueOptions(
-    masterDepartmentOptions.length > 0
-      ? masterDepartmentOptions
-      : leads.map(l => l.department).filter(Boolean)
-  )
+  const departmentDropdownOptions = cleanUniqueOptions(masterDepartmentOptions)
 
   // Derived product options: master options > existing leads product names
   const productDropdownOptions = cleanUniqueOptions(
@@ -483,13 +453,10 @@ function Leads() {
       const enquiryReceived = String(lead.trackerEnquiry || "").trim()
       if (enquiryReceived === "Yes" || enquiryReceived === "Cancel") return false
     }
-    if (activeTab === "enquiryReceived") {
-      // Show only when Call Tracking's "Enquiry Received" is Yes
-      if (String(lead.trackerEnquiry || "").trim() !== "Yes") return false
-    }
-    if (activeTab === "enquiryNotReceived") {
-      // Show only when Call Tracking's "Enquiry Received" is Cancel
-      if (String(lead.trackerEnquiry || "").trim() !== "Cancel") return false
+    if (activeTab === "history") {
+      // Show resolved leads: Enquiry Received (Yes) or Enquiry Not Received (Cancel)
+      const enquiryReceived = String(lead.trackerEnquiry || "").trim()
+      if (enquiryReceived !== "Yes" && enquiryReceived !== "Cancel") return false
     }
 
     if (!searchTerm) return true
@@ -1117,26 +1084,15 @@ function Leads() {
           <span className={`text-xs px-2 py-0.5 rounded-full font-semibold ${activeTab === "callTracking" ? "bg-indigo-100 text-indigo-700" : "bg-gray-100 text-gray-500"}`}>{leads.filter(l => { const ci = l.rawData && l.rawData[8] ? l.rawData[8].toString().trim() : ""; const cj = l.rawData && l.rawData[9] ? l.rawData[9].toString().trim() : ""; const er = String(l.trackerEnquiry || "").trim(); return ci && cj && er !== "Yes" && er !== "Cancel"; }).length}</span>
         </button>
         <button
-          onClick={() => setActiveTab("enquiryReceived")}
-          className={`flex min-w-0 flex-col items-center justify-center gap-1 rounded-lg px-1 py-2 text-center text-xs font-medium leading-4 transition-all duration-200 [&>svg]:hidden sm:flex-row sm:gap-2 sm:px-4 sm:text-left sm:text-sm sm:leading-5 sm:whitespace-nowrap sm:[&>svg]:block ${activeTab === "enquiryReceived"
-            ? "bg-emerald-50 text-emerald-700 shadow-sm ring-1 ring-emerald-200"
+          onClick={() => setActiveTab("history")}
+          className={`flex min-w-0 flex-col items-center justify-center gap-1 rounded-lg px-1 py-2 text-center text-xs font-medium leading-4 transition-all duration-200 [&>svg]:hidden sm:flex-row sm:gap-2 sm:px-4 sm:text-left sm:text-sm sm:leading-5 sm:whitespace-nowrap sm:[&>svg]:block ${activeTab === "history"
+            ? "bg-slate-100 text-slate-700 shadow-sm ring-1 ring-slate-300"
             : "text-gray-500 hover:text-gray-700 hover:bg-gray-50"
             }`}
         >
-          <svg className={`h-4 w-4 ${activeTab === "enquiryReceived" ? "" : "text-gray-400"}`} fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
-          Enquiry Received
-          <span className={`text-xs px-2 py-0.5 rounded-full font-semibold ${activeTab === "enquiryReceived" ? "bg-emerald-100 text-emerald-700" : "bg-gray-100 text-gray-500"}`}>{leads.filter(l => String(l.trackerEnquiry || "").trim() === "Yes").length}</span>
-        </button>
-        <button
-          onClick={() => setActiveTab("enquiryNotReceived")}
-          className={`flex min-w-0 flex-col items-center justify-center gap-1 rounded-lg px-1 py-2 text-center text-xs font-medium leading-4 transition-all duration-200 [&>svg]:hidden sm:flex-row sm:gap-2 sm:px-4 sm:text-left sm:text-sm sm:leading-5 sm:whitespace-nowrap sm:[&>svg]:block ${activeTab === "enquiryNotReceived"
-            ? "bg-rose-50 text-rose-700 shadow-sm ring-1 ring-rose-200"
-            : "text-gray-500 hover:text-gray-700 hover:bg-gray-50"
-            }`}
-        >
-          <svg className={`h-4 w-4 ${activeTab === "enquiryNotReceived" ? "" : "text-gray-400"}`} fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 14l2-2m0 0l2-2m-2 2l-2-2m2 2l2 2m7-2a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
-          Enquiry Not Received
-          <span className={`text-xs px-2 py-0.5 rounded-full font-semibold ${activeTab === "enquiryNotReceived" ? "bg-rose-100 text-rose-700" : "bg-gray-100 text-gray-500"}`}>{leads.filter(l => String(l.trackerEnquiry || "").trim() === "Cancel").length}</span>
+          <svg className={`h-4 w-4 ${activeTab === "history" ? "" : "text-gray-400"}`} fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
+          History
+          <span className={`text-xs px-2 py-0.5 rounded-full font-semibold ${activeTab === "history" ? "bg-slate-200 text-slate-700" : "bg-gray-100 text-gray-500"}`}>{leads.filter(l => { const er = String(l.trackerEnquiry || "").trim(); return er === "Yes" || er === "Cancel"; }).length}</span>
         </button>
       </div>
 
@@ -1561,7 +1517,8 @@ function Leads() {
       )}
 
       {/* ===================== TAB 4: ENQUIRY RECEIVED ===================== */}
-      {activeTab === "enquiryReceived" && (
+      {/* ===================== TAB: HISTORY (merged Enquiry Received + Enquiry Not Received) ===================== */}
+      {activeTab === "history" && (
         <>
           {/* Desktop Table */}
           <div className="hidden md:block bg-card rounded-lg shadow-md overflow-hidden">
@@ -1569,83 +1526,86 @@ function Leads() {
               {isLoading ? (
                 <div className="flex items-center justify-center h-full">
                   <div className="text-center">
-                    <div className="inline-block animate-spin rounded-full h-12 w-12 border-b-2 border-emerald-600 mb-4"></div>
+                    <div className="inline-block animate-spin rounded-full h-12 w-12 border-b-2 border-slate-600 mb-4"></div>
                     <p className="text-gray-600">Loading data...</p>
                   </div>
                 </div>
               ) : (
                 <table className="w-full">
                   <thead className="sticky top-0 z-10">
-                    <tr className="bg-gradient-to-r from-emerald-50 to-green-50 border-b border-gray-200">
-                      <th className="px-4 py-3 text-left text-xs font-bold text-emerald-700 uppercase tracking-wider whitespace-nowrap">Action</th>
-                      <th className="px-4 py-3 text-left text-xs font-bold text-emerald-700 uppercase tracking-wider whitespace-nowrap">Lead No.</th>
-                      <th className="px-4 py-3 text-left text-xs font-bold text-emerald-700 uppercase tracking-wider whitespace-nowrap">Company</th>
-                      <th className="px-4 py-3 text-left text-xs font-bold text-emerald-700 uppercase tracking-wider whitespace-nowrap">Location</th>
-                      <th className="px-4 py-3 text-left text-xs font-bold text-emerald-700 uppercase tracking-wider whitespace-nowrap">Product</th>
-                      <th className="px-4 py-3 text-left text-xs font-bold text-emerald-700 uppercase tracking-wider whitespace-nowrap">Customer Name</th>
-                      <th className="px-4 py-3 text-left text-xs font-bold text-emerald-700 uppercase tracking-wider whitespace-nowrap">Contact No.</th>
-                      <th className="px-4 py-3 text-left text-xs font-bold text-emerald-700 uppercase tracking-wider whitespace-nowrap">Email</th>
-                      <th className="px-4 py-3 text-left text-xs font-bold text-emerald-700 uppercase tracking-wider whitespace-nowrap">Update Remarks</th>
-                      <th className="px-4 py-3 text-left text-xs font-bold text-emerald-700 uppercase tracking-wider whitespace-nowrap">Last Date Of Call</th>
-                      <th className="px-4 py-3 text-left text-xs font-bold text-emerald-700 uppercase tracking-wider whitespace-nowrap">Call Status</th>
-                      <th className="px-4 py-3 text-left text-xs font-bold text-emerald-700 uppercase tracking-wider whitespace-nowrap">Next Action</th>
-                      <th className="px-4 py-3 text-left text-xs font-bold text-emerald-700 uppercase tracking-wider whitespace-nowrap">Enquiry Received</th>
-                      <th className="px-4 py-3 text-left text-xs font-bold text-emerald-700 uppercase tracking-wider whitespace-nowrap">Cust. Remarks</th>
-                      <th className="px-4 py-3 text-left text-xs font-bold text-emerald-700 uppercase tracking-wider whitespace-nowrap">Next Call</th>
+                    <tr className="bg-gradient-to-r from-slate-50 to-gray-50 border-b border-gray-200">
+                      <th className="px-4 py-3 text-left text-xs font-bold text-slate-700 uppercase tracking-wider whitespace-nowrap">Action</th>
+                      <th className="px-4 py-3 text-left text-xs font-bold text-slate-700 uppercase tracking-wider whitespace-nowrap">Lead No.</th>
+                      <th className="px-4 py-3 text-left text-xs font-bold text-slate-700 uppercase tracking-wider whitespace-nowrap">Company</th>
+                      <th className="px-4 py-3 text-left text-xs font-bold text-slate-700 uppercase tracking-wider whitespace-nowrap">Location</th>
+                      <th className="px-4 py-3 text-left text-xs font-bold text-slate-700 uppercase tracking-wider whitespace-nowrap">Product</th>
+                      <th className="px-4 py-3 text-left text-xs font-bold text-slate-700 uppercase tracking-wider whitespace-nowrap">Customer Name</th>
+                      <th className="px-4 py-3 text-left text-xs font-bold text-slate-700 uppercase tracking-wider whitespace-nowrap">Contact No.</th>
+                      <th className="px-4 py-3 text-left text-xs font-bold text-slate-700 uppercase tracking-wider whitespace-nowrap">Email</th>
+                      <th className="px-4 py-3 text-left text-xs font-bold text-slate-700 uppercase tracking-wider whitespace-nowrap">Update Remarks</th>
+                      <th className="px-4 py-3 text-left text-xs font-bold text-slate-700 uppercase tracking-wider whitespace-nowrap">Last Date Of Call</th>
+                      <th className="px-4 py-3 text-left text-xs font-bold text-slate-700 uppercase tracking-wider whitespace-nowrap">Call Status</th>
+                      <th className="px-4 py-3 text-left text-xs font-bold text-slate-700 uppercase tracking-wider whitespace-nowrap">Next Action</th>
+                      <th className="px-4 py-3 text-left text-xs font-bold text-slate-700 uppercase tracking-wider whitespace-nowrap">Status</th>
+                      <th className="px-4 py-3 text-left text-xs font-bold text-slate-700 uppercase tracking-wider whitespace-nowrap">Cust. Remarks</th>
+                      <th className="px-4 py-3 text-left text-xs font-bold text-slate-700 uppercase tracking-wider whitespace-nowrap">Next Call</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-gray-100 bg-card">
                     {filteredLeads.length === 0 ? (
                       <tr>
                         <td colSpan="15" className="px-4 py-16 text-center">
-                          <p className="text-lg font-semibold text-gray-500">No enquiries received yet</p>
+                          <p className="text-lg font-semibold text-gray-500">No resolved leads yet</p>
                         </td>
                       </tr>
                     ) : (
-                      filteredLeads.map((lead, index) => (
-                        <tr key={lead.leadNumber || index} className="hover:bg-emerald-50/30 transition-all duration-150">
-                          <td className="px-4 py-3 whitespace-nowrap">
-                            <button
-                              onClick={() => handleCallTrackerClick(lead)}
-                              className="px-3 py-1.5 bg-emerald-100 text-emerald-700 rounded-md text-xs font-semibold hover:bg-emerald-200 transition-colors flex items-center gap-1"
-                            >
-                              <PhoneCallIcon className="h-3 w-3" />
-                              Call
-                            </button>
-                          </td>
-                          <td className="px-4 py-3 whitespace-nowrap">
-                            <span className="inline-flex items-center px-2.5 py-1 rounded-md bg-emerald-100 text-emerald-700 text-sm font-semibold">
-                              {lead.leadNumber || '-'}
-                            </span>
-                          </td>
-                          <td className="px-4 py-3 whitespace-nowrap text-sm font-semibold text-gray-900">{lead.companyName || '-'}</td>
-                          <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-600">{lead.location || '-'}</td>
-                          <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-600">{lead.productName || '-'}</td>
-                          <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-600">{lead.customerName || '-'}</td>
-                          <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-600">{lead.contactNo || '-'}</td>
-                          <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-600">{lead.emailId || '-'}</td>
-                          <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-600 max-w-xs truncate" title={lead.remarks}>{lead.remarks || '-'}</td>
-                          <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-600 font-medium">{lead.trackerLastCall || '-'}</td>
-                          <td className="px-4 py-3 whitespace-nowrap text-sm">
-                            {lead.trackerStatus ? (
-                              <span className={`px-2 py-0.5 rounded text-xs font-medium ${lead.trackerStatus === 'Hot' ? 'bg-red-100 text-red-800' :
-                                lead.trackerStatus === 'Warm' ? 'bg-yellow-100 text-yellow-800' :
-                                  'bg-blue-100 text-blue-800'
-                                }`}>
-                                {lead.trackerStatus}
+                      filteredLeads.map((lead, index) => {
+                        const isReceived = String(lead.trackerEnquiry || "").trim() === "Yes"
+                        return (
+                          <tr key={lead.leadNumber || index} className="hover:bg-slate-50/60 transition-all duration-150">
+                            <td className="px-4 py-3 whitespace-nowrap">
+                              <button
+                                onClick={() => handleCallTrackerClick(lead)}
+                                className="px-3 py-1.5 bg-slate-100 text-slate-700 rounded-md text-xs font-semibold hover:bg-slate-200 transition-colors flex items-center gap-1"
+                              >
+                                <PhoneCallIcon className="h-3 w-3" />
+                                Call
+                              </button>
+                            </td>
+                            <td className="px-4 py-3 whitespace-nowrap">
+                              <span className="inline-flex items-center px-2.5 py-1 rounded-md bg-slate-100 text-slate-700 text-sm font-semibold">
+                                {lead.leadNumber || '-'}
                               </span>
-                            ) : '-'}
-                          </td>
-                          <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-600">{lead.trackerNextAction || '-'}</td>
-                          <td className="px-4 py-3 whitespace-nowrap text-sm">
-                            <span className="px-2.5 py-1 rounded-full text-xs font-semibold bg-green-100 text-green-800">
-                              {lead.trackerEnquiry}
-                            </span>
-                          </td>
-                          <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-600 max-w-xs truncate" title={lead.trackerRemarks}>{lead.trackerRemarks || '-'}</td>
-                          <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-600">{lead.trackerNextCall || '-'}</td>
-                        </tr>
-                      ))
+                            </td>
+                            <td className="px-4 py-3 whitespace-nowrap text-sm font-semibold text-gray-900">{lead.companyName || '-'}</td>
+                            <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-600">{lead.location || '-'}</td>
+                            <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-600">{lead.productName || '-'}</td>
+                            <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-600">{lead.customerName || '-'}</td>
+                            <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-600">{lead.contactNo || '-'}</td>
+                            <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-600">{lead.emailId || '-'}</td>
+                            <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-600 max-w-xs truncate" title={lead.remarks}>{lead.remarks || '-'}</td>
+                            <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-600 font-medium">{lead.trackerLastCall || '-'}</td>
+                            <td className="px-4 py-3 whitespace-nowrap text-sm">
+                              {lead.trackerStatus ? (
+                                <span className={`px-2 py-0.5 rounded text-xs font-medium ${lead.trackerStatus === 'Hot' ? 'bg-red-100 text-red-800' :
+                                  lead.trackerStatus === 'Warm' ? 'bg-yellow-100 text-yellow-800' :
+                                    'bg-blue-100 text-blue-800'
+                                  }`}>
+                                  {lead.trackerStatus}
+                                </span>
+                              ) : '-'}
+                            </td>
+                            <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-600">{lead.trackerNextAction || '-'}</td>
+                            <td className="px-4 py-3 whitespace-nowrap text-sm">
+                              <span className={`px-2.5 py-1 rounded-full text-xs font-semibold ${isReceived ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'}`}>
+                                {isReceived ? 'Enquiry Received' : 'Enquiry Not Received'}
+                              </span>
+                            </td>
+                            <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-600 max-w-xs truncate" title={lead.trackerRemarks}>{lead.trackerRemarks || '-'}</td>
+                            <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-600">{lead.trackerNextCall || '-'}</td>
+                          </tr>
+                        )
+                      })
                     )}
                   </tbody>
                 </table>
@@ -1658,168 +1618,39 @@ function Leads() {
             )}
           </div>
 
-          {/* Mobile Card View - Enquiry Received */}
+          {/* Mobile Card View - History */}
           <div className="md:hidden space-y-3">
-            {filteredLeads.map((lead, index) => (
-              <div key={lead.leadNumber || index} className="bg-card rounded-xl shadow-lg border border-gray-100 p-4">
-                <div className="flex justify-between items-start mb-2">
-                  <span className="inline-flex items-center px-2.5 py-1 rounded-md bg-emerald-100 text-emerald-700 text-sm font-semibold">{lead.leadNumber || '-'}</span>
-                  <button
-                    onClick={() => handleCallTrackerClick(lead)}
-                    className="px-3 py-1.5 bg-emerald-100 text-emerald-700 rounded-lg text-xs font-semibold hover:bg-emerald-200 transition-colors flex items-center gap-1"
-                  >
-                    <PhoneCallIcon className="h-3 w-3" />
-                    Call
-                  </button>
-                </div>
-                <h3 className="text-base font-bold text-gray-900 mb-2">{lead.companyName}</h3>
-                <div className="grid grid-cols-2 gap-2 text-xs">
-                  <div><span className="text-gray-400">Product:</span> <span className="text-gray-700">{lead.productName || '-'}</span></div>
-                  <div><span className="text-gray-400">Customer:</span> <span className="text-gray-700">{lead.customerName || '-'}</span></div>
-                  <div><span className="text-gray-400">Contact:</span> <span className="text-gray-700">{lead.contactNo || '-'}</span></div>
-                  <div><span className="text-gray-400">Email:</span> <span className="text-gray-700">{lead.emailId || '-'}</span></div>
-                  <div className="col-span-2"><span className="text-gray-400">Update Remarks:</span> <span className="text-gray-700">{lead.remarks || '-'}</span></div>
-                  <div><span className="text-gray-400">Last Call:</span> <span className="text-gray-700">{lead.trackerLastCall || '-'}</span></div>
-                  <div><span className="text-gray-400">Call Status:</span> <span className="font-medium">{lead.trackerStatus || '-'}</span></div>
-                  <div><span className="text-gray-400">Enquiry:</span> <span className="font-semibold text-gray-800">{lead.trackerEnquiry || '-'}</span></div>
-                  <div><span className="text-gray-400">Next Action:</span> <span className="text-gray-700">{lead.trackerNextAction || '-'}</span></div>
-                  <div><span className="text-gray-400">Next Call:</span> <span className="text-gray-700">{lead.trackerNextCall || '-'}</span></div>
-                  <div className="col-span-2"><span className="text-gray-400">Call Remarks:</span> <span className="text-gray-700">{lead.trackerRemarks || '-'}</span></div>
-                </div>
-              </div>
-            ))}
-          </div>
-        </>
-      )}
-
-      {/* ===================== TAB 5: ENQUIRY NOT RECEIVED ===================== */}
-      {activeTab === "enquiryNotReceived" && (
-        <>
-          {/* Desktop Table */}
-          <div className="hidden md:block bg-card rounded-lg shadow-md overflow-hidden">
-            <div className="overflow-x-auto">
-              {isLoading ? (
-                <div className="flex items-center justify-center h-full">
-                  <div className="text-center">
-                    <div className="inline-block animate-spin rounded-full h-12 w-12 border-b-2 border-rose-600 mb-4"></div>
-                    <p className="text-gray-600">Loading data...</p>
+            {filteredLeads.map((lead, index) => {
+              const isReceived = String(lead.trackerEnquiry || "").trim() === "Yes"
+              return (
+                <div key={lead.leadNumber || index} className="bg-card rounded-xl shadow-lg border border-gray-100 p-4">
+                  <div className="flex justify-between items-start mb-2">
+                    <span className="inline-flex items-center px-2.5 py-1 rounded-md bg-slate-100 text-slate-700 text-sm font-semibold">{lead.leadNumber || '-'}</span>
+                    <button
+                      onClick={() => handleCallTrackerClick(lead)}
+                      className="px-3 py-1.5 bg-slate-100 text-slate-700 rounded-lg text-xs font-semibold hover:bg-slate-200 transition-colors flex items-center gap-1"
+                    >
+                      <PhoneCallIcon className="h-3 w-3" />
+                      Call
+                    </button>
+                  </div>
+                  <h3 className="text-base font-bold text-gray-900 mb-2">{lead.companyName}</h3>
+                  <div className="grid grid-cols-2 gap-2 text-xs">
+                    <div><span className="text-gray-400">Product:</span> <span className="text-gray-700">{lead.productName || '-'}</span></div>
+                    <div><span className="text-gray-400">Customer:</span> <span className="text-gray-700">{lead.customerName || '-'}</span></div>
+                    <div><span className="text-gray-400">Contact:</span> <span className="text-gray-700">{lead.contactNo || '-'}</span></div>
+                    <div><span className="text-gray-400">Email:</span> <span className="text-gray-700">{lead.emailId || '-'}</span></div>
+                    <div className="col-span-2"><span className="text-gray-400">Update Remarks:</span> <span className="text-gray-700">{lead.remarks || '-'}</span></div>
+                    <div><span className="text-gray-400">Last Call:</span> <span className="text-gray-700">{lead.trackerLastCall || '-'}</span></div>
+                    <div><span className="text-gray-400">Call Status:</span> <span className="font-medium">{lead.trackerStatus || '-'}</span></div>
+                    <div><span className="text-gray-400">Status:</span> <span className={`font-semibold ${isReceived ? 'text-green-700' : 'text-red-700'}`}>{isReceived ? 'Enquiry Received' : 'Enquiry Not Received'}</span></div>
+                    <div><span className="text-gray-400">Next Action:</span> <span className="text-gray-700">{lead.trackerNextAction || '-'}</span></div>
+                    <div><span className="text-gray-400">Next Call:</span> <span className="text-gray-700">{lead.trackerNextCall || '-'}</span></div>
+                    <div className="col-span-2"><span className="text-gray-400">Call Remarks:</span> <span className="text-gray-700">{lead.trackerRemarks || '-'}</span></div>
                   </div>
                 </div>
-              ) : (
-                <table className="w-full">
-                  <thead className="sticky top-0 z-10">
-                    <tr className="bg-gradient-to-r from-rose-50 to-red-50 border-b border-gray-200">
-                      <th className="px-4 py-3 text-left text-xs font-bold text-rose-700 uppercase tracking-wider whitespace-nowrap">Action</th>
-                      <th className="px-4 py-3 text-left text-xs font-bold text-rose-700 uppercase tracking-wider whitespace-nowrap">Lead No.</th>
-                      <th className="px-4 py-3 text-left text-xs font-bold text-rose-700 uppercase tracking-wider whitespace-nowrap">Company</th>
-                      <th className="px-4 py-3 text-left text-xs font-bold text-rose-700 uppercase tracking-wider whitespace-nowrap">Location</th>
-                      <th className="px-4 py-3 text-left text-xs font-bold text-rose-700 uppercase tracking-wider whitespace-nowrap">Product</th>
-                      <th className="px-4 py-3 text-left text-xs font-bold text-rose-700 uppercase tracking-wider whitespace-nowrap">Customer Name</th>
-                      <th className="px-4 py-3 text-left text-xs font-bold text-rose-700 uppercase tracking-wider whitespace-nowrap">Contact No.</th>
-                      <th className="px-4 py-3 text-left text-xs font-bold text-rose-700 uppercase tracking-wider whitespace-nowrap">Email</th>
-                      <th className="px-4 py-3 text-left text-xs font-bold text-rose-700 uppercase tracking-wider whitespace-nowrap">Update Remarks</th>
-                      <th className="px-4 py-3 text-left text-xs font-bold text-rose-700 uppercase tracking-wider whitespace-nowrap">Last Date Of Call</th>
-                      <th className="px-4 py-3 text-left text-xs font-bold text-rose-700 uppercase tracking-wider whitespace-nowrap">Call Status</th>
-                      <th className="px-4 py-3 text-left text-xs font-bold text-rose-700 uppercase tracking-wider whitespace-nowrap">Next Action</th>
-                      <th className="px-4 py-3 text-left text-xs font-bold text-rose-700 uppercase tracking-wider whitespace-nowrap">Enquiry Received</th>
-                      <th className="px-4 py-3 text-left text-xs font-bold text-rose-700 uppercase tracking-wider whitespace-nowrap">Cust. Remarks</th>
-                      <th className="px-4 py-3 text-left text-xs font-bold text-rose-700 uppercase tracking-wider whitespace-nowrap">Next Call</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-gray-100 bg-card">
-                    {filteredLeads.length === 0 ? (
-                      <tr>
-                        <td colSpan="15" className="px-4 py-16 text-center">
-                          <p className="text-lg font-semibold text-gray-500">No cancelled enquiries</p>
-                        </td>
-                      </tr>
-                    ) : (
-                      filteredLeads.map((lead, index) => (
-                        <tr key={lead.leadNumber || index} className="hover:bg-rose-50/30 transition-all duration-150">
-                          <td className="px-4 py-3 whitespace-nowrap">
-                            <button
-                              onClick={() => handleCallTrackerClick(lead)}
-                              className="px-3 py-1.5 bg-rose-100 text-rose-700 rounded-md text-xs font-semibold hover:bg-rose-200 transition-colors flex items-center gap-1"
-                            >
-                              <PhoneCallIcon className="h-3 w-3" />
-                              Call
-                            </button>
-                          </td>
-                          <td className="px-4 py-3 whitespace-nowrap">
-                            <span className="inline-flex items-center px-2.5 py-1 rounded-md bg-rose-100 text-rose-700 text-sm font-semibold">
-                              {lead.leadNumber || '-'}
-                            </span>
-                          </td>
-                          <td className="px-4 py-3 whitespace-nowrap text-sm font-semibold text-gray-900">{lead.companyName || '-'}</td>
-                          <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-600">{lead.location || '-'}</td>
-                          <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-600">{lead.productName || '-'}</td>
-                          <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-600">{lead.customerName || '-'}</td>
-                          <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-600">{lead.contactNo || '-'}</td>
-                          <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-600">{lead.emailId || '-'}</td>
-                          <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-600 max-w-xs truncate" title={lead.remarks}>{lead.remarks || '-'}</td>
-                          <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-600 font-medium">{lead.trackerLastCall || '-'}</td>
-                          <td className="px-4 py-3 whitespace-nowrap text-sm">
-                            {lead.trackerStatus ? (
-                              <span className={`px-2 py-0.5 rounded text-xs font-medium ${lead.trackerStatus === 'Hot' ? 'bg-red-100 text-red-800' :
-                                lead.trackerStatus === 'Warm' ? 'bg-yellow-100 text-yellow-800' :
-                                  'bg-blue-100 text-blue-800'
-                                }`}>
-                                {lead.trackerStatus}
-                              </span>
-                            ) : '-'}
-                          </td>
-                          <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-600">{lead.trackerNextAction || '-'}</td>
-                          <td className="px-4 py-3 whitespace-nowrap text-sm">
-                            <span className="px-2.5 py-1 rounded-full text-xs font-semibold bg-red-100 text-red-800">
-                              {lead.trackerEnquiry}
-                            </span>
-                          </td>
-                          <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-600 max-w-xs truncate" title={lead.trackerRemarks}>{lead.trackerRemarks || '-'}</td>
-                          <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-600">{lead.trackerNextCall || '-'}</td>
-                        </tr>
-                      ))
-                    )}
-                  </tbody>
-                </table>
-              )}
-            </div>
-            {leads.length > 0 && (
-              <div className="px-4 py-3 bg-gray-50 border-t text-sm font-medium text-gray-600 flex-shrink-0">
-                Showing {filteredLeads.length} of {leads.length} leads
-              </div>
-            )}
-          </div>
-
-          {/* Mobile Card View - Enquiry Not Received */}
-          <div className="md:hidden space-y-3">
-            {filteredLeads.map((lead, index) => (
-              <div key={lead.leadNumber || index} className="bg-card rounded-xl shadow-lg border border-gray-100 p-4">
-                <div className="flex justify-between items-start mb-2">
-                  <span className="inline-flex items-center px-2.5 py-1 rounded-md bg-rose-100 text-rose-700 text-sm font-semibold">{lead.leadNumber || '-'}</span>
-                  <button
-                    onClick={() => handleCallTrackerClick(lead)}
-                    className="px-3 py-1.5 bg-rose-100 text-rose-700 rounded-lg text-xs font-semibold hover:bg-rose-200 transition-colors flex items-center gap-1"
-                  >
-                    <PhoneCallIcon className="h-3 w-3" />
-                    Call
-                  </button>
-                </div>
-                <h3 className="text-base font-bold text-gray-900 mb-2">{lead.companyName}</h3>
-                <div className="grid grid-cols-2 gap-2 text-xs">
-                  <div><span className="text-gray-400">Product:</span> <span className="text-gray-700">{lead.productName || '-'}</span></div>
-                  <div><span className="text-gray-400">Customer:</span> <span className="text-gray-700">{lead.customerName || '-'}</span></div>
-                  <div><span className="text-gray-400">Contact:</span> <span className="text-gray-700">{lead.contactNo || '-'}</span></div>
-                  <div><span className="text-gray-400">Email:</span> <span className="text-gray-700">{lead.emailId || '-'}</span></div>
-                  <div className="col-span-2"><span className="text-gray-400">Update Remarks:</span> <span className="text-gray-700">{lead.remarks || '-'}</span></div>
-                  <div><span className="text-gray-400">Last Call:</span> <span className="text-gray-700">{lead.trackerLastCall || '-'}</span></div>
-                  <div><span className="text-gray-400">Call Status:</span> <span className="font-medium">{lead.trackerStatus || '-'}</span></div>
-                  <div><span className="text-gray-400">Enquiry:</span> <span className="font-semibold text-gray-800">{lead.trackerEnquiry || '-'}</span></div>
-                  <div><span className="text-gray-400">Next Action:</span> <span className="text-gray-700">{lead.trackerNextAction || '-'}</span></div>
-                  <div><span className="text-gray-400">Next Call:</span> <span className="text-gray-700">{lead.trackerNextCall || '-'}</span></div>
-                  <div className="col-span-2"><span className="text-gray-400">Call Remarks:</span> <span className="text-gray-700">{lead.trackerRemarks || '-'}</span></div>
-                </div>
-              </div>
-            ))}
+              )
+            })}
           </div>
         </>
       )}

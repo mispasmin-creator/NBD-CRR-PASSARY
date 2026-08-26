@@ -172,6 +172,68 @@ function CRREnquiry() {
     const [currentUpdateEnquiry, setCurrentUpdateEnquiry] = useState(null)
     const [currentUpdateStage, setCurrentUpdateStage] = useState(null)
     const [updateFormData, setUpdateFormData] = useState({})
+    const [generatingLeadFor, setGeneratingLeadFor] = useState(null)
+
+    // Flowchart edge: "CRR enquiry -> Lead". When a CRR enquiry ends up Order Not Received,
+    // re-inject it into the NBD Lead (FMS) sheet so the sales team can re-pursue it as a fresh lead.
+    const generateLeadFromEnquiry = async (enquiry) => {
+        if (generatingLeadFor) return
+        setGeneratingLeadFor(enquiry.id)
+        try {
+            const scriptUrl = import.meta.env.VITE_GOOGLE_APPS_SCRIPT_URL
+            const fmsSheetName = import.meta.env.VITE_FMS_SHEET_NAME
+
+            if (!scriptUrl || !fmsSheetName) {
+                showNotification("FMS sheet configuration missing in .env", "error")
+                return
+            }
+
+            // Determine next Lead No. (format LE-N), same convention as NBD Lead page
+            const fmsRes = await axios.get(`${scriptUrl}?sheet=${encodeURIComponent(fmsSheetName)}&t=${Date.now()}`)
+            let maxId = 0
+            if (fmsRes.data && Array.isArray(fmsRes.data.data)) {
+                fmsRes.data.data.slice(6).forEach(row => {
+                    const leadNo = String(row[1] || "")
+                    if (leadNo.startsWith("LE-") || leadNo.startsWith("LI-")) {
+                        const num = parseInt(leadNo.split("-")[1], 10)
+                        if (!isNaN(num) && num > maxId) maxId = num
+                    }
+                })
+            }
+            const newLeadNumber = `LE-${maxId + 1}`
+
+            const now = new Date()
+            const formattedTimestamp = `${now.getMonth() + 1}/${now.getDate()}/${now.getFullYear()} ${now.getHours()}:${String(now.getMinutes()).padStart(2, '0')}:${String(now.getSeconds()).padStart(2, '0')}`
+
+            const rowData = [
+                formattedTimestamp,        // Column A: Timestamp
+                newLeadNumber,              // Column B: Lead No.
+                enquiry.firmName || "",     // Column C: Our Firm Name
+                "CRR Enquiry",              // Column D: Lead Received From
+                enquiry.salesPerson || "",  // Column E: Name Of The Sales Person
+                enquiry.partyName || "",    // Column F: Name Of The Company
+                enquiry.department || "",   // Column G: Department
+                "",                          // Column H: Location (not captured on CRR enquiries)
+            ]
+
+            const payload = new URLSearchParams()
+            payload.append("action", "insert")
+            payload.append("sheetName", fmsSheetName)
+            payload.append("rowData", JSON.stringify(rowData))
+
+            const res = await axios.post(scriptUrl, payload)
+            if (res.data && res.data.success) {
+                showNotification(`Lead ${newLeadNumber} generated in NBD Lead from enquiry ${enquiry.enquiryNo}!`, "success")
+            } else {
+                throw new Error(res.data?.error || "Failed to create lead")
+            }
+        } catch (err) {
+            console.error("Error generating lead from enquiry:", err)
+            showNotification("Error generating lead: " + err.message, "error")
+        } finally {
+            setGeneratingLeadFor(null)
+        }
+    }
 
     const uploadFileToDrive = async (file) => {
         const scriptUrl = import.meta.env.VITE_GOOGLE_APPS_SCRIPT_URL
@@ -827,10 +889,20 @@ function CRREnquiry() {
                                                             )
                                                         } else if (stage === "Order Not Recived") {
                                                             return (
-                                                                <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-bold bg-rose-100 text-rose-700 shadow-xs">
-                                                                    <AlertCircleIcon className="h-3 w-3" />
-                                                                    Order Not Received
-                                                                </span>
+                                                                <div className="flex flex-col items-center gap-1.5">
+                                                                    <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-bold bg-rose-100 text-rose-700 shadow-xs">
+                                                                        <AlertCircleIcon className="h-3 w-3" />
+                                                                        Order Not Received
+                                                                    </span>
+                                                                    <button
+                                                                        onClick={() => generateLeadFromEnquiry(enquiry)}
+                                                                        disabled={generatingLeadFor === enquiry.id}
+                                                                        title="Re-inject this enquiry into NBD Lead for re-pursuit"
+                                                                        className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[11px] font-semibold bg-sky-100 text-sky-700 hover:bg-sky-200 disabled:opacity-50 cursor-pointer"
+                                                                    >
+                                                                        {generatingLeadFor === enquiry.id ? "Generating..." : "Generate Lead"}
+                                                                    </button>
+                                                                </div>
                                                             )
                                                         }
 
@@ -847,10 +919,20 @@ function CRREnquiry() {
                                                         Order Received
                                                     </span>
                                                 ) : activeTab === "Order Not Recived" ? (
-                                                    <span className="inline-flex items-center gap-1 px-3 py-1 rounded-full text-xs font-bold bg-rose-100 text-rose-700 shadow-xs">
-                                                        <AlertCircleIcon className="h-3.5 w-3.5 text-rose-600" />
-                                                        Order Not Received
-                                                    </span>
+                                                    <div className="flex flex-col items-center gap-1.5">
+                                                        <span className="inline-flex items-center gap-1 px-3 py-1 rounded-full text-xs font-bold bg-rose-100 text-rose-700 shadow-xs">
+                                                            <AlertCircleIcon className="h-3.5 w-3.5 text-rose-600" />
+                                                            Order Not Received
+                                                        </span>
+                                                        <button
+                                                            onClick={() => generateLeadFromEnquiry(enquiry)}
+                                                            disabled={generatingLeadFor === enquiry.id}
+                                                            title="Re-inject this enquiry into NBD Lead for re-pursuit"
+                                                            className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[11px] font-semibold bg-sky-100 text-sky-700 hover:bg-sky-200 disabled:opacity-50 cursor-pointer"
+                                                        >
+                                                            {generatingLeadFor === enquiry.id ? "Generating..." : "Generate Lead"}
+                                                        </button>
+                                                    </div>
                                                 ) : (
                                                     <button
                                                         onClick={() => handleStageClick(enquiry, activeTab)}
