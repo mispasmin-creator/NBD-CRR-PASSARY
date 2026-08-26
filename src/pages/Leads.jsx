@@ -71,7 +71,7 @@ function Leads() {
   const [searchTerm, setSearchTerm] = useState("")
   const [notification, setNotification] = useState(null)
   const [isLoading, setIsLoading] = useState(true)
-  const [activeTab, setActiveTab] = useState("leads")
+  const [activeTab, setActiveTab] = useState("updateStatus")
 
   const [masterFirmOptions, setMasterFirmOptions] = useState([])
   const [masterLeadReceivedFromOptions, setMasterLeadReceivedFromOptions] = useState([])
@@ -1054,17 +1054,6 @@ function Leads() {
       {/* Tabs */}
       <div className="flex space-x-2 rounded-2xl bg-white p-1.5 mb-8 w-fit mx-auto overflow-x-auto border border-slate-200 shadow-sm">
         <button
-          onClick={() => setActiveTab("leads")}
-          className={`flex min-w-0 flex-col items-center justify-center gap-1 rounded-lg px-1 py-2 text-xs font-medium leading-4 transition-all duration-200 [&>svg]:hidden sm:flex-row sm:gap-2 sm:px-4 sm:text-sm sm:leading-5 sm:whitespace-nowrap sm:[&>svg]:block ${activeTab === "leads"
-            ? "bg-sky-50 text-sky-700 shadow-sm ring-1 ring-sky-200"
-            : "text-gray-500 hover:text-gray-700 hover:bg-gray-50"
-            }`}
-        >
-          <svg className={`h-4 w-4 ${activeTab === "leads" ? "" : "text-gray-400"}`} fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0z" /></svg>
-          All Leads
-          <span className={`text-xs px-2 py-0.5 rounded-full font-semibold ${activeTab === "leads" ? "bg-sky-100 text-sky-700" : "bg-gray-100 text-gray-500"}`}>{leads.filter(l => { const colI = l.rawData && l.rawData[8] ? l.rawData[8].toString().trim() : ""; if (colI) return false; const er = String(l.trackerEnquiry || "").trim(); return er !== "Yes" && er !== "Cancel"; }).length}</span>
-        </button>
-        <button
           onClick={() => setActiveTab("updateStatus")}
           className={`flex min-w-0 flex-col items-center justify-center gap-1 rounded-lg px-1 py-2 text-center text-xs font-medium leading-4 transition-all duration-200 [&>svg]:hidden sm:flex-row sm:gap-2 sm:px-4 sm:text-left sm:text-sm sm:leading-5 sm:whitespace-nowrap sm:[&>svg]:block ${activeTab === "updateStatus"
             ? "bg-teal-50 text-teal-700 shadow-sm ring-1 ring-teal-200"
@@ -1111,176 +1100,17 @@ function Leads() {
               className="px-4 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-sky-500 min-w-[250px]"
             />
           </div>
-          {activeTab === "leads" && (
-            <div className="flex gap-3">
-              <button
-                onClick={() => setIsModalOpen(true)}
-                className="bg-sky-600 hover:bg-sky-700 text-white font-medium py-2 px-4 rounded-md transition-colors flex items-center gap-2"
-              >
-                <PlusIcon className="h-4 w-4" />
-                New Lead
-              </button>
-            </div>
-          )}
+          <div className="flex gap-3">
+            <button
+              onClick={() => setIsModalOpen(true)}
+              className="bg-sky-600 hover:bg-sky-700 text-white font-medium py-2 px-4 rounded-md transition-colors flex items-center gap-2"
+            >
+              <PlusIcon className="h-4 w-4" />
+              New Lead
+            </button>
+          </div>
         </div>
       </div>
-
-      {/* ===================== TAB 1: ALL LEADS ===================== */}
-      {activeTab === "leads" && (
-        <>
-          {/* Desktop Table */}
-          <div className="hidden md:block bg-card rounded-lg shadow-md overflow-hidden">
-            <div className="overflow-x-auto">
-              {isLoading ? (
-                <div className="flex items-center justify-center h-full">
-                  <div className="text-center">
-                    <div className="inline-block animate-spin rounded-full h-12 w-12 border-b-2 border-sky-600 mb-4"></div>
-                    <p className="text-gray-600">Loading leads from Google Sheets...</p>
-                  </div>
-                </div>
-              ) : (
-                <table className="w-full">
-                  <thead className="sticky top-0 z-10">
-                    <tr className="bg-gradient-to-r from-sky-50 to-blue-50 border-b border-gray-200">
-                      <th className="px-4 py-3 text-center text-xs font-bold text-sky-700 uppercase tracking-wider whitespace-nowrap">Stage</th>
-                      <th className="px-4 py-3 text-left text-xs font-bold text-sky-700 uppercase tracking-wider whitespace-nowrap">Lead No.</th>
-                      <th className="px-4 py-3 text-left text-xs font-bold text-sky-700 uppercase tracking-wider whitespace-nowrap">Timestamp</th>
-                      <th className="px-4 py-3 text-left text-xs font-bold text-sky-700 uppercase tracking-wider whitespace-nowrap">Our Firm Name</th>
-                      <th className="px-4 py-3 text-left text-xs font-bold text-sky-700 uppercase tracking-wider whitespace-nowrap">Lead Received From</th>
-                      <th className="px-4 py-3 text-left text-xs font-bold text-sky-700 uppercase tracking-wider whitespace-nowrap">Sales Person</th>
-                      <th className="px-4 py-3 text-left text-xs font-bold text-sky-700 uppercase tracking-wider whitespace-nowrap">Company</th>
-                      <th className="px-4 py-3 text-left text-xs font-bold text-sky-700 uppercase tracking-wider whitespace-nowrap">Department</th>
-                      <th className="px-4 py-3 text-left text-xs font-bold text-sky-700 uppercase tracking-wider whitespace-nowrap">Location</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-gray-100 bg-card">
-                    {filteredLeads.length === 0 ? (
-                      <tr>
-                        <td colSpan="9" className="px-4 py-16 text-center">
-                          <div className="flex flex-col items-center justify-center text-gray-400">
-                            <div className="w-16 h-16 mb-4 rounded-full bg-gray-100 flex items-center justify-center">
-                              <svg className="h-8 w-8 text-gray-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-                              </svg>
-                            </div>
-                            <p className="text-lg font-semibold text-gray-500">No leads found</p>
-                            <p className="text-sm text-gray-400 mt-1">Click "New Lead" to create your first outgoing lead</p>
-                          </div>
-                        </td>
-                      </tr>
-                    ) : (
-                      filteredLeads.map((lead, index) => {
-                        const colI = lead.rawData && lead.rawData[8] ? lead.rawData[8].toString().trim() : ""
-                        const colJ = lead.rawData && lead.rawData[9] ? lead.rawData[9].toString().trim() : ""
-                        let stage = "new"
-                        if (colI && !colJ) stage = "updateStatus"
-                        if (colI && colJ) stage = "callTracking"
-
-                        return (
-                          <tr key={lead.leadNumber || index} className="hover:bg-sky-50/30 transition-all duration-150">
-                            <td className="px-4 py-3 whitespace-nowrap text-center">
-                              {stage === "new" && (
-                                <span className="inline-flex items-center px-2.5 py-1 rounded-full bg-gray-100 text-gray-600 text-xs font-semibold">
-                                  New
-                                </span>
-                              )}
-                              {stage === "updateStatus" && (
-                                <button
-                                  onClick={() => handleUpdateClick(lead)}
-                                  className="inline-flex items-center gap-1 px-3 py-1.5 rounded-full bg-teal-100 text-teal-700 text-xs font-semibold hover:bg-teal-200 transition-colors"
-                                >
-                                  <svg className="h-3 w-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" /></svg>
-                                  Update Status
-                                </button>
-                              )}
-                              {stage === "callTracking" && (
-                                <button
-                                  onClick={() => handleCallTrackerClick(lead)}
-                                  className="inline-flex items-center gap-1 px-3 py-1.5 rounded-full bg-indigo-100 text-indigo-700 text-xs font-semibold hover:bg-indigo-200 transition-colors"
-                                >
-                                  <PhoneCallIcon className="h-3 w-3" />
-                                  Call Tracking
-                                </button>
-                              )}
-                            </td>
-                            <td className="px-4 py-3 whitespace-nowrap">
-                              <span className="inline-flex items-center px-2.5 py-1 rounded-md bg-sky-100 text-sky-700 text-sm font-semibold">
-                                {lead.leadNumber || '-'}
-                              </span>
-                            </td>
-                            <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-500">{lead.timestamp || '-'}</td>
-                            <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-700 font-medium">{lead.ourFirmName || '-'}</td>
-                            <td className="px-4 py-3 whitespace-nowrap">
-                              <span className="inline-flex items-center px-2 py-0.5 rounded bg-gray-100 text-gray-700 text-sm">
-                                {lead.leadReceivedFrom || '-'}
-                              </span>
-                            </td>
-                            <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-700 font-medium">{lead.salesPerson || '-'}</td>
-                            <td className="px-4 py-3 whitespace-nowrap">
-                              <div className="text-sm font-semibold text-gray-900">{lead.companyName || '-'}</div>
-                            </td>
-                            <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-600">{lead.department || '-'}</td>
-                            <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-600">{lead.location || '-'}</td>
-                          </tr>
-                        )
-                      })
-                    )}
-                  </tbody>
-                </table>
-              )}
-            </div>
-            {leads.length > 0 && (
-              <div className="px-4 py-3 bg-gray-50 border-t text-sm font-medium text-gray-600 flex-shrink-0">
-                Showing {filteredLeads.length} of {leads.length} leads
-              </div>
-            )}
-          </div>
-
-          {/* Mobile Card View - All Leads */}
-          <div className="md:hidden space-y-3">
-            {filteredLeads.length === 0 ? (
-              <div className="bg-card rounded-xl shadow-lg border border-gray-100 p-8 text-center">
-                <p className="text-lg font-semibold text-gray-500">No leads found</p>
-              </div>
-            ) : (
-              filteredLeads.map((lead, index) => {
-                const colI = lead.rawData && lead.rawData[8] ? lead.rawData[8].toString().trim() : ""
-                const colJ = lead.rawData && lead.rawData[9] ? lead.rawData[9].toString().trim() : ""
-                let stage = "new"
-                if (colI && !colJ) stage = "updateStatus"
-                if (colI && colJ) stage = "callTracking"
-
-                return (
-                  <div key={lead.leadNumber || index} className="bg-card rounded-xl shadow-lg border border-gray-100 p-4">
-                    <div className="flex justify-between items-start mb-3">
-                      <span className="inline-flex items-center px-2.5 py-1 rounded-md bg-sky-100 text-sky-700 text-sm font-semibold">
-                        {lead.leadNumber || 'No ID'}
-                      </span>
-                      {stage === "new" && <span className="px-2.5 py-1 rounded-full bg-gray-100 text-gray-600 text-xs font-semibold">New</span>}
-                      {stage === "updateStatus" && (
-                        <button onClick={() => handleUpdateClick(lead)} className="px-3 py-1.5 rounded-full bg-teal-100 text-teal-700 text-xs font-semibold hover:bg-teal-200 transition-colors">Update Status</button>
-                      )}
-                      {stage === "callTracking" && (
-                        <button onClick={() => handleCallTrackerClick(lead)} className="px-3 py-1.5 rounded-full bg-indigo-100 text-indigo-700 text-xs font-semibold hover:bg-indigo-200 transition-colors flex items-center gap-1">
-                          <PhoneCallIcon className="h-3 w-3" /> Call
-                        </button>
-                      )}
-                    </div>
-                    <h3 className="text-base font-bold text-gray-900 mb-1">{lead.companyName}</h3>
-                    <p className="text-sm text-gray-600 mb-2 font-medium">{lead.ourFirmName}</p>
-                    <div className="grid grid-cols-2 gap-2 text-xs">
-                      <div><span className="text-gray-400">Source:</span> <span className="text-gray-700">{lead.leadReceivedFrom}</span></div>
-                      <div><span className="text-gray-400">Sales:</span> <span className="text-gray-700">{lead.salesPerson}</span></div>
-                      <div><span className="text-gray-400">Dept:</span> <span className="text-gray-700">{lead.department}</span></div>
-                      <div><span className="text-gray-400">Location:</span> <span className="text-gray-700">{lead.location}</span></div>
-                    </div>
-                  </div>
-                )
-              })
-            )}
-          </div>
-        </>
-      )}
 
       {/* ===================== TAB 2: UPDATE STATUS ===================== */}
       {activeTab === "updateStatus" && (
@@ -1660,7 +1490,7 @@ function Leads() {
 
       {/* New Lead Modal */}
       {
-        isModalOpen && activeTab === "leads" && (
+        isModalOpen && (
           <div className="fixed inset-0 z-50 overflow-y-auto backdrop-blur-sm bg-black/40">
             <div className="flex items-center justify-center min-h-screen px-4 pt-4 pb-20 text-center sm:p-0">
               {/* Backdrop */}
