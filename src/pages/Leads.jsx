@@ -433,7 +433,10 @@ function Leads() {
   const filteredLeads = leads.filter(lead => {
     // Tab-based filtering using Column I (index 8) and Column J (index 9)
     if (activeTab === "leads") {
-      // Exclude leads already resolved as Enquiry Received (Yes) or Not Received (Cancel) from All Leads tab
+      // All Leads = brand new leads only. Once "Update Status" has been done on a lead
+      // (Column I / Planned 1 gets filled), it must move on and stop showing up here too.
+      const colI = lead.rawData && lead.rawData[8] ? lead.rawData[8].toString().trim() : ""
+      if (colI) return false
       const enquiryReceived = String(lead.trackerEnquiry || "").trim()
       if (enquiryReceived === "Yes" || enquiryReceived === "Cancel") return false
     }
@@ -1059,7 +1062,7 @@ function Leads() {
         >
           <svg className={`h-4 w-4 ${activeTab === "leads" ? "" : "text-gray-400"}`} fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0z" /></svg>
           All Leads
-          <span className={`text-xs px-2 py-0.5 rounded-full font-semibold ${activeTab === "leads" ? "bg-sky-100 text-sky-700" : "bg-gray-100 text-gray-500"}`}>{leads.filter(l => { const er = String(l.trackerEnquiry || "").trim(); return er !== "Yes" && er !== "Cancel"; }).length}</span>
+          <span className={`text-xs px-2 py-0.5 rounded-full font-semibold ${activeTab === "leads" ? "bg-sky-100 text-sky-700" : "bg-gray-100 text-gray-500"}`}>{leads.filter(l => { const colI = l.rawData && l.rawData[8] ? l.rawData[8].toString().trim() : ""; if (colI) return false; const er = String(l.trackerEnquiry || "").trim(); return er !== "Yes" && er !== "Cancel"; }).length}</span>
         </button>
         <button
           onClick={() => setActiveTab("updateStatus")}
