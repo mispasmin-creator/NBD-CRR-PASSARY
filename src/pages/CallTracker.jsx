@@ -1,6 +1,7 @@
 "use client"
 
 import { useState, useEffect, useContext } from "react"
+import { useLocation, useNavigate } from "react-router-dom"
 import { PlusIcon, SearchIcon, XIcon } from "../components/Icons"
 import { AuthContext } from "../App"
 import CallTrackerForm from "./Call-Tracker-Form"
@@ -116,8 +117,11 @@ const normalizeForGSheets = (value) => {
 
 function CallTracker() {
   const { showNotification } = useContext(AuthContext)
+  const location = useLocation()
+  const navigate = useNavigate()
   const [searchTerm, setSearchTerm] = useState("")
   const [isLoading, setIsLoading] = useState(true)
+  const [presetLeadNo, setPresetLeadNo] = useState(null)
 
   // Enquiry data
   const [enquiryRows, setEnquiryRows] = useState([])
@@ -166,6 +170,18 @@ function CallTracker() {
     fetchNBDEnquiryData()
     fetchMasterDropdowns()
   }, [])
+
+  // ── Handoff from NBD Lead: "Enquiry Received" → "NBD Enquiry" opens this New Enquiry form ──
+  useEffect(() => {
+    if (location.state?.openNewEnquiry) {
+      setActiveTab("all")
+      setPresetLeadNo(location.state.lead?.leadNumber || null)
+      setShowNewCallTrackerForm(true)
+      // Clear the handoff state so a refresh/back doesn't reopen it
+      navigate(location.pathname, { replace: true, state: {} })
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [location.state])
 
   // ── Fetch Master Sheet (Col G = Status, Col I = Stage) ───────────────────
   const fetchMasterDropdowns = async () => {
@@ -1184,7 +1200,8 @@ function CallTracker() {
             </button>
             <div className="flex-1 overflow-hidden">
               <CallTrackerForm
-                onClose={() => { setShowNewCallTrackerForm(false); fetchNBDEnquiryData() }}
+                presetLeadNo={presetLeadNo}
+                onClose={() => { setShowNewCallTrackerForm(false); setPresetLeadNo(null); fetchNBDEnquiryData() }}
               />
             </div>
           </div>

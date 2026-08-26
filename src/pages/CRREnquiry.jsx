@@ -1,6 +1,7 @@
 "use client"
 
 import { useState, useContext, useEffect, useCallback, useMemo } from "react"
+import { useLocation, useNavigate } from "react-router-dom"
 import { AuthContext } from "../App"
 import axios from "axios"
 import { UsersIcon, TrendingUpIcon, ShareIcon, ShoppingCartIcon, AlertCircleIcon, RefreshCwIcon } from "../components/Icons"
@@ -26,6 +27,8 @@ const isStatusOrderNotReceived = (val) => {
 
 function CRREnquiry() {
     const { showNotification } = useContext(AuthContext)
+    const location = useLocation()
+    const navigate = useNavigate()
     const [searchQuery, setSearchQuery] = useState("")
     const [showForm, setShowForm] = useState(false)
     const [isSubmitting, setIsSubmitting] = useState(false)
@@ -531,6 +534,24 @@ function CRREnquiry() {
     }
 
     const [formData, setFormData] = useState(initialFormData)
+
+    // Handoff from NBD Lead: "Enquiry Received" → "CRR Enquiry" opens this New Enquiry form, prefilled
+    useEffect(() => {
+        if (location.state?.openNewEnquiry) {
+            const lead = location.state.lead || {}
+            setFormData(prev => ({
+                ...prev,
+                firmName: lead.companyName || prev.firmName,
+                partyNames: lead.companyName || prev.partyNames,
+                department: lead.department || prev.department,
+                salesPerson: lead.salesPerson || prev.salesPerson,
+            }))
+            setShowForm(true)
+            // Clear the handoff state so a refresh/back doesn't reopen it
+            navigate(location.pathname, { replace: true, state: {} })
+        }
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [location.state])
 
     const filteredEnquiries = enquiries.filter(e => {
         const matchesSearch = e.firmName?.toLowerCase().includes(searchQuery.toLowerCase()) ||

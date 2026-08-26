@@ -1,6 +1,7 @@
 "use client"
 
 import { useState, useEffect } from "react"
+import { useNavigate } from "react-router-dom"
 import { PlusIcon, XIcon, PhoneCallIcon } from "../components/Icons"
 import axios from "axios"
 
@@ -80,6 +81,7 @@ const getNextLeadNumber = () => {
 }
 
 function Leads() {
+  const navigate = useNavigate()
   const [leads, setLeads] = useState([])
   const [isModalOpen, setIsModalOpen] = useState(false)
   const [formData, setFormData] = useState(initialFormData)
@@ -658,6 +660,7 @@ function Leads() {
     nextAction: "",
     status: "",
     enquiryReceived: "Pending",
+    targetSystem: "",
     customerRemarks: "",
     nextCallDate: "",
     lastCallDate: ""
@@ -674,6 +677,7 @@ function Leads() {
       nextAction: existingNextAction,
       status: lead.trackerStatus || lead.rawData?.[17] || "",
       enquiryReceived: existingEnquiry,
+      targetSystem: "",
       customerRemarks: lead.trackerRemarks || lead.rawData?.[19] || "",
       nextCallDate: "",
       lastCallDate: new Date().toISOString().slice(0, 16)
@@ -742,6 +746,12 @@ function Leads() {
       const isYes = callTrackerData.enquiryReceived === "Yes"
       const isCancel = callTrackerData.enquiryReceived === "Cancel"
 
+      if (isYes && !callTrackerData.targetSystem) {
+        showNotification("Please select which system (NBD Enquiry or CRR Enquiry) this enquiry should go to", "error")
+        setIsSubmitting(false)
+        return
+      }
+
       fmsRowData[16] = callTrackerData.nextAction     // Column Q: Next Action
       fmsRowData[17] = callTrackerData.status         // Column R: Call Status
       fmsRowData[18] = callTrackerData.enquiryReceived // Column S: Enquiry Received
@@ -766,16 +776,30 @@ function Leads() {
 
       if (response.data && response.data.success) {
         showNotification("Call tracking updated successfully in FMS Sheet!", "success")
-        fetchLeadsFromSheet(false)
         setIsCallTrackerOpen(false)
+        const leadForHandoff = {
+          leadNumber: currentLeadForCall.leadNumber,
+          companyName: currentLeadForCall.companyName,
+          salesPerson: currentLeadForCall.salesPerson,
+          department: currentLeadForCall.department,
+          location: currentLeadForCall.location,
+        }
         setCallTrackerData({
           nextAction: "",
           status: "",
           enquiryReceived: "Pending",
+          targetSystem: "",
           customerRemarks: "",
           nextCallDate: "",
           lastCallDate: ""
         })
+        if (isYes && callTrackerData.targetSystem === "CRR") {
+          navigate("/crr-enquiry", { state: { openNewEnquiry: true, lead: leadForHandoff } })
+        } else if (isYes && callTrackerData.targetSystem === "NBD") {
+          navigate("/call-tracker", { state: { openNewEnquiry: true, lead: leadForHandoff } })
+        } else {
+          fetchLeadsFromSheet(false)
+        }
       } else {
         console.error('FMS sheet update failed:', response.data)
         showNotification(`Update failed: ${response.data?.error || 'Unknown error'}`, 'error')
@@ -977,43 +1001,56 @@ function Leads() {
                           </select>
                         </div>
 
-                        {/* Status */}
-                        <div>
-                          <label className="block text-[13px] font-bold text-slate-700 text-left mb-1.5 uppercase tracking-wider">Status</label>
-                          <select
-                            value={callTrackerData.status}
-                            onChange={(e) => setCallTrackerData({ ...callTrackerData, status: e.target.value })}
-                            className="w-full px-4 py-2.5 text-sm border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500/50 focus:border-indigo-500 bg-slate-50 hover:bg-slate-100 transition-colors cursor-pointer"
-                          >
-                            <option value="">Select Status</option>
-                            {leadStatusOptions.map(opt => (
-                              <option key={opt} value={opt}>{opt}</option>
-                            ))}
-                          </select>
-                        </div>
+                        {/* Status & Enquiry Received — hidden once Next Action = "Enquiry Received",
+                            since that already implies Enquiry Received = Yes; go straight to routing it. */}
+                        {callTrackerData.enquiryReceived !== "Yes" && (
+                          <>
+                            <div>
+                              <label className="block text-[13px] font-bold text-slate-700 text-left mb-1.5 uppercase tracking-wider">Status</label>
+                              <select
+                                value={callTrackerData.status}
+                                onChange={(e) => setCallTrackerData({ ...callTrackerData, status: e.target.value })}
+                                className="w-full px-4 py-2.5 text-sm border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500/50 focus:border-indigo-500 bg-slate-50 hover:bg-slate-100 transition-colors cursor-pointer"
+                              >
+                                <option value="">Select Status</option>
+                                {leadStatusOptions.map(opt => (
+                                  <option key={opt} value={opt}>{opt}</option>
+                                ))}
+                              </select>
+                            </div>
 
-                        {/* Enquiry Received (Dropdown: Pending, Cancel, Yes) */}
-                        <div>
-                          <label className="block text-[13px] font-bold text-slate-700 text-left mb-1.5 uppercase tracking-wider">Enquiry Received</label>
-                          <select
-                            value={callTrackerData.enquiryReceived}
-                            onChange={(e) => setCallTrackerData({ ...callTrackerData, enquiryReceived: e.target.value })}
-                            className="w-full px-4 py-2.5 text-sm border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500/50 focus:border-indigo-500 bg-slate-50 hover:bg-slate-100 transition-colors cursor-pointer"
-                          >
-                            {String(callTrackerData.nextAction || "").trim().toLowerCase().includes("enquiry received") ? (
-                              <>
-                                <option value="Yes">Yes</option>
+                            {/* Enquiry Received (Dropdown: Pending, Cancel) */}
+                            <div>
+                              <label className="block text-[13px] font-bold text-slate-700 text-left mb-1.5 uppercase tracking-wider">Enquiry Received</label>
+                              <select
+                                value={callTrackerData.enquiryReceived}
+                                onChange={(e) => setCallTrackerData({ ...callTrackerData, enquiryReceived: e.target.value })}
+                                className="w-full px-4 py-2.5 text-sm border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500/50 focus:border-indigo-500 bg-slate-50 hover:bg-slate-100 transition-colors cursor-pointer"
+                              >
                                 <option value="Pending">Pending</option>
                                 <option value="Cancel">Cancel</option>
-                              </>
-                            ) : (
-                              <>
-                                <option value="Pending">Pending</option>
-                                <option value="Cancel">Cancel</option>
-                              </>
-                            )}
-                          </select>
-                        </div>
+                              </select>
+                            </div>
+                          </>
+                        )}
+
+                        {/* Which system should this enquiry go to — only relevant once Enquiry Received = Yes */}
+                        {callTrackerData.enquiryReceived === "Yes" && (
+                          <div>
+                            <label className="block text-[13px] font-bold text-slate-700 text-left mb-1.5 uppercase tracking-wider">Send Enquiry To</label>
+                            <select
+                              value={callTrackerData.targetSystem}
+                              onChange={(e) => setCallTrackerData({ ...callTrackerData, targetSystem: e.target.value })}
+                              required
+                              className="w-full px-4 py-2.5 text-sm border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500/50 focus:border-indigo-500 bg-slate-50 hover:bg-slate-100 transition-colors cursor-pointer"
+                            >
+                              <option value="">Select system...</option>
+                              <option value="NBD">NBD Enquiry</option>
+                              <option value="CRR">CRR Enquiry</option>
+                            </select>
+                            <p className="text-xs text-slate-500 mt-1">Its New Enquiry form will open automatically after saving.</p>
+                          </div>
+                        )}
 
                         {/* What Did The Customer Say - Hidden when Enquiry Received is Yes */}
                         {callTrackerData.enquiryReceived !== "Yes" && (

@@ -1,10 +1,10 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useState, useEffect, useRef } from "react"
 import { mockApi } from "../services/mockApi"
 import axios from "axios"
 
-const CallTrackerForm = ({ onClose = () => window.history.back() }) => {
+const CallTrackerForm = ({ onClose = () => window.history.back(), presetLeadNo = null }) => {
   const [formData, setFormData] = useState({
     productNo: "",
     firmName: "",
@@ -259,6 +259,18 @@ const CallTrackerForm = ({ onClose = () => window.history.back() }) => {
       setFormData(prev => ({ ...prev, productNo: value, fromNbdOutgoing: "No" }))
     }
   }
+
+  // When opened straight from an NBD Lead (Enquiry Received = Yes → "Send to NBD Enquiry"),
+  // auto-select that Lead No. in the Product No. field once it's available, same as picking it manually.
+  const appliedPresetRef = useRef(false)
+  useEffect(() => {
+    if (!presetLeadNo || appliedPresetRef.current) return
+    if (outgoingLeadsMap[presetLeadNo]) {
+      appliedPresetRef.current = true
+      handleProductNoChange({ target: { value: presetLeadNo } })
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [presetLeadNo, outgoingLeadsMap])
 
   // Handle firm name selection to auto-fill fields
   const handleFirmChange = (e) => {
