@@ -4,8 +4,12 @@ import { useState, useEffect, useContext, useMemo, useCallback } from "react";
 import { AuthContext } from "../App";
 import { MessageSquareIcon } from "../components/Icons";
 import axios from "axios";
+import { Download } from "lucide-react";
+import Pagination from "../components/ui/Pagination";
+import { exportToCsv } from "../utils/exportCsv";
 
 const STORAGE_KEY = "nbd_customer_complaints_tracker_data";
+const PAGE_SIZE = 10;
 
 export const COMPLAINT_STEPS = [
   "Problem Assigned",
@@ -89,6 +93,7 @@ export default function CustomerComplaint() {
   const [complaints, setComplaints] = useState([]);
   const [activeTab, setActiveTab] = useState("All Complaints");
   const [searchQuery, setSearchQuery] = useState("");
+  const [page, setPage] = useState(1);
   const [firmFilter, setFirmFilter] = useState("all");
   const [sheetHeaders, setSheetHeaders] = useState(DEFAULT_HEADERS);
 
@@ -496,6 +501,26 @@ export default function CustomerComplaint() {
       return matchesTab && matchesSearch && matchesFirm;
     });
   }, [complaints, activeTab, searchQuery, firmFilter]);
+
+  // Reset to page 1 whenever the active tab, search, or firm filter changes
+  useEffect(() => {
+    setPage(1);
+  }, [activeTab, searchQuery, firmFilter]);
+
+  const paginatedComplaints = filteredComplaints.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE);
+
+  const handleExportComplaints = () => {
+    exportToCsv(`complaints-${activeTab.replace(/\s+/g, "-").toLowerCase()}`, [
+      { label: "Complaint No.", value: (c) => c.id || "" },
+      { label: "Date", value: (c) => formatDisplayDate(c.date) },
+      { label: "Firm Name", value: (c) => c.firmName || "" },
+      { label: "Customer Name", value: (c) => c.customerName || "" },
+      { label: "Person Name", value: (c) => c.personName || "" },
+      { label: "Problem", value: (c) => c.problem || "" },
+      { label: "Received By", value: (c) => c.receivedBy || "" },
+      { label: "Current Stage", value: (c) => c.currentStep || "" },
+    ], filteredComplaints);
+  };
 
   const handleCreateComplaint = (e) => {
     e.preventDefault();
@@ -934,7 +959,7 @@ export default function CustomerComplaint() {
         </div>
 
         {/* Controls Bar */}
-        <div className="bg-card rounded-lg shadow-md p-6 mb-6">
+        <div className="bg-card rounded-2xl shadow-sm border border-slate-200/70 p-6 mb-6">
           <div className="flex flex-col md:flex-row gap-4 justify-between">
             <div className="flex flex-col sm:flex-row gap-4 flex-1">
               <input
@@ -959,8 +984,16 @@ export default function CustomerComplaint() {
             </div>
             <div className="flex gap-2">
               <button
+                onClick={handleExportComplaints}
+                disabled={filteredComplaints.length === 0}
+                className="flex items-center justify-center gap-2 bg-card border border-border text-muted-foreground hover:text-foreground hover:bg-muted font-medium py-2 px-4 rounded-md whitespace-nowrap text-sm shadow-sm cursor-pointer disabled:opacity-50"
+              >
+                <Download className="h-4 w-4" />
+                Export
+              </button>
+              <button
                 onClick={() => setShowNewModal(true)}
-                className="bg-sky-600 hover:bg-sky-700 text-white font-medium py-2 px-4 rounded-md whitespace-nowrap text-sm shadow-sm"
+                className="bg-sky-600 hover:bg-sky-700 text-white font-medium py-2 px-4 rounded-md whitespace-nowrap text-sm shadow-sm cursor-pointer"
               >
                 + Register new Complaint
               </button>
@@ -969,10 +1002,10 @@ export default function CustomerComplaint() {
         </div>
 
         {/* Complaints Table: Action first on workflow pages, proper columns */}
-        <div className="bg-white rounded-lg shadow-md overflow-hidden">
+        <div className="bg-white rounded-2xl shadow-md border border-slate-200/70 overflow-hidden">
           <div className="overflow-x-auto">
             <table className="w-full">
-              <thead className="bg-muted border-b">
+              <thead className="bg-muted border-b sticky top-0 z-10">
                 <tr>
                   {activeTab !== "History" && (
                     <th className="px-4 py-3 text-left text-xs font-semibold text-muted-foreground uppercase whitespace-nowrap">
@@ -1023,7 +1056,7 @@ export default function CustomerComplaint() {
                 </tr>
               </thead>
               <tbody className="divide-y">
-                {filteredComplaints.map((c) => (
+                {paginatedComplaints.map((c) => (
                   <tr key={c.id} className="hover:bg-muted">
                     {activeTab !== "History" && (
                       <td className="px-4 py-3 whitespace-nowrap">
@@ -1116,6 +1149,9 @@ export default function CustomerComplaint() {
               </div>
             )}
           </div>
+          {filteredComplaints.length > 0 && (
+            <Pagination page={page} pageSize={PAGE_SIZE} totalItems={filteredComplaints.length} onPageChange={setPage} />
+          )}
         </div>
 
         {/* ── Popup: Register new Complaint (Clean 6 fields) ─────────────────── */}
