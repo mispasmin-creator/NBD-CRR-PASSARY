@@ -4,9 +4,13 @@ import React, { useState, useEffect, useContext, useMemo, useCallback } from "re
 import { useLocation, useNavigate } from "react-router-dom";
 import { AuthContext } from "../context/AuthContext";
 import axios from "axios";
-import { X, ClipboardList, Send, Plus, Search, FileText, PhoneCall, History, CheckCircle, XCircle, Image as ImageIcon, AlertTriangle } from "lucide-react";
+import { X, ClipboardList, Send, Plus, Search, FileText, PhoneCall, History, CheckCircle, XCircle, Image as ImageIcon, AlertTriangle, Download } from "lucide-react";
+import Pagination from "../components/ui/Pagination";
+import ConfirmDialog from "../components/ui/ConfirmDialog";
+import { exportToCsv } from "../utils/exportCsv";
 
 const STORAGE_KEY = "nbd_marketing_visit_tracker_data";
+const PAGE_SIZE = 10;
 
 const TABS = ["Assign Marketing", "History"];
 
@@ -153,6 +157,7 @@ export default function MarketingVisitTracker() {
   const [visits, setVisits] = useState([]);
   const [activeTab, setActiveTab] = useState("Assign Marketing");
   const [searchQuery, setSearchQuery] = useState("");
+  const [page, setPage] = useState(1);
   const [firmFilter, setFirmFilter] = useState("all");
   const [sheetHeaders, setSheetHeaders] = useState([]);
   // Client plant/party names come strictly from the live Master sheet — populated by fetchMasterFirms below
@@ -254,6 +259,7 @@ export default function MarketingVisitTracker() {
   const [selectedVisit, setSelectedVisit] = useState(null);
   const [selectedStatusValue, setSelectedStatusValue] = useState("Approved");
   const [isStatusSubmitting, setIsStatusSubmitting] = useState(false);
+  const [showStatusConfirm, setShowStatusConfirm] = useState(false);
 
   // Extra fields captured when closing out an "Assign Marketing" task
   const [orderStatusValue, setOrderStatusValue] = useState("Pending"); // "Yes" | "No" | "Pending"
@@ -877,6 +883,25 @@ export default function MarketingVisitTracker() {
     });
   }, [visits, activeTab, searchQuery, firmFilter]);
 
+  // Reset to page 1 whenever the active tab, search, or firm filter changes
+  useEffect(() => {
+    setPage(1);
+  }, [activeTab, searchQuery, firmFilter]);
+
+  const paginatedVisits = filteredVisits.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE);
+
+  const handleExportVisits = () => {
+    exportToCsv(`marketing-visits-${activeTab.replace(/\s+/g, "-").toLowerCase()}`, [
+      { label: "Task ID", value: (v) => v.id || "" },
+      { label: "Source", value: (v) => v.source || "" },
+      { label: "Visit Date", value: (v) => v.visitDate || "" },
+      { label: "Sales Person", value: (v) => v.salesPerson || "" },
+      { label: "Plant Name", value: (v) => v.nameOfPlant || "" },
+      { label: "Contact Person", value: (v) => v.contactPerson || "" },
+      { label: "Department", value: (v) => v.department || "" },
+    ], filteredVisits);
+  };
+
   const handleInputChange = (e) => {
     const { name, value } = e.target;
     setFormData((prev) => ({ ...prev, [name]: value }));
@@ -1008,7 +1033,7 @@ export default function MarketingVisitTracker() {
         </div>
 
         {/* Controls Bar */}
-        <div className="bg-card rounded-lg shadow-md p-6 mb-6">
+        <div className="bg-card rounded-2xl shadow-sm border border-slate-200/70 p-6 mb-6">
           <div className="flex flex-col md:flex-row gap-4 justify-between">
             <div className="flex flex-col sm:flex-row gap-4 flex-1">
               <div className="relative flex-1">
@@ -1034,21 +1059,31 @@ export default function MarketingVisitTracker() {
                 ))}
               </select>
             </div>
-            <button
-              onClick={openNewModal}
-              className="bg-[#14533a] hover:bg-[#0f3f2b] text-white font-medium py-2 px-4 rounded-md whitespace-nowrap text-sm shadow-sm transition flex items-center gap-1.5 justify-center"
-            >
-              <Plus size={16} />
-              Log Client Plant Visit Report
-            </button>
+            <div className="flex gap-2">
+              <button
+                onClick={handleExportVisits}
+                disabled={filteredVisits.length === 0}
+                className="flex items-center justify-center gap-2 bg-card border border-border text-muted-foreground hover:text-foreground hover:bg-muted font-medium py-2 px-4 rounded-md whitespace-nowrap text-sm shadow-sm cursor-pointer disabled:opacity-50"
+              >
+                <Download size={16} />
+                Export
+              </button>
+              <button
+                onClick={openNewModal}
+                className="bg-[#14533a] hover:bg-[#0f3f2b] text-white font-medium py-2 px-4 rounded-md whitespace-nowrap text-sm shadow-sm transition flex items-center gap-1.5 justify-center cursor-pointer"
+              >
+                <Plus size={16} />
+                Log Client Plant Visit Report
+              </button>
+            </div>
           </div>
         </div>
 
         {/* Visits Table */}
-        <div className="bg-white rounded-lg shadow-md overflow-hidden">
+        <div className="bg-white rounded-2xl shadow-md border border-slate-200/70 overflow-hidden">
           <div className="overflow-x-auto">
             <table className="w-full">
-              <thead className="bg-muted border-b">
+              <thead className="bg-muted border-b sticky top-0 z-10">
                 <tr>
                   {activeTab === "Assign Marketing" && (
                     <th className="px-4 py-3 text-center text-xs font-semibold text-muted-foreground uppercase whitespace-nowrap">
@@ -1106,7 +1141,7 @@ export default function MarketingVisitTracker() {
                 </tr>
               </thead>
               <tbody className="divide-y">
-                {filteredVisits.map((v) => (
+                {paginatedVisits.map((v) => (
                   <tr key={v.id} className="hover:bg-muted">
                     {activeTab === "Assign Marketing" && (
                       <td className="px-4 py-3 whitespace-nowrap text-sm text-center">
@@ -1242,6 +1277,9 @@ export default function MarketingVisitTracker() {
               </div>
             )}
           </div>
+          {filteredVisits.length > 0 && (
+            <Pagination page={page} pageSize={PAGE_SIZE} totalItems={filteredVisits.length} onPageChange={setPage} />
+          )}
         </div>
 
         {/* Modal: Log Client Plant Visit Report */}
@@ -1577,7 +1615,7 @@ export default function MarketingVisitTracker() {
                 </button>
               </div>
 
-              <form onSubmit={handleStatusSubmit} className="flex flex-col flex-1 min-h-0">
+              <form onSubmit={(e) => { e.preventDefault(); setShowStatusConfirm(true) }} className="flex flex-col flex-1 min-h-0">
                 <div className="p-6 sm:p-8 space-y-7 overflow-y-auto flex-1">
                 {/* Details Summary Card */}
                 <div className="bg-primary/20 border border-emerald-100 rounded-xl p-4 grid grid-cols-1 sm:grid-cols-2 gap-x-4 gap-y-2.5 text-xs">
@@ -1778,6 +1816,21 @@ export default function MarketingVisitTracker() {
           </div>
         )}
 
+        {/* Confirm before saving the Assign Marketing / Report action */}
+        <ConfirmDialog
+          open={showStatusConfirm}
+          tone={selectedStatusValue === "Rejected" ? "danger" : "success"}
+          title={statusModalType === "Assign Marketing" ? "Save this visit outcome?" : `Mark as ${selectedStatusValue}?`}
+          message={
+            statusModalType === "Assign Marketing"
+              ? "This will record the order status, customer feedback and photos, and move this task to History."
+              : "This action will update the status for this record."
+          }
+          confirmLabel={isStatusSubmitting ? "Saving..." : "Confirm"}
+          isLoading={isStatusSubmitting}
+          onConfirm={() => { setShowStatusConfirm(false); handleStatusSubmit({ preventDefault: () => {} }) }}
+          onCancel={() => setShowStatusConfirm(false)}
+        />
       </div>
     </div>
   );
