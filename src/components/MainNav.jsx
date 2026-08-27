@@ -1,4 +1,4 @@
-import { MenuIcon, SearchIcon } from "./Icons"
+import { MenuIcon } from "./Icons"
 import { useContext, useState, useRef, useEffect } from "react"
 import { AuthContext } from "../App"
 import { useLocation, useNavigate } from "react-router-dom"
@@ -92,17 +92,6 @@ function MainNav({ logout, setMobileMenuOpen }) {
               )}
             </div>
           </div>
-        </div>
-
-        {/* Search — quick access, not wired to a specific data source yet */}
-        <div className="ml-2 hidden max-w-xs flex-1 items-center gap-2 rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-slate-400 transition-colors focus-within:border-sky-400 focus-within:bg-white focus-within:ring-2 focus-within:ring-sky-500/20 lg:flex">
-          <SearchIcon className="h-4 w-4 shrink-0" />
-          <input
-            type="text"
-            placeholder="Search anything..."
-            className="w-full bg-transparent text-[13px] text-slate-700 placeholder:text-slate-400 focus:outline-none"
-          />
-          <kbd className="hidden shrink-0 rounded-md border border-slate-200 bg-white px-1.5 py-0.5 text-[10px] font-semibold text-slate-400 xl:inline-block">⌘K</kbd>
         </div>
       </div>
 
