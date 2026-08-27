@@ -4,7 +4,7 @@ import React, { useState, useEffect, useContext, useMemo, useCallback } from "re
 import { useLocation, useNavigate } from "react-router-dom";
 import { AuthContext } from "../context/AuthContext";
 import axios from "axios";
-import { X, ClipboardList, Send, Plus, Locate, MapPin, Search, FileText, PhoneCall, History, CheckCircle, XCircle } from "lucide-react";
+import { X, ClipboardList, Send, Plus, Search, FileText, PhoneCall, History, CheckCircle, XCircle } from "lucide-react";
 
 const STORAGE_KEY = "nbd_marketing_visit_tracker_data";
 
@@ -246,8 +246,6 @@ export default function MarketingVisitTracker() {
   const [selectedSalesPerson, setSelectedSalesPerson] = useState(currentUser?.username || "Admin");
   const [customPlantActive, setCustomPlantActive] = useState(false);
   const [customDeptActive, setCustomDeptActive] = useState(false);
-  const [visitLocation, setVisitLocation] = useState("");
-  const [gpsLoading, setGpsLoading] = useState(false);
 
   // Helper to generate sequential Task ID (TSK-001, TSK-002, ...)
   const generateNextTaskId = useCallback((visitList = visits) => {
@@ -285,7 +283,6 @@ export default function MarketingVisitTracker() {
     setSelectedSalesPerson(currentUser?.username || "Admin");
     setCustomPlantActive(false);
     setCustomDeptActive(false);
-    setVisitLocation("");
     setErrorMsg("");
     // Generate sequential TSK id starting from TSK-001
     setCurrentTaskId(generateNextTaskId(visits));
@@ -982,26 +979,6 @@ export default function MarketingVisitTracker() {
     });
   }, [visits, activeTab, searchQuery, firmFilter]);
 
-  const handleGpsDetect = () => {
-    if (!navigator.geolocation) {
-      setErrorMsg("GPS is not supported by your browser.");
-      return;
-    }
-    setGpsLoading(true);
-    navigator.geolocation.getCurrentPosition(
-      (pos) => {
-        const { latitude, longitude } = pos.coords;
-        setVisitLocation(`${latitude.toFixed(5)}, ${longitude.toFixed(5)}`);
-        setGpsLoading(false);
-      },
-      (err) => {
-        setErrorMsg(`GPS Error: ${err.message}`);
-        setGpsLoading(false);
-      },
-      { timeout: 10000, enableHighAccuracy: true }
-    );
-  };
-
   const handleInputChange = (e) => {
     const { name, value } = e.target;
     setFormData((prev) => ({ ...prev, [name]: value }));
@@ -1022,12 +999,6 @@ export default function MarketingVisitTracker() {
       const timestampStr = formatIndianTimestamp(now);
       const formattedVisitDate = formatToIndianDate(formData.visitDate);
 
-      // Fold the GPS-detected location into the content details, since the sheet has no
-      // dedicated location column for manual visits (matches how this is already stored elsewhere).
-      const contentWithLocation = visitLocation
-        ? `[GPS: ${visitLocation}]${formData.contentDetails ? `\n${formData.contentDetails}` : ""}`
-        : formData.contentDetails;
-
       const newRecord = {
         id: currentTaskId,
         timestamp: timestampStr,
@@ -1036,7 +1007,7 @@ export default function MarketingVisitTracker() {
         nameOfPlant: formData.nameOfPlant,
         contactPerson: formData.contactPerson,
         designation: formData.designation,
-        contentDetails: contentWithLocation,
+        contentDetails: formData.contentDetails,
         department: formData.department,
         shutdown: formData.shutdown,
         remark: formData.remark,
@@ -1471,38 +1442,6 @@ export default function MarketingVisitTracker() {
                       ⚠️ {errorMsg}
                     </div>
                   )}
-
-                  {/* GPS Auto-detect Location */}
-                  <div className="flex flex-wrap items-center gap-3 py-3 px-4 bg-muted rounded-xl border border-border">
-                    <button
-                      type="button"
-                      onClick={handleGpsDetect}
-                      disabled={gpsLoading}
-                      className="flex items-center gap-2 px-3 min-h-[44px] bg-card border border-border rounded-lg text-xs font-semibold text-muted-foreground hover:bg-muted transition-colors disabled:opacity-50 cursor-pointer"
-                    >
-                      {gpsLoading ? (
-                        <div className="w-4 h-4 border-2 border-border border-t-[#14533a] rounded-full animate-spin" />
-                      ) : (
-                        <Locate size={14} className="text-[#14533a]" />
-                      )}
-                      {gpsLoading ? "Detecting..." : "Detect GPS Location"}
-                    </button>
-                    {visitLocation ? (
-                      <div className="flex items-center gap-1.5 bg-primary/20 border border-primary/30 rounded-lg px-3 py-1.5 text-xs font-semibold text-emerald-800">
-                        <MapPin size={12} className="text-primary" />
-                        <span className="font-mono">{visitLocation}</span>
-                        <button
-                          type="button"
-                          onClick={() => setVisitLocation("")}
-                          className="text-emerald-500 hover:text-emerald-800 ml-1 cursor-pointer"
-                        >
-                          <X size={12} />
-                        </button>
-                      </div>
-                    ) : (
-                      <span className="text-[11px] text-muted-foreground">Optional — will be added to the visit notes</span>
-                    )}
-                  </div>
 
                   {/* Name of Plant */}
                   <div className="space-y-2">
