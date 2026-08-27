@@ -151,7 +151,9 @@ function Sidebar({ mobileMenuOpen, setMobileMenuOpen }) {
 
         {/* Navigation */}
         <nav className="flex-1 overflow-y-auto px-4 py-6" aria-label="Sidebar navigation">
-
+          {showLabels && (
+            <p className="mb-2 px-2 text-[11px] font-bold uppercase tracking-wider text-slate-400">Main</p>
+          )}
           <div className="space-y-1">
             {mainRoutes.map((route) => (
               <SidebarLink key={route.to} route={route} showLabel={showLabels} />
@@ -161,6 +163,9 @@ function Sidebar({ mobileMenuOpen, setMobileMenuOpen }) {
           {showAdminSection && (
             <>
               <div className="my-4 border-t border-slate-100" />
+              {showLabels && (
+                <p className="mb-2 px-2 text-[11px] font-bold uppercase tracking-wider text-slate-400">Settings</p>
+              )}
               <div className="space-y-1">
                 {adminRoutes.map((route) => (
                   <SidebarLink key={route.to} route={route} showLabel={showLabels} />
