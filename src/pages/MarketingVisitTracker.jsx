@@ -218,14 +218,8 @@ export default function MarketingVisitTracker() {
   const [searchQuery, setSearchQuery] = useState("");
   const [firmFilter, setFirmFilter] = useState("all");
   const [sheetHeaders, setSheetHeaders] = useState([]);
-  const [existingParties, setExistingParties] = useState([
-    "Apex Industries Ltd",
-    "Sterling Alloys Pvt Ltd",
-    "Nova Tech Solutions",
-    "Passary Group",
-    "ABC Corp",
-    "XYZ Ltd",
-  ]);
+  // Client plant/party names come strictly from the live Master sheet — populated by fetchMasterFirms below
+  const [existingParties, setExistingParties] = useState([]);
 
   // Sales person options come strictly from the live Master sheet — populated by fetchAllData below
   const [salesPersonsList, setSalesPersonsList] = useState([]);
@@ -1028,6 +1022,12 @@ export default function MarketingVisitTracker() {
       const timestampStr = formatIndianTimestamp(now);
       const formattedVisitDate = formatToIndianDate(formData.visitDate);
 
+      // Fold the GPS-detected location into the content details, since the sheet has no
+      // dedicated location column for manual visits (matches how this is already stored elsewhere).
+      const contentWithLocation = visitLocation
+        ? `[GPS: ${visitLocation}]${formData.contentDetails ? `\n${formData.contentDetails}` : ""}`
+        : formData.contentDetails;
+
       const newRecord = {
         id: currentTaskId,
         timestamp: timestampStr,
@@ -1036,7 +1036,7 @@ export default function MarketingVisitTracker() {
         nameOfPlant: formData.nameOfPlant,
         contactPerson: formData.contactPerson,
         designation: formData.designation,
-        contentDetails: formData.contentDetails,
+        contentDetails: contentWithLocation,
         department: formData.department,
         shutdown: formData.shutdown,
         remark: formData.remark,
@@ -1500,7 +1500,7 @@ export default function MarketingVisitTracker() {
                         </button>
                       </div>
                     ) : (
-                      <span className="text-[11px] text-muted-foreground"></span>
+                      <span className="text-[11px] text-muted-foreground">Optional — will be added to the visit notes</span>
                     )}
                   </div>
 
@@ -1508,7 +1508,7 @@ export default function MarketingVisitTracker() {
                   <div className="space-y-2">
                     <div className="flex justify-between items-center">
                       <label className="block text-xs font-bold text-muted-foreground uppercase tracking-wider">
-                        Name of Plant / Client
+                        Name of Plant / Client <span className="text-rose-500">*</span>
                       </label>
                       <button
                         type="button"
@@ -1561,7 +1561,7 @@ export default function MarketingVisitTracker() {
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div className="space-y-1.5">
                       <label className="block text-xs font-bold text-muted-foreground uppercase tracking-wider">
-                        Contact Person
+                        Contact Person <span className="text-rose-500">*</span>
                       </label>
                       <input
                         type="text"
@@ -1576,7 +1576,7 @@ export default function MarketingVisitTracker() {
 
                     <div className="space-y-1.5">
                       <label className="block text-xs font-bold text-muted-foreground uppercase tracking-wider">
-                        Designation
+                        Designation <span className="text-rose-500">*</span>
                       </label>
                       <input
                         type="text"
@@ -1593,9 +1593,10 @@ export default function MarketingVisitTracker() {
                   {/* Department */}
                   <div className="space-y-2">
                     <label className="block text-xs font-bold text-muted-foreground uppercase tracking-wider">
-                      Department
+                      Department <span className="text-rose-500">*</span>
                     </label>
                     <select
+                      required={!customDeptActive}
                       value={customDeptActive ? "__custom__" : formData.department}
                       onChange={(e) => {
                         if (e.target.value === "__custom__") {
@@ -1631,7 +1632,7 @@ export default function MarketingVisitTracker() {
                   {/* Discussion & Content Details */}
                   <div className="space-y-1.5">
                     <label className="block text-xs font-bold text-muted-foreground uppercase tracking-wider">
-                      Content no. / Discussion Details
+                      Content no. / Discussion Details <span className="text-rose-500">*</span>
                     </label>
                     <textarea
                       name="contentDetails"
@@ -1660,6 +1661,29 @@ export default function MarketingVisitTracker() {
                         <option value="Shutdown">Shutdown</option>
                       </select>
                     </div>
+                  </div>
+
+                  {/* Next Visit Frequency — drives when this plant shows up again as "due for a visit" */}
+                  <div className="space-y-1.5">
+                    <label className="block text-xs font-bold text-muted-foreground uppercase tracking-wider">
+                      Next Visit Due In <span className="text-rose-500">*</span>
+                    </label>
+                    <select
+                      name="frequencyOfVisit"
+                      required
+                      value={formData.frequencyOfVisit}
+                      onChange={handleInputChange}
+                      className="w-full px-3 py-3 bg-card border border-border rounded-lg focus:outline-none focus:ring-2 focus:ring-[#14533a]/20 focus:border-[#14533a] text-foreground text-sm"
+                    >
+                      <option value="">-- Select Frequency --</option>
+                      <option value="7">Every 7 days</option>
+                      <option value="15">Every 15 days</option>
+                      <option value="30">Every 30 days</option>
+                      <option value="45">Every 45 days</option>
+                      <option value="60">Every 60 days</option>
+                      <option value="90">Every 90 days</option>
+                    </select>
+                    <p className="text-[11px] text-muted-foreground">This plant will reappear in "Assign Marketing" once this many days have passed since the visit date.</p>
                   </div>
 
                   {/* Remarks */}
