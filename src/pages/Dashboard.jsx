@@ -108,6 +108,11 @@ function Dashboard() {
           <DashboardMetrics filters={filters} />
         </motion.section>
 
+        {/* Section 4b: Recent Activity */}
+        <motion.section variants={itemVariants} className="mb-8">
+          <RecentActivities />
+        </motion.section>
+
         {/* Section 5: Charts */}
         <motion.section variants={itemVariants} className="bg-white/60 backdrop-blur-lg rounded-3xl shadow-[0_8px_30px_rgb(0,0,0,0.04)] border border-white mb-6 overflow-hidden">
           <div className="p-4 md:p-8">

@@ -1,28 +1,38 @@
 function RecentActivities() {
   return (
-    <div>
-      <h3 className="text-xl font-bold mb-4">Recent Activities</h3>
+    <div className="bg-white rounded-2xl shadow-sm border border-slate-200 hover:shadow-lg transition-shadow duration-300 p-5 md:p-7 h-full flex flex-col">
+      <div className="flex items-center justify-between gap-3 mb-6 md:mb-8 border-b border-slate-100 pb-4">
+        <div className="flex items-center gap-3">
+          <div className="bg-[#E5E7EB] p-2 rounded-xl text-[#4F46E5] shadow-inner">
+            <span className="material-icons text-xl md:text-2xl block">history</span>
+          </div>
+          <h2 className="text-lg md:text-xl font-extrabold text-foreground tracking-tight">Recent Activity</h2>
+        </div>
+        <button type="button" className="text-xs font-bold text-sky-600 hover:text-sky-800 transition-colors cursor-pointer">
+          See All
+        </button>
+      </div>
 
-      <div className="space-y-4">
+      <div className="flex-1 space-y-1">
         {activities.map((activity, index) => (
-          <div key={index} className="flex items-start gap-4 pb-4 border-b border-border last:border-0">
-            <div className="h-9 w-9 rounded-full bg-slate-200 flex items-center justify-center text-muted-foreground font-medium">
+          <div key={index} className="flex items-start gap-3.5 py-3 border-b border-slate-100 last:border-0">
+            <div className="h-9 w-9 shrink-0 rounded-full bg-gradient-to-br from-sky-500 to-indigo-600 flex items-center justify-center text-white text-sm font-bold shadow-sm">
               {activity.user.charAt(0)}
             </div>
 
-            <div className="flex-1 space-y-1">
-              <div className="flex items-center justify-between">
-                <p className="text-sm font-medium">{activity.user}</p>
-                <span className="text-xs text-muted-foreground">{activity.time}</span>
+            <div className="flex-1 min-w-0 space-y-1">
+              <div className="flex items-center justify-between gap-2">
+                <p className="text-sm font-semibold text-foreground truncate">{activity.user}</p>
+                <span className="shrink-0 text-[11px] text-muted-foreground">{activity.time}</span>
               </div>
               <p className="text-sm text-muted-foreground">{activity.action}</p>
-              <div className="flex items-center gap-2">
+              <div className="flex items-center gap-2 flex-wrap">
                 <span
-                  className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${getBadgeColor(activity.type)}`}
+                  className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-[11px] font-semibold ${getBadgeColor(activity.type)}`}
                 >
                   {activity.type}
                 </span>
-                <span className="text-xs text-muted-foreground">{activity.detail}</span>
+                <span className="text-[11px] text-muted-foreground truncate">{activity.detail}</span>
               </div>
             </div>
           </div>

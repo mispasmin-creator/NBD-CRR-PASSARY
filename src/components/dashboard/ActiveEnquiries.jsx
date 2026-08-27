@@ -24,10 +24,10 @@ function ActiveEnquiries({ filters }) {
     }
 
     return (
-        <div className="bg-white rounded-lg shadow-md border border-slate-200 overflow-hidden">
-            <div className="p-5 md:p-6 border-b border-slate-100 flex justify-between items-center bg-white">
+        <div className="bg-white rounded-2xl shadow-sm hover:shadow-lg transition-shadow duration-300 border border-slate-200 overflow-hidden">
+            <div className="p-5 md:p-7 border-b border-slate-100 flex justify-between items-center bg-white">
                 <h2 className="text-lg md:text-xl font-extrabold text-foreground tracking-tight flex items-center">
-                    Active Enquiries 
+                    Active Enquiries
                     {enquiries.length > 0 && <span className="ml-3 bg-indigo-100 border border-indigo-200 text-indigo-700 py-1 px-3 rounded-xl text-sm font-bold shadow-inner">{enquiries.length}</span>}
                 </h2>
             </div>
