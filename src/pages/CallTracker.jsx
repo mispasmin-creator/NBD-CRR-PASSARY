@@ -2,10 +2,15 @@
 
 import { useState, useEffect, useContext } from "react"
 import { useLocation, useNavigate } from "react-router-dom"
-import { PlusIcon, SearchIcon, XIcon } from "../components/Icons"
+import { PlusIcon, SearchIcon, XIcon, RefreshCwIcon } from "../components/Icons"
 import { AuthContext } from "../App"
 import CallTrackerForm from "./Call-Tracker-Form"
 import axios from "axios"
+import { Download } from "lucide-react"
+import Pagination from "../components/ui/Pagination"
+import { exportToCsv } from "../utils/exportCsv"
+
+const PAGE_SIZE = 10
 
 // All columns to display in "View" modal
 const ALL_COLUMNS = [
@@ -122,6 +127,7 @@ function CallTracker() {
   const [searchTerm, setSearchTerm] = useState("")
   const [isLoading, setIsLoading] = useState(true)
   const [presetLeadNo, setPresetLeadNo] = useState(null)
+  const [page, setPage] = useState(1)
 
   // Enquiry data
   const [enquiryRows, setEnquiryRows] = useState([])
@@ -396,6 +402,24 @@ function CallTracker() {
     const term = searchTerm.toLowerCase()
     return Object.values(row).some(v => v && v.toString().toLowerCase().includes(term))
   })
+
+  // Reset to page 1 whenever the active tab or search term changes
+  useEffect(() => {
+    setPage(1)
+  }, [activeTab, searchTerm])
+
+  const paginatedRows = filteredRows.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE)
+
+  const handleExportRows = () => {
+    exportToCsv(`nbd-enquiry-${activeTab}`, [
+      { label: "Enquiry No.", value: (r) => r["Enquiry No."] || "" },
+      { label: "Firm Name", value: (r) => r["Firm Name"] || "" },
+      { label: "Party Name", value: (r) => r["Party Name"] || "" },
+      { label: "Name Of Sales Person", value: (r) => r["Name Of Sales Person"] || "" },
+      { label: "Location", value: (r) => r["Location"] || "" },
+      { label: "Current Stage", value: (r) => r["Current Stage"] || "" },
+    ], filteredRows)
+  }
 
   // ── Open Call Tracker Modal ───────────────────────────────────────────────
   const handleOpenCallTracker = async (row) => {
@@ -1157,7 +1181,7 @@ function CallTracker() {
       </div>
 
       {/* Controls */}
-      <div className="bg-card rounded-lg shadow-md p-6 mb-6">
+      <div className="bg-card rounded-2xl shadow-sm border border-slate-200/70 p-6 mb-6">
         <div className="flex flex-col md:flex-row gap-4 justify-between items-start md:items-center">
           <div className="flex flex-col sm:flex-row gap-4 flex-1">
             <input
@@ -1170,10 +1194,19 @@ function CallTracker() {
           </div>
           <div className="flex gap-3">
             <button
-              onClick={fetchNBDEnquiryData}
-              className="px-4 py-2 bg-card border border-gray-300 text-gray-600 font-medium rounded-md hover:bg-gray-50 text-sm"
+              onClick={handleExportRows}
+              disabled={filteredRows.length === 0}
+              className="flex items-center gap-2 px-4 py-2 bg-card border border-gray-300 text-gray-600 font-medium rounded-md hover:bg-gray-50 text-sm cursor-pointer disabled:opacity-50"
             >
-              ↻ Refresh
+              <Download className="h-4 w-4" />
+              Export
+            </button>
+            <button
+              onClick={fetchNBDEnquiryData}
+              className="flex items-center gap-2 px-4 py-2 bg-card border border-gray-300 text-gray-600 font-medium rounded-md hover:bg-gray-50 text-sm cursor-pointer"
+            >
+              <RefreshCwIcon className="h-4 w-4" />
+              Refresh
             </button>
             {activeTab === "all" && (
               <button
@@ -1665,7 +1698,7 @@ function CallTracker() {
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100">
-                {filteredRows.map((row, index) => (
+                {paginatedRows.map((row, index) => (
                   <tr key={index} className="hover:bg-blue-50/40 transition-colors group">
                     {/* Call button — first column, only on Call Tracker tab */}
                     {activeTab === "callTracker" && (
@@ -1819,6 +1852,9 @@ function CallTracker() {
             </table>
             </div>
           </>
+        )}
+        {!isLoading && filteredRows.length > 0 && (
+          <Pagination page={page} pageSize={PAGE_SIZE} totalItems={filteredRows.length} onPageChange={setPage} />
         )}
       </div>
 
