@@ -5,7 +5,7 @@ import { useLocation, useNavigate } from "react-router-dom"
 import { AuthContext } from "../App"
 import axios from "axios"
 import { UsersIcon, TrendingUpIcon, ShareIcon, ShoppingCartIcon, AlertCircleIcon, RefreshCwIcon } from "../components/Icons"
-import { X, Send, Image as ImageIcon, ExternalLink, CheckCircle } from "lucide-react"
+import { X, Send, Image as ImageIcon, ExternalLink, CheckCircle, Paperclip } from "lucide-react"
 
 const findColIdx = (headers, names, fallback = -1) => {
     if (!headers || headers.length === 0) return fallback
@@ -1113,7 +1113,7 @@ function CRREnquiry() {
                                                 />
                                                 {updateFormData[col.key] && updateFormData[col.key] instanceof File && (
                                                     <p className="text-[11px] text-sky-600 font-semibold truncate flex items-center gap-1">
-                                                        📎 Selected: {updateFormData[col.key].name}
+                                                        <Paperclip className="h-3 w-3 shrink-0" /> Selected: {updateFormData[col.key].name}
                                                     </p>
                                                 )}
                                             </div>

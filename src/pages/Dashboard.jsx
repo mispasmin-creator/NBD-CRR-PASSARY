@@ -75,10 +75,10 @@ function Dashboard() {
                 onChange={(e) => setFilters(p => ({ ...p, dateRange: e.target.value }))}
                 className="appearance-none pl-5 pr-11 py-3 rounded-2xl text-[14px] font-bold bg-white/50 text-slate-700 hover:bg-white border border-slate-200/60 focus:outline-none focus:ring-2 focus:ring-indigo-500/40 shadow-sm cursor-pointer transition-all duration-300 backdrop-blur-md"
               >
-                <option value="Weekly">📅 Weekly View</option>
-                <option value="Monthly">📆 Monthly View</option>
-                <option value="Quarterly">📊 Quarterly View</option>
-                <option value="Yearly">🏆 Yearly View</option>
+                <option value="Weekly">Weekly View</option>
+                <option value="Monthly">Monthly View</option>
+                <option value="Quarterly">Quarterly View</option>
+                <option value="Yearly">Yearly View</option>
               </select>
               <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-4 text-slate-400 group-hover:text-indigo-500 transition-colors">
                 <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 9l-7 7-7-7" /></svg>

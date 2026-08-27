@@ -18,6 +18,7 @@ import {
   Legend,
   ResponsiveContainer,
 } from "recharts"
+import { BarChart3, Target, Globe2 } from "lucide-react"
 
 // Fallback data in case of errors
 const fallbackLeadData = [
@@ -123,21 +124,24 @@ function DashboardCharts({ filters }) {
         <div className="inline-flex bg-muted/50/80 backdrop-blur-sm p-1.5 rounded-2xl shadow-inner border border-border/60 sticky left-0 min-w-max">
           <button
             onClick={() => setActiveTab("overview")}
-            className={`px-5 py-2.5 text-sm font-bold rounded-xl transition-all duration-300 ${activeTab === "overview" ? "bg-card text-indigo-600 shadow-sm border border-border/50 scale-100" : "text-muted-foreground hover:text-muted-foreground hover:bg-card/50 scale-95"}`}
+            className={`flex items-center gap-2 px-5 py-2.5 text-sm font-bold rounded-xl transition-all duration-300 ${activeTab === "overview" ? "bg-card text-indigo-600 shadow-sm border border-border/50 scale-100" : "text-muted-foreground hover:text-muted-foreground hover:bg-card/50 scale-95"}`}
           >
-            📊 Monthly Overview
+            <BarChart3 className="h-4 w-4" />
+            Monthly Overview
           </button>
           <button
             onClick={() => setActiveTab("conversion")}
-            className={`px-5 py-2.5 text-sm font-bold rounded-xl transition-all duration-300 ${activeTab === "conversion" ? "bg-card text-rose-600 shadow-sm border border-border/50 scale-100" : "text-muted-foreground hover:text-muted-foreground hover:bg-card/50 scale-95"}`}
+            className={`flex items-center gap-2 px-5 py-2.5 text-sm font-bold rounded-xl transition-all duration-300 ${activeTab === "conversion" ? "bg-card text-rose-600 shadow-sm border border-border/50 scale-100" : "text-muted-foreground hover:text-muted-foreground hover:bg-card/50 scale-95"}`}
           >
-            🎯 Conversion Funnel
+            <Target className="h-4 w-4" />
+            Conversion Funnel
           </button>
           <button
             onClick={() => setActiveTab("sources")}
-            className={`px-5 py-2.5 text-sm font-bold rounded-xl transition-all duration-300 ${activeTab === "sources" ? "bg-card text-primary shadow-sm border border-border/50 scale-100" : "text-muted-foreground hover:text-muted-foreground hover:bg-card/50 scale-95"}`}
+            className={`flex items-center gap-2 px-5 py-2.5 text-sm font-bold rounded-xl transition-all duration-300 ${activeTab === "sources" ? "bg-card text-primary shadow-sm border border-border/50 scale-100" : "text-muted-foreground hover:text-muted-foreground hover:bg-card/50 scale-95"}`}
           >
-            🌍 Lead Sources
+            <Globe2 className="h-4 w-4" />
+            Lead Sources
           </button>
         </div>
       </div>

@@ -1610,8 +1610,8 @@ function OrderNotReceivedFMS() {
             <form onSubmit={handleFormSubmit} className="flex flex-col flex-1 min-h-0">
               <div className="p-6 space-y-5 overflow-y-auto flex-1 text-xs">
                 {formError && (
-                  <div className="p-3 bg-red-50 border border-red-200 text-red-700 rounded-lg font-semibold">
-                    ⚠️ {formError}
+                  <div className="p-3 bg-red-50 border border-red-200 text-red-700 rounded-lg font-semibold flex items-center gap-2">
+                    <AlertTriangleIcon className="h-4 w-4 shrink-0" /> {formError}
                   </div>
                 )}
 
@@ -1884,8 +1884,8 @@ function OrderNotReceivedFMS() {
             <form onSubmit={handleSampleSubmit} className="flex flex-col">
               <div className="p-6 space-y-4 text-xs">
                 {formError && (
-                  <div className="p-3 bg-red-50 border border-red-200 text-red-700 rounded-lg font-semibold">
-                    ⚠️ {formError}
+                  <div className="p-3 bg-red-50 border border-red-200 text-red-700 rounded-lg font-semibold flex items-center gap-2">
+                    <AlertTriangleIcon className="h-4 w-4 shrink-0" /> {formError}
                   </div>
                 )}
 
@@ -1992,8 +1992,8 @@ function OrderNotReceivedFMS() {
             <form onSubmit={handleTestingSubmit} className="flex flex-col">
               <div className="p-6 space-y-4 text-xs">
                 {formError && (
-                  <div className="p-3 bg-red-50 border border-red-200 text-red-700 rounded-lg font-semibold">
-                    ⚠️ {formError}
+                  <div className="p-3 bg-red-50 border border-red-200 text-red-700 rounded-lg font-semibold flex items-center gap-2">
+                    <AlertTriangleIcon className="h-4 w-4 shrink-0" /> {formError}
                   </div>
                 )}
 
@@ -2106,8 +2106,8 @@ function OrderNotReceivedFMS() {
             <form onSubmit={handleTakeActionSubmit} className="flex flex-col">
               <div className="p-6 space-y-4 text-xs">
                 {formError && (
-                  <div className="p-3 bg-red-50 border border-red-200 text-red-700 rounded-lg font-semibold">
-                    ⚠️ {formError}
+                  <div className="p-3 bg-red-50 border border-red-200 text-red-700 rounded-lg font-semibold flex items-center gap-2">
+                    <AlertTriangleIcon className="h-4 w-4 shrink-0" /> {formError}
                   </div>
                 )}
 

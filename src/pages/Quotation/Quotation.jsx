@@ -307,9 +307,9 @@ function Quotation() {
 
       // Mock success
       alert(
-        `✅ Email sent successfully!\n\n` +
-        `🔗 Your permanent reference link: ${localLink}\n` +
-        `📎 Permanent PDF: ${permanentPdfUrl}`
+        `Email sent successfully!\n\n` +
+        `Your permanent reference link: ${localLink}\n` +
+        `Permanent PDF: ${permanentPdfUrl}`
       );
 
     } catch (error) {

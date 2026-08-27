@@ -4,7 +4,7 @@ import React, { useState, useEffect, useContext, useMemo, useCallback } from "re
 import { useLocation, useNavigate } from "react-router-dom";
 import { AuthContext } from "../context/AuthContext";
 import axios from "axios";
-import { X, ClipboardList, Send, Plus, Search, FileText, PhoneCall, History, CheckCircle, XCircle, Image as ImageIcon } from "lucide-react";
+import { X, ClipboardList, Send, Plus, Search, FileText, PhoneCall, History, CheckCircle, XCircle, Image as ImageIcon, AlertTriangle } from "lucide-react";
 
 const STORAGE_KEY = "nbd_marketing_visit_tracker_data";
 
@@ -1312,8 +1312,8 @@ export default function MarketingVisitTracker() {
                   </div>
 
                   {errorMsg && (
-                    <div className="p-3 bg-rose-50 border border-rose-200 text-rose-800 text-xs rounded-lg font-semibold">
-                      ⚠️ {errorMsg}
+                    <div className="p-3 bg-rose-50 border border-rose-200 text-rose-800 text-xs rounded-lg font-semibold flex items-center gap-2">
+                      <AlertTriangle className="h-4 w-4 shrink-0" /> {errorMsg}
                     </div>
                   )}
 
