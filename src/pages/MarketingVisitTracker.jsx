@@ -4,7 +4,7 @@ import React, { useState, useEffect, useContext, useMemo, useCallback } from "re
 import { useLocation, useNavigate } from "react-router-dom";
 import { AuthContext } from "../context/AuthContext";
 import axios from "axios";
-import { X, ClipboardList, Send, Plus, Search, FileText, PhoneCall, History, CheckCircle, XCircle } from "lucide-react";
+import { X, ClipboardList, Send, Plus, Search, FileText, PhoneCall, History, CheckCircle, XCircle, Image as ImageIcon } from "lucide-react";
 
 const STORAGE_KEY = "nbd_marketing_visit_tracker_data";
 
@@ -1760,14 +1760,14 @@ export default function MarketingVisitTracker() {
             onClick={() => !isStatusSubmitting && setShowStatusModal(false)}
           >
             <div
-              className="bg-card rounded-2xl shadow-2xl border border-border overflow-hidden w-full max-w-lg mx-auto flex flex-col max-h-[92vh] animate-in fade-in zoom-in-95 duration-200"
+              className="bg-card rounded-2xl shadow-2xl border border-border overflow-hidden w-full max-w-xl mx-auto flex flex-col max-h-[92vh] animate-in fade-in zoom-in-95 duration-200"
               onClick={(e) => e.stopPropagation()}
             >
               {/* Modal Header */}
-              <div className="bg-[#14533a] px-6 py-4 flex justify-between items-center text-white shrink-0">
-                <div className="flex items-center gap-2">
-                  <FileText size={20} />
-                  <h2 className="text-base md:text-lg font-bold tracking-tight">
+              <div className="bg-[#14533a] px-6 py-5 flex justify-between items-center text-white shrink-0">
+                <div className="flex items-center gap-2.5">
+                  <FileText size={22} />
+                  <h2 className="text-base md:text-xl font-bold tracking-tight">
                     {statusModalType === "Assign Marketing" ? "Assign Marketing Action & Status" : "Report Action & Status"}
                   </h2>
                 </div>
@@ -1782,91 +1782,97 @@ export default function MarketingVisitTracker() {
               </div>
 
               <form onSubmit={handleStatusSubmit} className="flex flex-col flex-1 min-h-0">
-                <div className="p-6 space-y-6 overflow-y-auto flex-1">
+                <div className="p-6 sm:p-8 space-y-7 overflow-y-auto flex-1">
                 {/* Details Summary Card */}
-                <div className="bg-primary/20 border border-emerald-100 rounded-xl p-4 space-y-2 text-xs">
-                  <div className="flex justify-between items-center">
-                    <span className="text-muted-foreground font-semibold">Task ID:</span>
+                <div className="bg-primary/20 border border-emerald-100 rounded-xl p-4 grid grid-cols-1 sm:grid-cols-2 gap-x-4 gap-y-2.5 text-xs">
+                  <div className="flex justify-between items-center gap-2">
+                    <span className="text-muted-foreground font-semibold shrink-0">Task ID:</span>
                     <span className="font-mono font-bold text-[#14533a] bg-card px-2 py-0.5 rounded border border-primary/30">
                       {selectedVisit.id}
                     </span>
                   </div>
-                  <div className="flex justify-between items-center">
-                    <span className="text-muted-foreground font-semibold">Plant Name:</span>
-                    <span className="font-bold text-foreground">{selectedVisit.nameOfPlant}</span>
-                  </div>
-                  <div className="flex justify-between items-center">
-                    <span className="text-muted-foreground font-semibold">Sales Person:</span>
-                    <span className="font-medium text-foreground">{selectedVisit.salesPerson}</span>
-                  </div>
-                  <div className="flex justify-between items-center">
-                    <span className="text-muted-foreground font-semibold">Visit Date:</span>
+                  <div className="flex justify-between items-center gap-2">
+                    <span className="text-muted-foreground font-semibold shrink-0">Visit Date:</span>
                     <span className="font-medium text-foreground">{selectedVisit.visitDate || formatDisplayDate(selectedVisit.timestamp)}</span>
                   </div>
-                </div>
-
-                {/* Status Selection Cards */}
-                <div className="space-y-3">
-                  <label className="block text-xs font-bold text-muted-foreground uppercase tracking-wider">
-                    {statusModalType === "Assign Marketing" ? "Visit Status" : "Select Status 1"}
-                  </label>
-                  <div className="grid grid-cols-2 gap-4">
-                    {/* Approved Option */}
-                    <button
-                      type="button"
-                      onClick={() => setSelectedStatusValue("Approved")}
-                      className={`flex flex-col items-center justify-center p-4 rounded-xl border-2 transition-all cursor-pointer ${
-                        selectedStatusValue === "Approved"
-                          ? "border-emerald-600 bg-emerald-50/80 text-emerald-800 shadow-sm ring-2 ring-emerald-500/20"
-                          : "border-border bg-card hover:bg-muted/50 text-muted-foreground"
-                      }`}
-                    >
-                      <CheckCircle className={`h-8 w-8 mb-2 ${selectedStatusValue === "Approved" ? "text-emerald-600" : "text-muted-foreground/60"}`} />
-                      <span className="font-bold text-sm">Approved</span>
-                      <span className="text-[11px] text-muted-foreground mt-0.5">Approve and proceed</span>
-                    </button>
-
-                    {/* Rejected Option */}
-                    <button
-                      type="button"
-                      onClick={() => setSelectedStatusValue("Rejected")}
-                      className={`flex flex-col items-center justify-center p-4 rounded-xl border-2 transition-all cursor-pointer ${
-                        selectedStatusValue === "Rejected"
-                          ? "border-rose-600 bg-rose-50/80 text-rose-800 shadow-sm ring-2 ring-rose-500/20"
-                          : "border-border bg-card hover:bg-muted/50 text-muted-foreground"
-                      }`}
-                    >
-                      <XCircle className={`h-8 w-8 mb-2 ${selectedStatusValue === "Rejected" ? "text-rose-600" : "text-muted-foreground/60"}`} />
-                      <span className="font-bold text-sm">Rejected</span>
-                      <span className="text-[11px] text-muted-foreground mt-0.5">Reject status</span>
-                    </button>
+                  <div className="flex justify-between items-center gap-2">
+                    <span className="text-muted-foreground font-semibold shrink-0">Plant Name:</span>
+                    <span className="font-bold text-foreground truncate">{selectedVisit.nameOfPlant}</span>
+                  </div>
+                  <div className="flex justify-between items-center gap-2">
+                    <span className="text-muted-foreground font-semibold shrink-0">Sales Person:</span>
+                    <span className="font-medium text-foreground truncate">{selectedVisit.salesPerson}</span>
                   </div>
                 </div>
+
+                {/* Status Selection Cards — kept for Report tab; hidden for Assign Marketing
+                    since Order Status below already captures the meaningful outcome there */}
+                {statusModalType !== "Assign Marketing" && (
+                  <div className="space-y-3">
+                    <label className="block text-xs font-bold text-muted-foreground uppercase tracking-wider">
+                      Select Status 1
+                    </label>
+                    <div className="grid grid-cols-2 gap-4">
+                      {/* Approved Option */}
+                      <button
+                        type="button"
+                        onClick={() => setSelectedStatusValue("Approved")}
+                        className={`flex flex-col items-center justify-center p-4 rounded-xl border-2 transition-all cursor-pointer ${
+                          selectedStatusValue === "Approved"
+                            ? "border-emerald-600 bg-emerald-50/80 text-emerald-800 shadow-sm ring-2 ring-emerald-500/20"
+                            : "border-border bg-card hover:bg-muted/50 text-muted-foreground"
+                        }`}
+                      >
+                        <CheckCircle className={`h-8 w-8 mb-2 ${selectedStatusValue === "Approved" ? "text-emerald-600" : "text-muted-foreground/60"}`} />
+                        <span className="font-bold text-sm">Approved</span>
+                        <span className="text-[11px] text-muted-foreground mt-0.5">Approve and proceed</span>
+                      </button>
+
+                      {/* Rejected Option */}
+                      <button
+                        type="button"
+                        onClick={() => setSelectedStatusValue("Rejected")}
+                        className={`flex flex-col items-center justify-center p-4 rounded-xl border-2 transition-all cursor-pointer ${
+                          selectedStatusValue === "Rejected"
+                            ? "border-rose-600 bg-rose-50/80 text-rose-800 shadow-sm ring-2 ring-rose-500/20"
+                            : "border-border bg-card hover:bg-muted/50 text-muted-foreground"
+                        }`}
+                      >
+                        <XCircle className={`h-8 w-8 mb-2 ${selectedStatusValue === "Rejected" ? "text-rose-600" : "text-muted-foreground/60"}`} />
+                        <span className="font-bold text-sm">Rejected</span>
+                        <span className="text-[11px] text-muted-foreground mt-0.5">Reject status</span>
+                      </button>
+                    </div>
+                  </div>
+                )}
 
                 {/* Extra close-out fields — only when logging an actual visit outcome */}
                 {statusModalType === "Assign Marketing" && (
                   <>
                     {/* Order Status */}
-                    <div className="space-y-2">
+                    <div className="space-y-2.5">
                       <label className="block text-xs font-bold text-muted-foreground uppercase tracking-wider">
                         Order Status
                       </label>
-                      <div className="grid grid-cols-3 gap-2">
+                      <div className="grid grid-cols-3 gap-3">
                         {["Yes", "No", "Pending"].map((opt) => (
                           <button
                             key={opt}
                             type="button"
                             onClick={() => setOrderStatusValue(opt)}
-                            className={`py-2.5 rounded-lg border-2 text-sm font-bold transition-all cursor-pointer ${
+                            className={`flex flex-col items-center justify-center gap-1.5 py-3.5 rounded-xl border-2 text-sm font-bold transition-all cursor-pointer ${
                               orderStatusValue === opt
                                 ? opt === "Yes"
-                                  ? "border-emerald-600 bg-emerald-50/80 text-emerald-800"
+                                  ? "border-emerald-600 bg-emerald-50/80 text-emerald-800 shadow-sm"
                                   : opt === "No"
-                                    ? "border-rose-600 bg-rose-50/80 text-rose-800"
-                                    : "border-amber-500 bg-amber-50/80 text-amber-800"
+                                    ? "border-rose-600 bg-rose-50/80 text-rose-800 shadow-sm"
+                                    : "border-amber-500 bg-amber-50/80 text-amber-800 shadow-sm"
                                 : "border-border bg-card hover:bg-muted/50 text-muted-foreground"
                             }`}
                           >
+                            {opt === "Yes" && <CheckCircle className="h-5 w-5" />}
+                            {opt === "No" && <XCircle className="h-5 w-5" />}
+                            {opt === "Pending" && <History className="h-5 w-5" />}
                             {opt}
                           </button>
                         ))}
@@ -1879,20 +1885,20 @@ export default function MarketingVisitTracker() {
                         What Did The Customer Say
                       </label>
                       <textarea
-                        rows={3}
+                        rows={4}
                         value={customerSayValue}
                         onChange={(e) => setCustomerSayValue(e.target.value)}
                         placeholder="Enter customer feedback from the visit..."
-                        className="w-full px-3 py-2.5 bg-card border border-border rounded-lg focus:outline-none focus:ring-2 focus:ring-[#14533a]/20 focus:border-[#14533a] text-foreground text-sm"
+                        className="w-full px-3.5 py-3 bg-card border border-border rounded-lg focus:outline-none focus:ring-2 focus:ring-[#14533a]/20 focus:border-[#14533a] text-foreground text-sm resize-none"
                       />
                     </div>
 
                     {/* Visit Photos */}
                     <div className="space-y-1.5">
                       <label className="block text-xs font-bold text-muted-foreground uppercase tracking-wider">
-                        Visit Photos
+                        Visit Photos <span className="normal-case font-medium text-muted-foreground/70">(optional)</span>
                       </label>
-                      <div className="grid grid-cols-3 gap-2">
+                      <div className="grid grid-cols-3 gap-3">
                         {[0, 1, 2].map((i) => (
                           <div key={i} className="relative">
                             <input
@@ -1907,28 +1913,31 @@ export default function MarketingVisitTracker() {
                             />
                             <label
                               htmlFor={`visit-photo-${i}`}
-                              className={`flex flex-col items-center justify-center h-20 rounded-lg border-2 border-dashed cursor-pointer text-center px-1 transition-colors ${
+                              className={`flex flex-col items-center justify-center gap-1 h-24 rounded-xl border-2 border-dashed cursor-pointer text-center px-1.5 transition-colors ${
                                 visitPhotos[i]
                                   ? "border-emerald-400 bg-emerald-50/60 text-emerald-700"
-                                  : "border-border bg-muted/40 text-muted-foreground hover:bg-muted/70"
+                                  : "border-border bg-muted/40 text-muted-foreground hover:bg-muted/70 hover:border-[#14533a]/40"
                               }`}
                             >
                               {visitPhotos[i] ? (
                                 <>
-                                  <CheckCircle className="h-4 w-4 mb-1" />
+                                  <CheckCircle className="h-5 w-5" />
                                   <span className="text-[10px] font-semibold truncate w-full">{visitPhotos[i].name}</span>
                                 </>
                               ) : (
-                                <span className="text-[11px] font-semibold">Photo {i + 1}</span>
+                                <>
+                                  <ImageIcon className="h-5 w-5" />
+                                  <span className="text-[11px] font-semibold">Photo {i + 1}</span>
+                                </>
                               )}
                             </label>
                             {visitPhotos[i] && (
                               <button
                                 type="button"
                                 onClick={() => setVisitPhotos((prev) => prev.map((p, idx) => (idx === i ? null : p)))}
-                                className="absolute -top-1.5 -right-1.5 bg-rose-500 text-white rounded-full p-0.5 shadow cursor-pointer"
+                                className="absolute -top-2 -right-2 bg-rose-500 text-white rounded-full p-1 shadow cursor-pointer"
                               >
-                                <X size={10} />
+                                <X size={11} />
                               </button>
                             )}
                           </div>
