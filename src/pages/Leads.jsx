@@ -1190,58 +1190,65 @@ function Leads() {
       {activeTab === "updateStatus" && (
         <>
           {/* Desktop Table */}
-          <div className="hidden md:block bg-card rounded-lg shadow-md overflow-hidden">
+          <div className="hidden md:block bg-card rounded-2xl shadow-md border border-slate-200/70 overflow-hidden">
             <div className="overflow-x-auto">
               {isLoading ? (
-                <div className="flex items-center justify-center h-full">
+                <div className="flex items-center justify-center h-full py-16">
                   <div className="text-center">
                     <div className="inline-block animate-spin rounded-full h-12 w-12 border-b-2 border-teal-600 mb-4"></div>
                     <p className="text-gray-600">Loading data...</p>
                   </div>
                 </div>
               ) : (
-                <table className="w-full">
+                <table className="w-full border-collapse">
                   <thead className="sticky top-0 z-10">
                     <tr className="bg-gradient-to-r from-teal-50 to-emerald-50 border-b border-gray-200">
-                      <th className="px-4 py-3 text-left text-xs font-bold text-teal-700 uppercase tracking-wider whitespace-nowrap">Action</th>
-                      <th className="px-4 py-3 text-left text-xs font-bold text-teal-700 uppercase tracking-wider whitespace-nowrap">Lead No.</th>
-                      <th className="px-4 py-3 text-left text-xs font-bold text-teal-700 uppercase tracking-wider whitespace-nowrap">Our Firm Name</th>
-                      <th className="px-4 py-3 text-left text-xs font-bold text-teal-700 uppercase tracking-wider whitespace-nowrap">Lead Received From</th>
-                      <th className="px-4 py-3 text-left text-xs font-bold text-teal-700 uppercase tracking-wider whitespace-nowrap">Sales Person</th>
-                      <th className="px-4 py-3 text-left text-xs font-bold text-teal-700 uppercase tracking-wider whitespace-nowrap">Company</th>
-                      <th className="px-4 py-3 text-left text-xs font-bold text-teal-700 uppercase tracking-wider whitespace-nowrap">Department</th>
-                      <th className="px-4 py-3 text-left text-xs font-bold text-teal-700 uppercase tracking-wider whitespace-nowrap">Location</th>
+                      <th className="px-5 py-3.5 text-left text-xs font-bold text-teal-700 uppercase tracking-wider whitespace-nowrap">Action</th>
+                      <th className="px-5 py-3.5 text-left text-xs font-bold text-teal-700 uppercase tracking-wider whitespace-nowrap">Lead No.</th>
+                      <th className="px-5 py-3.5 text-left text-xs font-bold text-teal-700 uppercase tracking-wider whitespace-nowrap">Our Firm Name</th>
+                      <th className="px-5 py-3.5 text-left text-xs font-bold text-teal-700 uppercase tracking-wider whitespace-nowrap">Lead Received From</th>
+                      <th className="px-5 py-3.5 text-left text-xs font-bold text-teal-700 uppercase tracking-wider whitespace-nowrap">Sales Person</th>
+                      <th className="px-5 py-3.5 text-left text-xs font-bold text-teal-700 uppercase tracking-wider whitespace-nowrap">Company</th>
+                      <th className="px-5 py-3.5 text-left text-xs font-bold text-teal-700 uppercase tracking-wider whitespace-nowrap">Department</th>
+                      <th className="px-5 py-3.5 text-left text-xs font-bold text-teal-700 uppercase tracking-wider whitespace-nowrap">Location</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-gray-100 bg-card">
                     {filteredLeads.length === 0 ? (
                       <tr>
-                        <td colSpan="8" className="px-4 py-16 text-center">
-                          <p className="text-lg font-semibold text-gray-500">No leads found</p>
+                        <td colSpan="8" className="px-4 py-20 text-center">
+                          <div className="flex flex-col items-center justify-center gap-2">
+                            <div className="flex h-14 w-14 items-center justify-center rounded-full bg-gray-100">
+                              <svg className="h-6 w-6 text-gray-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                              </svg>
+                            </div>
+                            <p className="text-base font-semibold text-gray-500">No leads found</p>
+                          </div>
                         </td>
                       </tr>
                     ) : (
                       filteredLeads.map((lead, index) => (
-                        <tr key={lead.leadNumber || index} className="hover:bg-teal-50/30 transition-all duration-150">
-                          <td className="px-4 py-3 whitespace-nowrap">
+                        <tr key={lead.leadNumber || index} className="hover:bg-teal-50/30 transition-colors duration-150">
+                          <td className="px-5 py-3.5 whitespace-nowrap">
                             <button
                               onClick={() => handleUpdateClick(lead)}
-                              className="px-3 py-1.5 bg-teal-100 text-teal-700 rounded-md text-xs font-semibold hover:bg-teal-200 transition-colors"
+                              className="px-3 py-1.5 bg-teal-100 text-teal-700 rounded-md text-xs font-semibold hover:bg-teal-200 transition-colors cursor-pointer"
                             >
                               Update Status
                             </button>
                           </td>
-                          <td className="px-4 py-3 whitespace-nowrap">
+                          <td className="px-5 py-3.5 whitespace-nowrap">
                             <span className="inline-flex items-center px-2.5 py-1 rounded-md bg-teal-100 text-teal-700 text-sm font-semibold">
                               {lead.leadNumber || '-'}
                             </span>
                           </td>
-                          <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-600">{lead.ourFirmName || '-'}</td>
-                          <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-600">{lead.leadReceivedFrom || '-'}</td>
-                          <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-600">{lead.salesPerson || '-'}</td>
-                          <td className="px-4 py-3 whitespace-nowrap text-sm font-semibold text-gray-900">{lead.companyName || '-'}</td>
-                          <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-600">{lead.department || '-'}</td>
-                          <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-600">{lead.location || '-'}</td>
+                          <td className="px-5 py-3.5 whitespace-nowrap text-sm text-gray-600 max-w-[160px] truncate" title={lead.ourFirmName}>{lead.ourFirmName || '-'}</td>
+                          <td className="px-5 py-3.5 whitespace-nowrap text-sm text-gray-600 max-w-[160px] truncate" title={lead.leadReceivedFrom}>{lead.leadReceivedFrom || '-'}</td>
+                          <td className="px-5 py-3.5 whitespace-nowrap text-sm text-gray-600 max-w-[160px] truncate" title={lead.salesPerson}>{lead.salesPerson || '-'}</td>
+                          <td className="px-5 py-3.5 whitespace-nowrap text-sm font-semibold text-gray-900 max-w-[200px] truncate" title={lead.companyName}>{lead.companyName || '-'}</td>
+                          <td className="px-5 py-3.5 whitespace-nowrap text-sm text-gray-600 max-w-[140px] truncate" title={lead.department}>{lead.department || '-'}</td>
+                          <td className="px-5 py-3.5 whitespace-nowrap text-sm text-gray-600 max-w-[140px] truncate" title={lead.location}>{lead.location || '-'}</td>
                         </tr>
                       ))
                     )}
@@ -1250,7 +1257,7 @@ function Leads() {
               )}
             </div>
             {leads.length > 0 && (
-              <div className="px-4 py-3 bg-gray-50 border-t text-sm font-medium text-gray-600 flex-shrink-0">
+              <div className="px-5 py-3 bg-gray-50 border-t border-gray-200 text-sm font-medium text-gray-600 flex-shrink-0">
                 Showing {filteredLeads.length} of {leads.length} leads
               </div>
             )}
@@ -1259,12 +1266,12 @@ function Leads() {
           {/* Mobile Card View - Update Status */}
           <div className="md:hidden space-y-3">
             {filteredLeads.map((lead, index) => (
-              <div key={lead.leadNumber || index} className="bg-card rounded-xl shadow-lg border border-gray-100 p-4">
+              <div key={lead.leadNumber || index} className="bg-card rounded-xl shadow-md border border-gray-100 p-4">
                 <div className="flex justify-between items-start mb-2">
                   <span className="inline-flex items-center px-2.5 py-1 rounded-md bg-teal-100 text-teal-700 text-sm font-semibold">{lead.leadNumber || '-'}</span>
-                  <button onClick={() => handleUpdateClick(lead)} className="px-3 py-1.5 bg-teal-100 text-teal-700 rounded-lg text-xs font-semibold hover:bg-teal-200 transition-colors">Update</button>
+                  <button onClick={() => handleUpdateClick(lead)} className="px-3 py-1.5 bg-teal-100 text-teal-700 rounded-lg text-xs font-semibold hover:bg-teal-200 transition-colors cursor-pointer">Update</button>
                 </div>
-                <h3 className="text-base font-bold text-gray-900 mb-2">{lead.companyName}</h3>
+                <h3 className="text-base font-bold text-gray-900 mb-2 truncate" title={lead.companyName}>{lead.companyName}</h3>
                 <div className="grid grid-cols-2 gap-2 text-xs">
                   <div><span className="text-gray-400">Our Firm:</span> <span className="text-gray-700">{lead.ourFirmName || '-'}</span></div>
                   <div><span className="text-gray-400">Lead From:</span> <span className="text-gray-700">{lead.leadReceivedFrom || '-'}</span></div>
@@ -1338,70 +1345,75 @@ function Leads() {
           )}
 
           {/* Desktop Table */}
-          <div className="hidden md:block bg-card rounded-lg shadow-md overflow-hidden">
+          <div className="hidden md:block bg-card rounded-2xl shadow-md border border-slate-200/70 overflow-hidden">
             <div className="overflow-x-auto">
               {isLoading ? (
-                <div className="flex items-center justify-center h-full">
+                <div className="flex items-center justify-center h-full py-16">
                   <div className="text-center">
                     <div className="inline-block animate-spin rounded-full h-12 w-12 border-b-2 border-indigo-600 mb-4"></div>
                     <p className="text-gray-600">Loading data...</p>
                   </div>
                 </div>
               ) : (
-                <table className="w-full">
+                <table className="w-full border-collapse">
                   <thead className="sticky top-0 z-10">
                     <tr className="bg-gradient-to-r from-indigo-50 to-purple-50 border-b border-gray-200">
-                      <th className="px-4 py-3 text-left text-xs font-bold text-indigo-700 uppercase tracking-wider whitespace-nowrap">Action</th>
-                      <th className="px-4 py-3 text-left text-xs font-bold text-indigo-700 uppercase tracking-wider whitespace-nowrap">Lead No.</th>
-                      <th className="px-4 py-3 text-left text-xs font-bold text-indigo-700 uppercase tracking-wider whitespace-nowrap">Company</th>
-                      <th className="px-4 py-3 text-left text-xs font-bold text-indigo-700 uppercase tracking-wider whitespace-nowrap">Location</th>
-                      <th className="px-4 py-3 text-left text-xs font-bold text-indigo-700 uppercase tracking-wider whitespace-nowrap">Product</th>
-                      <th className="px-4 py-3 text-left text-xs font-bold text-indigo-700 uppercase tracking-wider whitespace-nowrap">Customer Name</th>
-                      <th className="px-4 py-3 text-left text-xs font-bold text-indigo-700 uppercase tracking-wider whitespace-nowrap">Contact No.</th>
-                      <th className="px-4 py-3 text-left text-xs font-bold text-indigo-700 uppercase tracking-wider whitespace-nowrap">Email</th>
-                      <th className="px-4 py-3 text-left text-xs font-bold text-indigo-700 uppercase tracking-wider whitespace-nowrap">Update Remarks</th>
-                      <th className="px-4 py-3 text-left text-xs font-bold text-indigo-700 uppercase tracking-wider whitespace-nowrap">Last Date Of Call</th>
-                      <th className="px-4 py-3 text-left text-xs font-bold text-indigo-700 uppercase tracking-wider whitespace-nowrap">Call Status</th>
-                      <th className="px-4 py-3 text-left text-xs font-bold text-indigo-700 uppercase tracking-wider whitespace-nowrap">Next Action</th>
-                      <th className="px-4 py-3 text-left text-xs font-bold text-indigo-700 uppercase tracking-wider whitespace-nowrap">Enquiry Received</th>
-                      <th className="px-4 py-3 text-left text-xs font-bold text-indigo-700 uppercase tracking-wider whitespace-nowrap">Cust. Remarks</th>
-                      <th className="px-4 py-3 text-left text-xs font-bold text-indigo-700 uppercase tracking-wider whitespace-nowrap">Next Call</th>
-                      <th className="px-4 py-3 text-left text-xs font-bold text-indigo-700 uppercase tracking-wider whitespace-nowrap">Freq</th>
+                      <th className="px-5 py-3.5 text-left text-xs font-bold text-indigo-700 uppercase tracking-wider whitespace-nowrap">Action</th>
+                      <th className="px-5 py-3.5 text-left text-xs font-bold text-indigo-700 uppercase tracking-wider whitespace-nowrap">Lead No.</th>
+                      <th className="px-5 py-3.5 text-left text-xs font-bold text-indigo-700 uppercase tracking-wider whitespace-nowrap">Company</th>
+                      <th className="px-5 py-3.5 text-left text-xs font-bold text-indigo-700 uppercase tracking-wider whitespace-nowrap">Location</th>
+                      <th className="px-5 py-3.5 text-left text-xs font-bold text-indigo-700 uppercase tracking-wider whitespace-nowrap">Product</th>
+                      <th className="px-5 py-3.5 text-left text-xs font-bold text-indigo-700 uppercase tracking-wider whitespace-nowrap">Customer Name</th>
+                      <th className="px-5 py-3.5 text-left text-xs font-bold text-indigo-700 uppercase tracking-wider whitespace-nowrap">Contact No.</th>
+                      <th className="px-5 py-3.5 text-left text-xs font-bold text-indigo-700 uppercase tracking-wider whitespace-nowrap">Email</th>
+                      <th className="px-5 py-3.5 text-left text-xs font-bold text-indigo-700 uppercase tracking-wider whitespace-nowrap">Update Remarks</th>
+                      <th className="px-5 py-3.5 text-left text-xs font-bold text-indigo-700 uppercase tracking-wider whitespace-nowrap">Last Date Of Call</th>
+                      <th className="px-5 py-3.5 text-left text-xs font-bold text-indigo-700 uppercase tracking-wider whitespace-nowrap">Call Status</th>
+                      <th className="px-5 py-3.5 text-left text-xs font-bold text-indigo-700 uppercase tracking-wider whitespace-nowrap">Next Action</th>
+                      <th className="px-5 py-3.5 text-left text-xs font-bold text-indigo-700 uppercase tracking-wider whitespace-nowrap">Enquiry Received</th>
+                      <th className="px-5 py-3.5 text-left text-xs font-bold text-indigo-700 uppercase tracking-wider whitespace-nowrap">Cust. Remarks</th>
+                      <th className="px-5 py-3.5 text-left text-xs font-bold text-indigo-700 uppercase tracking-wider whitespace-nowrap">Next Call</th>
+                      <th className="px-5 py-3.5 text-left text-xs font-bold text-indigo-700 uppercase tracking-wider whitespace-nowrap">Freq</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-gray-100 bg-card">
                     {filteredLeads.length === 0 ? (
                       <tr>
-                        <td colSpan="16" className="px-4 py-16 text-center">
-                          <p className="text-lg font-semibold text-gray-500">No leads found</p>
+                        <td colSpan="16" className="px-4 py-20 text-center">
+                          <div className="flex flex-col items-center justify-center gap-2">
+                            <div className="flex h-14 w-14 items-center justify-center rounded-full bg-gray-100">
+                              <PhoneCallIcon className="h-6 w-6 text-gray-300" />
+                            </div>
+                            <p className="text-base font-semibold text-gray-500">No leads found</p>
+                          </div>
                         </td>
                       </tr>
                     ) : (
                       filteredLeads.map((lead, index) => (
-                        <tr key={lead.leadNumber || index} className="hover:bg-indigo-50/30 transition-all duration-150">
-                          <td className="px-4 py-3 whitespace-nowrap">
+                        <tr key={lead.leadNumber || index} className="hover:bg-indigo-50/30 transition-colors duration-150">
+                          <td className="px-5 py-3.5 whitespace-nowrap">
                             <button
                               onClick={() => handleCallTrackerClick(lead)}
-                              className="px-3 py-1.5 bg-indigo-100 text-indigo-700 rounded-md text-xs font-semibold hover:bg-indigo-200 transition-colors flex items-center gap-1"
+                              className="px-3 py-1.5 bg-indigo-100 text-indigo-700 rounded-md text-xs font-semibold hover:bg-indigo-200 transition-colors flex items-center gap-1 cursor-pointer"
                             >
                               <PhoneCallIcon className="h-3 w-3" />
                               Call
                             </button>
                           </td>
-                          <td className="px-4 py-3 whitespace-nowrap">
+                          <td className="px-5 py-3.5 whitespace-nowrap">
                             <span className="inline-flex items-center px-2.5 py-1 rounded-md bg-indigo-100 text-indigo-700 text-sm font-semibold">
                               {lead.leadNumber || '-'}
                             </span>
                           </td>
-                          <td className="px-4 py-3 whitespace-nowrap text-sm font-semibold text-gray-900">{lead.companyName || '-'}</td>
-                          <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-600">{lead.location || '-'}</td>
-                          <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-600">{lead.productName || '-'}</td>
-                          <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-600">{lead.customerName || '-'}</td>
-                          <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-600">{lead.contactNo || '-'}</td>
-                          <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-600">{lead.emailId || '-'}</td>
-                          <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-600 max-w-xs truncate" title={lead.remarks}>{lead.remarks || '-'}</td>
-                          <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-600 font-medium">{lead.trackerLastCall || '-'}</td>
-                          <td className="px-4 py-3 whitespace-nowrap text-sm">
+                          <td className="px-5 py-3.5 whitespace-nowrap text-sm font-semibold text-gray-900 max-w-[180px] truncate" title={lead.companyName}>{lead.companyName || '-'}</td>
+                          <td className="px-5 py-3.5 whitespace-nowrap text-sm text-gray-600 max-w-[120px] truncate" title={lead.location}>{lead.location || '-'}</td>
+                          <td className="px-5 py-3.5 whitespace-nowrap text-sm text-gray-600 max-w-[140px] truncate" title={lead.productName}>{lead.productName || '-'}</td>
+                          <td className="px-5 py-3.5 whitespace-nowrap text-sm text-gray-600 max-w-[140px] truncate" title={lead.customerName}>{lead.customerName || '-'}</td>
+                          <td className="px-5 py-3.5 whitespace-nowrap text-sm text-gray-600">{lead.contactNo || '-'}</td>
+                          <td className="px-5 py-3.5 whitespace-nowrap text-sm text-gray-600 max-w-[160px] truncate" title={lead.emailId}>{lead.emailId || '-'}</td>
+                          <td className="px-5 py-3.5 whitespace-nowrap text-sm text-gray-600 max-w-xs truncate" title={lead.remarks}>{lead.remarks || '-'}</td>
+                          <td className="px-5 py-3.5 whitespace-nowrap text-sm text-gray-600 font-medium">{lead.trackerLastCall || '-'}</td>
+                          <td className="px-5 py-3.5 whitespace-nowrap text-sm">
                             {lead.trackerStatus ? (
                               <span className={`px-2 py-0.5 rounded text-xs font-medium ${lead.trackerStatus === 'Hot' ? 'bg-red-100 text-red-800' :
                                 lead.trackerStatus === 'Warm' ? 'bg-yellow-100 text-yellow-800' :
@@ -1411,8 +1423,8 @@ function Leads() {
                               </span>
                             ) : '-'}
                           </td>
-                          <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-600">{lead.trackerNextAction || '-'}</td>
-                          <td className="px-4 py-3 whitespace-nowrap text-sm">
+                          <td className="px-5 py-3.5 whitespace-nowrap text-sm text-gray-600 max-w-[140px] truncate" title={lead.trackerNextAction}>{lead.trackerNextAction || '-'}</td>
+                          <td className="px-5 py-3.5 whitespace-nowrap text-sm">
                             {lead.trackerEnquiry ? (
                               <span className={`px-2.5 py-1 rounded-full text-xs font-semibold ${
                                 lead.trackerEnquiry === 'Yes' ? 'bg-green-100 text-green-800' :
@@ -1423,8 +1435,8 @@ function Leads() {
                               </span>
                             ) : '-'}
                           </td>
-                          <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-600 max-w-xs truncate" title={lead.trackerRemarks}>{lead.trackerRemarks || '-'}</td>
-                          <td className="px-4 py-3 whitespace-nowrap text-sm">
+                          <td className="px-5 py-3.5 whitespace-nowrap text-sm text-gray-600 max-w-xs truncate" title={lead.trackerRemarks}>{lead.trackerRemarks || '-'}</td>
+                          <td className="px-5 py-3.5 whitespace-nowrap text-sm">
                             {(() => {
                               const cat = getCallDateCategory(lead.trackerNextCallRaw)
                               const badgeCls = cat === "overdue" ? "bg-red-100 text-red-700"
@@ -1438,7 +1450,7 @@ function Leads() {
                               )
                             })()}
                           </td>
-                          <td className="px-4 py-3 whitespace-nowrap text-sm">
+                          <td className="px-5 py-3.5 whitespace-nowrap text-sm">
                             <span className="inline-flex items-center px-2 py-0.5 rounded font-bold bg-indigo-50 text-indigo-700 text-xs border border-indigo-200">
                               {lead.trackerFreq || 0}
                             </span>
@@ -1451,7 +1463,7 @@ function Leads() {
               )}
             </div>
             {leads.length > 0 && (
-              <div className="px-4 py-3 bg-gray-50 border-t text-sm font-medium text-gray-600 flex-shrink-0">
+              <div className="px-5 py-3 bg-gray-50 border-t border-gray-200 text-sm font-medium text-gray-600 flex-shrink-0">
                 Showing {filteredLeads.length} of {leads.length} leads
               </div>
             )}
@@ -1460,18 +1472,18 @@ function Leads() {
           {/* Mobile Card View - Call Tracking */}
           <div className="md:hidden space-y-3">
             {filteredLeads.map((lead, index) => (
-              <div key={lead.leadNumber || index} className="bg-card rounded-xl shadow-lg border border-gray-100 p-4">
+              <div key={lead.leadNumber || index} className="bg-card rounded-xl shadow-md border border-gray-100 p-4">
                 <div className="flex justify-between items-start mb-2">
                   <span className="inline-flex items-center px-2.5 py-1 rounded-md bg-indigo-100 text-indigo-700 text-sm font-semibold">{lead.leadNumber || '-'}</span>
                   <button
                     onClick={() => handleCallTrackerClick(lead)}
-                    className="px-3 py-1.5 bg-indigo-100 text-indigo-700 rounded-lg text-xs font-semibold hover:bg-indigo-200 transition-colors flex items-center gap-1"
+                    className="px-3 py-1.5 bg-indigo-100 text-indigo-700 rounded-lg text-xs font-semibold hover:bg-indigo-200 transition-colors flex items-center gap-1 cursor-pointer"
                   >
                     <PhoneCallIcon className="h-3 w-3" />
                     Call
                   </button>
                 </div>
-                <h3 className="text-base font-bold text-gray-900 mb-2">{lead.companyName}</h3>
+                <h3 className="text-base font-bold text-gray-900 mb-2 truncate" title={lead.companyName}>{lead.companyName}</h3>
                 <div className="grid grid-cols-2 gap-2 text-xs">
                   <div><span className="text-gray-400">Product:</span> <span className="text-gray-700">{lead.productName || '-'}</span></div>
                   <div><span className="text-gray-400">Customer:</span> <span className="text-gray-700">{lead.customerName || '-'}</span></div>
@@ -1497,71 +1509,78 @@ function Leads() {
       {activeTab === "history" && (
         <>
           {/* Desktop Table */}
-          <div className="hidden md:block bg-card rounded-lg shadow-md overflow-hidden">
+          <div className="hidden md:block bg-card rounded-2xl shadow-md border border-slate-200/70 overflow-hidden">
             <div className="overflow-x-auto">
               {isLoading ? (
-                <div className="flex items-center justify-center h-full">
+                <div className="flex items-center justify-center h-full py-16">
                   <div className="text-center">
                     <div className="inline-block animate-spin rounded-full h-12 w-12 border-b-2 border-slate-600 mb-4"></div>
                     <p className="text-gray-600">Loading data...</p>
                   </div>
                 </div>
               ) : (
-                <table className="w-full">
+                <table className="w-full border-collapse">
                   <thead className="sticky top-0 z-10">
                     <tr className="bg-gradient-to-r from-slate-50 to-gray-50 border-b border-gray-200">
-                      <th className="px-4 py-3 text-left text-xs font-bold text-slate-700 uppercase tracking-wider whitespace-nowrap">Action</th>
-                      <th className="px-4 py-3 text-left text-xs font-bold text-slate-700 uppercase tracking-wider whitespace-nowrap">Lead No.</th>
-                      <th className="px-4 py-3 text-left text-xs font-bold text-slate-700 uppercase tracking-wider whitespace-nowrap">Company</th>
-                      <th className="px-4 py-3 text-left text-xs font-bold text-slate-700 uppercase tracking-wider whitespace-nowrap">Location</th>
-                      <th className="px-4 py-3 text-left text-xs font-bold text-slate-700 uppercase tracking-wider whitespace-nowrap">Product</th>
-                      <th className="px-4 py-3 text-left text-xs font-bold text-slate-700 uppercase tracking-wider whitespace-nowrap">Customer Name</th>
-                      <th className="px-4 py-3 text-left text-xs font-bold text-slate-700 uppercase tracking-wider whitespace-nowrap">Contact No.</th>
-                      <th className="px-4 py-3 text-left text-xs font-bold text-slate-700 uppercase tracking-wider whitespace-nowrap">Email</th>
-                      <th className="px-4 py-3 text-left text-xs font-bold text-slate-700 uppercase tracking-wider whitespace-nowrap">Update Remarks</th>
-                      <th className="px-4 py-3 text-left text-xs font-bold text-slate-700 uppercase tracking-wider whitespace-nowrap">Last Date Of Call</th>
-                      <th className="px-4 py-3 text-left text-xs font-bold text-slate-700 uppercase tracking-wider whitespace-nowrap">Call Status</th>
-                      <th className="px-4 py-3 text-left text-xs font-bold text-slate-700 uppercase tracking-wider whitespace-nowrap">Next Action</th>
-                      <th className="px-4 py-3 text-left text-xs font-bold text-slate-700 uppercase tracking-wider whitespace-nowrap">Status</th>
-                      <th className="px-4 py-3 text-left text-xs font-bold text-slate-700 uppercase tracking-wider whitespace-nowrap">Cust. Remarks</th>
-                      <th className="px-4 py-3 text-left text-xs font-bold text-slate-700 uppercase tracking-wider whitespace-nowrap">Next Call</th>
+                      <th className="px-5 py-3.5 text-left text-xs font-bold text-slate-700 uppercase tracking-wider whitespace-nowrap">Action</th>
+                      <th className="px-5 py-3.5 text-left text-xs font-bold text-slate-700 uppercase tracking-wider whitespace-nowrap">Lead No.</th>
+                      <th className="px-5 py-3.5 text-left text-xs font-bold text-slate-700 uppercase tracking-wider whitespace-nowrap">Company</th>
+                      <th className="px-5 py-3.5 text-left text-xs font-bold text-slate-700 uppercase tracking-wider whitespace-nowrap">Location</th>
+                      <th className="px-5 py-3.5 text-left text-xs font-bold text-slate-700 uppercase tracking-wider whitespace-nowrap">Product</th>
+                      <th className="px-5 py-3.5 text-left text-xs font-bold text-slate-700 uppercase tracking-wider whitespace-nowrap">Customer Name</th>
+                      <th className="px-5 py-3.5 text-left text-xs font-bold text-slate-700 uppercase tracking-wider whitespace-nowrap">Contact No.</th>
+                      <th className="px-5 py-3.5 text-left text-xs font-bold text-slate-700 uppercase tracking-wider whitespace-nowrap">Email</th>
+                      <th className="px-5 py-3.5 text-left text-xs font-bold text-slate-700 uppercase tracking-wider whitespace-nowrap">Update Remarks</th>
+                      <th className="px-5 py-3.5 text-left text-xs font-bold text-slate-700 uppercase tracking-wider whitespace-nowrap">Last Date Of Call</th>
+                      <th className="px-5 py-3.5 text-left text-xs font-bold text-slate-700 uppercase tracking-wider whitespace-nowrap">Call Status</th>
+                      <th className="px-5 py-3.5 text-left text-xs font-bold text-slate-700 uppercase tracking-wider whitespace-nowrap">Next Action</th>
+                      <th className="px-5 py-3.5 text-left text-xs font-bold text-slate-700 uppercase tracking-wider whitespace-nowrap">Status</th>
+                      <th className="px-5 py-3.5 text-left text-xs font-bold text-slate-700 uppercase tracking-wider whitespace-nowrap">Cust. Remarks</th>
+                      <th className="px-5 py-3.5 text-left text-xs font-bold text-slate-700 uppercase tracking-wider whitespace-nowrap">Next Call</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-gray-100 bg-card">
                     {filteredLeads.length === 0 ? (
                       <tr>
-                        <td colSpan="15" className="px-4 py-16 text-center">
-                          <p className="text-lg font-semibold text-gray-500">No resolved leads yet</p>
+                        <td colSpan="15" className="px-4 py-20 text-center">
+                          <div className="flex flex-col items-center justify-center gap-2">
+                            <div className="flex h-14 w-14 items-center justify-center rounded-full bg-gray-100">
+                              <svg className="h-6 w-6 text-gray-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                              </svg>
+                            </div>
+                            <p className="text-base font-semibold text-gray-500">No resolved leads yet</p>
+                          </div>
                         </td>
                       </tr>
                     ) : (
                       filteredLeads.map((lead, index) => {
                         const isReceived = String(lead.trackerEnquiry || "").trim() === "Yes"
                         return (
-                          <tr key={lead.leadNumber || index} className="hover:bg-slate-50/60 transition-all duration-150">
-                            <td className="px-4 py-3 whitespace-nowrap">
+                          <tr key={lead.leadNumber || index} className="hover:bg-slate-50/60 transition-colors duration-150">
+                            <td className="px-5 py-3.5 whitespace-nowrap">
                               <button
                                 onClick={() => handleCallTrackerClick(lead)}
-                                className="px-3 py-1.5 bg-slate-100 text-slate-700 rounded-md text-xs font-semibold hover:bg-slate-200 transition-colors flex items-center gap-1"
+                                className="px-3 py-1.5 bg-slate-100 text-slate-700 rounded-md text-xs font-semibold hover:bg-slate-200 transition-colors flex items-center gap-1 cursor-pointer"
                               >
                                 <PhoneCallIcon className="h-3 w-3" />
                                 Call
                               </button>
                             </td>
-                            <td className="px-4 py-3 whitespace-nowrap">
+                            <td className="px-5 py-3.5 whitespace-nowrap">
                               <span className="inline-flex items-center px-2.5 py-1 rounded-md bg-slate-100 text-slate-700 text-sm font-semibold">
                                 {lead.leadNumber || '-'}
                               </span>
                             </td>
-                            <td className="px-4 py-3 whitespace-nowrap text-sm font-semibold text-gray-900">{lead.companyName || '-'}</td>
-                            <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-600">{lead.location || '-'}</td>
-                            <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-600">{lead.productName || '-'}</td>
-                            <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-600">{lead.customerName || '-'}</td>
-                            <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-600">{lead.contactNo || '-'}</td>
-                            <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-600">{lead.emailId || '-'}</td>
-                            <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-600 max-w-xs truncate" title={lead.remarks}>{lead.remarks || '-'}</td>
-                            <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-600 font-medium">{lead.trackerLastCall || '-'}</td>
-                            <td className="px-4 py-3 whitespace-nowrap text-sm">
+                            <td className="px-5 py-3.5 whitespace-nowrap text-sm font-semibold text-gray-900 max-w-[180px] truncate" title={lead.companyName}>{lead.companyName || '-'}</td>
+                            <td className="px-5 py-3.5 whitespace-nowrap text-sm text-gray-600 max-w-[120px] truncate" title={lead.location}>{lead.location || '-'}</td>
+                            <td className="px-5 py-3.5 whitespace-nowrap text-sm text-gray-600 max-w-[140px] truncate" title={lead.productName}>{lead.productName || '-'}</td>
+                            <td className="px-5 py-3.5 whitespace-nowrap text-sm text-gray-600 max-w-[140px] truncate" title={lead.customerName}>{lead.customerName || '-'}</td>
+                            <td className="px-5 py-3.5 whitespace-nowrap text-sm text-gray-600">{lead.contactNo || '-'}</td>
+                            <td className="px-5 py-3.5 whitespace-nowrap text-sm text-gray-600 max-w-[160px] truncate" title={lead.emailId}>{lead.emailId || '-'}</td>
+                            <td className="px-5 py-3.5 whitespace-nowrap text-sm text-gray-600 max-w-xs truncate" title={lead.remarks}>{lead.remarks || '-'}</td>
+                            <td className="px-5 py-3.5 whitespace-nowrap text-sm text-gray-600 font-medium">{lead.trackerLastCall || '-'}</td>
+                            <td className="px-5 py-3.5 whitespace-nowrap text-sm">
                               {lead.trackerStatus ? (
                                 <span className={`px-2 py-0.5 rounded text-xs font-medium ${lead.trackerStatus === 'Hot' ? 'bg-red-100 text-red-800' :
                                   lead.trackerStatus === 'Warm' ? 'bg-yellow-100 text-yellow-800' :
@@ -1571,14 +1590,14 @@ function Leads() {
                                 </span>
                               ) : '-'}
                             </td>
-                            <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-600">{lead.trackerNextAction || '-'}</td>
-                            <td className="px-4 py-3 whitespace-nowrap text-sm">
+                            <td className="px-5 py-3.5 whitespace-nowrap text-sm text-gray-600 max-w-[140px] truncate" title={lead.trackerNextAction}>{lead.trackerNextAction || '-'}</td>
+                            <td className="px-5 py-3.5 whitespace-nowrap text-sm">
                               <span className={`px-2.5 py-1 rounded-full text-xs font-semibold ${isReceived ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'}`}>
                                 {isReceived ? 'Enquiry Received' : 'Enquiry Not Received'}
                               </span>
                             </td>
-                            <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-600 max-w-xs truncate" title={lead.trackerRemarks}>{lead.trackerRemarks || '-'}</td>
-                            <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-600">{lead.trackerNextCall || '-'}</td>
+                            <td className="px-5 py-3.5 whitespace-nowrap text-sm text-gray-600 max-w-xs truncate" title={lead.trackerRemarks}>{lead.trackerRemarks || '-'}</td>
+                            <td className="px-5 py-3.5 whitespace-nowrap text-sm text-gray-600">{lead.trackerNextCall || '-'}</td>
                           </tr>
                         )
                       })
@@ -1588,7 +1607,7 @@ function Leads() {
               )}
             </div>
             {leads.length > 0 && (
-              <div className="px-4 py-3 bg-gray-50 border-t text-sm font-medium text-gray-600 flex-shrink-0">
+              <div className="px-5 py-3 bg-gray-50 border-t border-gray-200 text-sm font-medium text-gray-600 flex-shrink-0">
                 Showing {filteredLeads.length} of {leads.length} leads
               </div>
             )}
@@ -1599,18 +1618,18 @@ function Leads() {
             {filteredLeads.map((lead, index) => {
               const isReceived = String(lead.trackerEnquiry || "").trim() === "Yes"
               return (
-                <div key={lead.leadNumber || index} className="bg-card rounded-xl shadow-lg border border-gray-100 p-4">
+                <div key={lead.leadNumber || index} className="bg-card rounded-xl shadow-md border border-gray-100 p-4">
                   <div className="flex justify-between items-start mb-2">
                     <span className="inline-flex items-center px-2.5 py-1 rounded-md bg-slate-100 text-slate-700 text-sm font-semibold">{lead.leadNumber || '-'}</span>
                     <button
                       onClick={() => handleCallTrackerClick(lead)}
-                      className="px-3 py-1.5 bg-slate-100 text-slate-700 rounded-lg text-xs font-semibold hover:bg-slate-200 transition-colors flex items-center gap-1"
+                      className="px-3 py-1.5 bg-slate-100 text-slate-700 rounded-lg text-xs font-semibold hover:bg-slate-200 transition-colors flex items-center gap-1 cursor-pointer"
                     >
                       <PhoneCallIcon className="h-3 w-3" />
                       Call
                     </button>
                   </div>
-                  <h3 className="text-base font-bold text-gray-900 mb-2">{lead.companyName}</h3>
+                  <h3 className="text-base font-bold text-gray-900 mb-2 truncate" title={lead.companyName}>{lead.companyName}</h3>
                   <div className="grid grid-cols-2 gap-2 text-xs">
                     <div><span className="text-gray-400">Product:</span> <span className="text-gray-700">{lead.productName || '-'}</span></div>
                     <div><span className="text-gray-400">Customer:</span> <span className="text-gray-700">{lead.customerName || '-'}</span></div>
