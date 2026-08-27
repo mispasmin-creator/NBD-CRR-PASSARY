@@ -39,11 +39,11 @@ const OrderNotReceivedFMS = lazy(() => import("./pages/OrderNotReceivedFMS"));
 const ControlPanel = lazy(() => import("./pages/ControlPanel"));
 const RiskControl = lazy(() => import("./pages/RiskControl"));
 const AdminConfig = lazy(() => import("./pages/AdminConfig"));
-import MainNav from "./components/MainNav";
 import Footer from "./components/Footer";
 import Notification from "./components/Notification";
 import Sidebar from "./components/Sidebar";
 import ChatWidget from "./components/chat/ChatWidget";
+import { MenuIcon } from "./components/Icons";
 import { mockApi } from "./services/mockApi";
 
 const MotionDiv = motion.div;
@@ -386,10 +386,14 @@ function App() {
 
             <div className="flex flex-1 flex-col overflow-hidden">
               {isAuthenticated && (
-                <MainNav
-                  logout={logout}
-                  setMobileMenuOpen={setMobileMenuOpen}
-                />
+                <button
+                  type="button"
+                  className="fixed left-3 top-3 z-30 rounded-lg bg-card p-2 text-slate-500 shadow-md hover:bg-slate-50 hover:text-slate-700 md:hidden"
+                  onClick={() => setMobileMenuOpen(true)}
+                  aria-label="Open menu"
+                >
+                  <MenuIcon className="h-5 w-5" />
+                </button>
               )}
 
               <main
