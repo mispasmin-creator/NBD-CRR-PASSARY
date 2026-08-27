@@ -5,7 +5,11 @@ import { useLocation, useNavigate } from "react-router-dom"
 import { AuthContext } from "../App"
 import axios from "axios"
 import { UsersIcon, TrendingUpIcon, ShareIcon, ShoppingCartIcon, AlertCircleIcon, RefreshCwIcon } from "../components/Icons"
-import { X, Send, Image as ImageIcon, ExternalLink, CheckCircle, Paperclip } from "lucide-react"
+import { X, Send, Image as ImageIcon, ExternalLink, CheckCircle, Paperclip, Download } from "lucide-react"
+import Pagination from "../components/ui/Pagination"
+import { exportToCsv } from "../utils/exportCsv"
+
+const PAGE_SIZE = 10
 
 const findColIdx = (headers, names, fallback = -1) => {
     if (!headers || headers.length === 0) return fallback
@@ -34,6 +38,7 @@ function CRREnquiry() {
     const [isSubmitting, setIsSubmitting] = useState(false)
     const [isTabSubmitting, setIsTabSubmitting] = useState(false)
     const [activeTab, setActiveTab] = useState("All Crm")
+    const [page, setPage] = useState(1)
     const [enquiries, setEnquiries] = useState([])
     const [sheetHeaders, setSheetHeaders] = useState([])
     const [isLoadingData, setIsLoadingData] = useState(false)
@@ -567,6 +572,25 @@ function CRREnquiry() {
         return matchesSearch
     })
 
+    // Reset to page 1 whenever the active tab or search term changes
+    useEffect(() => {
+        setPage(1)
+    }, [activeTab, searchQuery])
+
+    const paginatedEnquiries = filteredEnquiries.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE)
+
+    const handleExportEnquiries = () => {
+        exportToCsv(`crr-enquiries-${activeTab.replace(/\s+/g, "-").toLowerCase()}`, [
+            { label: "Enquiry No", value: (e) => e.enquiryNo || "" },
+            { label: "Firm Name", value: (e) => e.firmName || "" },
+            { label: "Party Name", value: (e) => e.partyName || "" },
+            { label: "Product", value: (e) => e.productName || "" },
+            { label: "Qty", value: (e) => e.qty || "" },
+            { label: "Sales Person", value: (e) => e.salesPerson || "" },
+            { label: "Status", value: (e) => e.status || "" },
+        ], filteredEnquiries)
+    }
+
     const handleSubmit = async (e) => {
         e.preventDefault()
         setIsSubmitting(true)
@@ -673,7 +697,7 @@ function CRREnquiry() {
             </div>
 
             {/* Controls */}
-            <div className="bg-card rounded-lg shadow-md p-6 mb-6">
+            <div className="bg-card rounded-2xl shadow-sm border border-slate-200/70 p-6 mb-6">
                 <div className="flex flex-col md:flex-row gap-4 justify-between items-start md:items-center">
                     <div className="flex flex-col sm:flex-row gap-4 flex-1 w-full">
                         <input
@@ -685,6 +709,14 @@ function CRREnquiry() {
                         />
                     </div>
                     <div className="flex gap-3 items-center">
+                        <button
+                            onClick={handleExportEnquiries}
+                            disabled={filteredEnquiries.length === 0}
+                            className="inline-flex items-center gap-2 bg-card border border-border text-muted-foreground hover:text-foreground hover:bg-muted font-medium py-2 px-4 rounded-md transition-colors cursor-pointer disabled:opacity-50"
+                        >
+                            <Download className="h-4 w-4" />
+                            Export
+                        </button>
                         <button
                             onClick={fetchAllData}
                             disabled={isLoadingData}
@@ -872,7 +904,7 @@ function CRREnquiry() {
                                     </td>
                                 </tr>
                             ) : (
-                                filteredEnquiries.map((enquiry) => {
+                                paginatedEnquiries.map((enquiry) => {
                                     const currentStage = getEnquiryStage(enquiry)
                                     return (
                                         <tr key={enquiry.id} className="hover:bg-muted/70 transition-colors duration-150">
@@ -1001,6 +1033,9 @@ function CRREnquiry() {
                         </tbody>
                     </table>
                 </div>
+                {filteredEnquiries.length > 0 && (
+                    <Pagination page={page} pageSize={PAGE_SIZE} totalItems={filteredEnquiries.length} onPageChange={setPage} />
+                )}
             </div>
 
             {/* Update Stage Modal */}
