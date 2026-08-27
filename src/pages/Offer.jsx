@@ -14,6 +14,11 @@ import {
 } from "../components/Icons"
 import { AuthContext } from "../App"
 import axios from "axios"
+import { Download } from "lucide-react"
+import Pagination from "../components/ui/Pagination"
+import { exportToCsv } from "../utils/exportCsv"
+
+const PAGE_SIZE = 10
 
 const TABS = [
     { id: "All Enquiries", label: "All" },
@@ -130,6 +135,7 @@ function Offer() {
     const [isLoading, setIsLoading] = useState(true)
     const [offerRows, setOfferRows] = useState([])
     const [activeTab, setActiveTab] = useState("All Enquiries")
+    const [page, setPage] = useState(1)
 
     // Modal state
     const [isStageModalOpen, setIsStageModalOpen] = useState(false)
@@ -309,6 +315,22 @@ function Offer() {
         return isStageActive(row, activeTab)
     })
 
+    // Reset to page 1 whenever the active tab or search term changes
+    useEffect(() => {
+        setPage(1)
+    }, [activeTab, searchTerm])
+
+    const paginatedRows = filteredRows.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE)
+
+    const handleExport = () => {
+        exportToCsv(`offers-${activeTab.replace(/\s+/g, "-").toLowerCase()}`, [
+            { label: "Enquiry No.", value: (r) => r["Enquiry No."] || "" },
+            { label: "Firm Name", value: (r) => r["Firm Name"] || "" },
+            { label: "Party Name", value: (r) => r["Party Name"] || "" },
+            { label: "Offer Number", value: (r) => r["Offer Number"] || "" },
+        ], filteredRows)
+    }
+
     const isActionTab = !!TAB_CONFIG[activeTab]
     const currentTabConfig = TAB_CONFIG[activeTab]
 
@@ -427,7 +449,7 @@ function Offer() {
             </div>
 
             {/* Controls */}
-            <div className="bg-card rounded-lg shadow-md p-6 mb-6">
+            <div className="bg-card rounded-2xl shadow-sm border border-slate-200/70 p-6 mb-6">
                 <div className="flex flex-col md:flex-row gap-4 justify-between items-start md:items-center">
                     <div className="flex flex-col sm:flex-row gap-4 flex-1">
                         <input
@@ -439,6 +461,14 @@ function Offer() {
                         />
                     </div>
                     <div className="flex gap-3">
+                        <button
+                            onClick={handleExport}
+                            disabled={isLoading || filteredRows.length === 0}
+                            className="flex items-center justify-center gap-2 px-4 py-2 bg-card border border-border text-muted-foreground hover:text-foreground hover:bg-muted font-bold rounded-xl shadow-sm transition-all text-sm whitespace-nowrap cursor-pointer disabled:opacity-50"
+                        >
+                            <Download className="h-4 w-4" />
+                            Export
+                        </button>
                         <button
                             onClick={fetchOfferData}
                             disabled={isLoading}
@@ -452,10 +482,10 @@ function Offer() {
             </div>
 
             {/* Table */}
-            <div className="bg-white rounded-lg shadow-md overflow-hidden">
+            <div className="bg-white rounded-2xl shadow-md border border-slate-200/70 overflow-hidden">
                 <div className="overflow-x-auto">
                     <table className="w-full text-left border-collapse">
-                        <thead>
+                        <thead className="sticky top-0 z-10">
                             <tr className="bg-muted/80 border-b border-border">
                                 {isActionTab && (
                                     <th className="px-6 py-4 text-[11px] font-black text-muted-foreground uppercase tracking-widest text-center whitespace-nowrap">
@@ -492,7 +522,7 @@ function Offer() {
                                     </td>
                                 </tr>
                             ) : (
-                                filteredRows.map((row) => {
+                                paginatedRows.map((row) => {
                                     const originalIdx = offerRows.findIndex(r => r === row)
 
                                     return (
@@ -721,9 +751,7 @@ function Offer() {
                 </div>
 
                 {!isLoading && (
-                    <div className="px-6 py-4 bg-muted border-t border-slate-100 flex justify-between items-center text-[11px] font-bold text-muted-foreground uppercase tracking-widest">
-                        <span>Showing {filteredRows.length} of {offerRows.length} entries</span>
-                    </div>
+                    <Pagination page={page} pageSize={PAGE_SIZE} totalItems={filteredRows.length} onPageChange={setPage} />
                 )}
             </div>
 
