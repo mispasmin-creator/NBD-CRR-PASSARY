@@ -3,7 +3,8 @@
 import { useContext, useEffect, useState } from "react"
 import axios from "axios"
 import { AuthContext } from "../App"
-import { Plus, Users, ShieldCheck, Building2, Pencil, X, KeyRound, LayoutGrid } from "lucide-react"
+import { Plus, Users, ShieldCheck, Building2, Pencil, X, KeyRound, LayoutGrid, Download } from "lucide-react"
+import { exportToCsv } from "../utils/exportCsv"
 
 const USER_SHEET_NAME = "USER"
 const PAGE_ACCESS_OPTIONS = {
@@ -243,6 +244,17 @@ function AdminConfig() {
     const adminCount = users.filter(user => String(user.role).toLowerCase() === "admin").length
     const initialOf = (value) => String(value || "U").trim().charAt(0).toUpperCase()
 
+    const handleExportUsers = () => {
+        exportToCsv("users", [
+            { label: "Username", value: (u) => u.username || "" },
+            { label: "Name", value: (u) => u.name || "" },
+            { label: "Role", value: (u) => u.role || "" },
+            { label: "Firm Name", value: (u) => u.firm_name || "" },
+            { label: "Page Access", value: (u) => parsePageAccess(u.page_access).pages.join("; ") || "" },
+            { label: "Last Login", value: (u) => u.last_login || "" },
+        ], users)
+    }
+
     return (
         <div className="min-h-screen bg-gradient-to-b from-slate-50 to-slate-100">
             <div className="py-2 space-y-6">
@@ -252,13 +264,23 @@ function AdminConfig() {
                         <h1 className="text-2xl font-bold text-foreground">User Management</h1>
                         <p className="mt-1 text-sm text-muted-foreground">Manage who can sign in and what each person can access</p>
                     </div>
-                    <button
-                        onClick={openAddForm}
-                        className="inline-flex items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-sky-600 to-indigo-600 px-5 py-2.5 text-sm font-semibold text-white shadow-md shadow-sky-500/20 transition-all hover:shadow-lg hover:from-sky-500 hover:to-indigo-500 cursor-pointer"
-                    >
-                        <Plus className="h-4 w-4" />
-                        Add User
-                    </button>
+                    <div className="flex gap-2">
+                        <button
+                            onClick={handleExportUsers}
+                            disabled={users.length === 0}
+                            className="inline-flex items-center justify-center gap-2 rounded-xl border border-slate-200 bg-card px-4 py-2.5 text-sm font-semibold text-muted-foreground transition-colors hover:bg-muted cursor-pointer disabled:opacity-50"
+                        >
+                            <Download className="h-4 w-4" />
+                            Export
+                        </button>
+                        <button
+                            onClick={openAddForm}
+                            className="inline-flex items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-sky-600 to-indigo-600 px-5 py-2.5 text-sm font-semibold text-white shadow-md shadow-sky-500/20 transition-all hover:shadow-lg hover:from-sky-500 hover:to-indigo-500 cursor-pointer"
+                        >
+                            <Plus className="h-4 w-4" />
+                            Add User
+                        </button>
+                    </div>
                 </div>
 
                 {/* Stat cards */}
