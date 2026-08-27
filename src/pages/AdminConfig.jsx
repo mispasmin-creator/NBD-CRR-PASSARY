@@ -3,6 +3,7 @@
 import { useContext, useEffect, useState } from "react"
 import axios from "axios"
 import { AuthContext } from "../App"
+import { Plus, Users, ShieldCheck, Building2, Pencil, X, KeyRound, LayoutGrid } from "lucide-react"
 
 const USER_SHEET_NAME = "USER"
 const PAGE_ACCESS_OPTIONS = {
@@ -239,63 +240,146 @@ function AdminConfig() {
         }
     }
 
+    const adminCount = users.filter(user => String(user.role).toLowerCase() === "admin").length
+    const initialOf = (value) => String(value || "U").trim().charAt(0).toUpperCase()
+
     return (
         <div className="min-h-screen bg-gradient-to-b from-slate-50 to-slate-100">
-            <div className="py-2">
-                <div className="bg-card rounded-lg shadow-md overflow-hidden">
-                    <div className="p-6 border-b flex justify-between items-center">
-                        <h2 className="text-lg font-semibold text-foreground">User Management</h2>
-                        <button
-                            onClick={openAddForm}
-                            className="bg-sky-600 hover:bg-sky-700 text-white font-medium py-2 px-4 rounded-md"
-                        >
-                            + Add User
-                        </button>
+            <div className="py-2 space-y-6">
+                {/* Header */}
+                <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+                    <div>
+                        <h1 className="text-2xl font-bold text-foreground">User Management</h1>
+                        <p className="mt-1 text-sm text-muted-foreground">Manage who can sign in and what each person can access</p>
                     </div>
+                    <button
+                        onClick={openAddForm}
+                        className="inline-flex items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-sky-600 to-indigo-600 px-5 py-2.5 text-sm font-semibold text-white shadow-md shadow-sky-500/20 transition-all hover:shadow-lg hover:from-sky-500 hover:to-indigo-500 cursor-pointer"
+                    >
+                        <Plus className="h-4 w-4" />
+                        Add User
+                    </button>
+                </div>
 
+                {/* Stat cards */}
+                <div className="grid grid-cols-2 gap-4 sm:grid-cols-3">
+                    <div className="flex items-center gap-4 rounded-2xl border border-slate-200/70 bg-card p-5 shadow-sm">
+                        <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-sky-50 text-sky-600">
+                            <Users className="h-5 w-5" />
+                        </div>
+                        <div className="min-w-0">
+                            <p className="text-2xl font-bold leading-none text-foreground">{users.length}</p>
+                            <p className="mt-1 truncate text-xs font-medium uppercase tracking-wide text-muted-foreground">Total Users</p>
+                        </div>
+                    </div>
+                    <div className="flex items-center gap-4 rounded-2xl border border-slate-200/70 bg-card p-5 shadow-sm">
+                        <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-purple-50 text-purple-600">
+                            <ShieldCheck className="h-5 w-5" />
+                        </div>
+                        <div className="min-w-0">
+                            <p className="text-2xl font-bold leading-none text-foreground">{adminCount}</p>
+                            <p className="mt-1 truncate text-xs font-medium uppercase tracking-wide text-muted-foreground">Admins</p>
+                        </div>
+                    </div>
+                    <div className="col-span-2 flex items-center gap-4 rounded-2xl border border-slate-200/70 bg-card p-5 shadow-sm sm:col-span-1">
+                        <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-emerald-50 text-emerald-600">
+                            <Building2 className="h-5 w-5" />
+                        </div>
+                        <div className="min-w-0">
+                            <p className="text-2xl font-bold leading-none text-foreground">{firmOptions.length}</p>
+                            <p className="mt-1 truncate text-xs font-medium uppercase tracking-wide text-muted-foreground">Firms Available</p>
+                        </div>
+                    </div>
+                </div>
+
+                {/* Users table */}
+                <div className="overflow-hidden rounded-2xl border border-slate-200/70 bg-card shadow-md">
                     <div className="overflow-x-auto">
-                        <table className="w-full">
-                            <thead className="bg-muted">
-                                <tr>
-                                    <th className="px-6 py-3 text-left text-xs font-semibold text-muted-foreground uppercase">Username</th>
-                                    <th className="px-6 py-3 text-left text-xs font-semibold text-muted-foreground uppercase">Password</th>
-                                    <th className="px-6 py-3 text-left text-xs font-semibold text-muted-foreground uppercase">Page Access</th>
-                                    <th className="px-6 py-3 text-left text-xs font-semibold text-muted-foreground uppercase">Firm Name</th>
-                                    <th className="px-6 py-3 text-left text-xs font-semibold text-muted-foreground uppercase">Name</th>
-                                    <th className="px-6 py-3 text-left text-xs font-semibold text-muted-foreground uppercase">Role</th>
-                                    <th className="px-6 py-3 text-left text-xs font-semibold text-muted-foreground uppercase">Last Login</th>
-                                    <th className="px-6 py-3 text-left text-xs font-semibold text-muted-foreground uppercase">Actions</th>
+                        <table className="w-full border-collapse">
+                            <thead className="sticky top-0 z-10 bg-muted">
+                                <tr className="border-b border-slate-200">
+                                    <th className="px-5 py-3.5 text-left text-xs font-bold uppercase tracking-wider text-muted-foreground">User</th>
+                                    <th className="px-5 py-3.5 text-left text-xs font-bold uppercase tracking-wider text-muted-foreground">Page Access</th>
+                                    <th className="px-5 py-3.5 text-left text-xs font-bold uppercase tracking-wider text-muted-foreground">Firm Name</th>
+                                    <th className="px-5 py-3.5 text-left text-xs font-bold uppercase tracking-wider text-muted-foreground">Role</th>
+                                    <th className="px-5 py-3.5 text-left text-xs font-bold uppercase tracking-wider text-muted-foreground">Last Login</th>
+                                    <th className="px-5 py-3.5 text-center text-xs font-bold uppercase tracking-wider text-muted-foreground">Actions</th>
                                 </tr>
                             </thead>
-                            <tbody className="divide-y">
+                            <tbody className="divide-y divide-slate-100">
                                 {isLoading ? (
                                     <tr>
-                                        <td colSpan="8" className="px-6 py-12 text-center text-muted-foreground">Loading users...</td>
+                                        <td colSpan="6" className="px-6 py-16 text-center">
+                                            <div className="flex flex-col items-center justify-center gap-3">
+                                                <div className="h-8 w-8 animate-spin rounded-full border-2 border-slate-200 border-t-sky-600" />
+                                                <p className="text-sm font-medium text-muted-foreground">Loading users...</p>
+                                            </div>
+                                        </td>
                                     </tr>
                                 ) : users.length === 0 ? (
                                     <tr>
-                                        <td colSpan="8" className="px-6 py-12 text-center text-muted-foreground">No users found</td>
-                                    </tr>
-                                ) : users.map(user => (
-                                    <tr key={user.rowIndex} className="hover:bg-muted">
-                                        <td className="px-6 py-4 font-medium text-foreground whitespace-nowrap">{user.username}</td>
-                                        <td className="px-6 py-4 text-muted-foreground whitespace-nowrap">••••••••</td>
-                                        <td className="px-6 py-4 text-muted-foreground whitespace-nowrap">
-                                            {parsePageAccess(user.page_access).pages.join(", ") || "-"}
-                                        </td>
-                                        <td className="px-6 py-4 text-muted-foreground whitespace-nowrap">{user.firm_name || "-"}</td>
-                                        <td className="px-6 py-4 text-muted-foreground whitespace-nowrap">{user.name || "-"}</td>
-                                        <td className="px-6 py-4 whitespace-nowrap">
-                                            <span className={`px-2 py-1 text-xs rounded-full ${String(user.role).toLowerCase() === "admin" ? "bg-purple-100 text-purple-800" : "bg-blue-100 text-blue-800"}`}>
-                                                {user.role || "-"}
-                                            </span>
-                                        </td>
-                                        <td className="px-6 py-4 text-muted-foreground whitespace-nowrap">{user.last_login || "-"}</td>
-                                        <td className="px-6 py-4">
-                                            <button onClick={() => openEditForm(user)} className="text-sky-600 hover:text-sky-800 text-sm">Edit</button>
+                                        <td colSpan="6" className="px-6 py-20 text-center">
+                                            <div className="flex flex-col items-center justify-center gap-2">
+                                                <div className="flex h-14 w-14 items-center justify-center rounded-full bg-gray-100">
+                                                    <Users className="h-6 w-6 text-gray-300" />
+                                                </div>
+                                                <p className="text-base font-semibold text-gray-500">No users found</p>
+                                            </div>
                                         </td>
                                     </tr>
-                                ))}
+                                ) : users.map(user => {
+                                    const pages = parsePageAccess(user.page_access).pages
+                                    const isAdminRole = String(user.role).toLowerCase() === "admin"
+                                    return (
+                                        <tr key={user.rowIndex} className="transition-colors hover:bg-muted/60">
+                                            <td className="px-5 py-3.5 whitespace-nowrap">
+                                                <div className="flex items-center gap-3">
+                                                    <div className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-sm font-bold text-white shadow-sm ${isAdminRole ? "bg-gradient-to-br from-purple-500 to-indigo-600" : "bg-gradient-to-br from-sky-500 to-blue-600"}`}>
+                                                        {initialOf(user.name || user.username)}
+                                                    </div>
+                                                    <div className="min-w-0">
+                                                        <p className="truncate text-sm font-semibold text-foreground">{user.name || user.username}</p>
+                                                        <p className="truncate text-xs text-muted-foreground">@{user.username}</p>
+                                                    </div>
+                                                </div>
+                                            </td>
+                                            <td className="px-5 py-3.5">
+                                                {pages.length === 0 ? (
+                                                    <span className="text-sm text-muted-foreground">-</span>
+                                                ) : (
+                                                    <div className="flex max-w-[260px] flex-wrap gap-1.5">
+                                                        {pages.slice(0, 3).map(page => (
+                                                            <span key={page} className="inline-flex items-center rounded-full bg-sky-50 px-2.5 py-0.5 text-[11px] font-semibold text-sky-700 border border-sky-100">
+                                                                {page}
+                                                            </span>
+                                                        ))}
+                                                        {pages.length > 3 && (
+                                                            <span className="inline-flex items-center rounded-full bg-slate-100 px-2.5 py-0.5 text-[11px] font-semibold text-slate-600" title={pages.slice(3).join(", ")}>
+                                                                +{pages.length - 3} more
+                                                            </span>
+                                                        )}
+                                                    </div>
+                                                )}
+                                            </td>
+                                            <td className="px-5 py-3.5 max-w-[160px] truncate text-sm text-muted-foreground" title={user.firm_name}>{user.firm_name || "-"}</td>
+                                            <td className="px-5 py-3.5 whitespace-nowrap">
+                                                <span className={`inline-flex items-center rounded-full px-2.5 py-1 text-xs font-semibold ${isAdminRole ? "bg-purple-100 text-purple-800" : "bg-blue-100 text-blue-800"}`}>
+                                                    {user.role || "-"}
+                                                </span>
+                                            </td>
+                                            <td className="px-5 py-3.5 whitespace-nowrap text-sm text-muted-foreground">{user.last_login || "-"}</td>
+                                            <td className="px-5 py-3.5 text-center">
+                                                <button
+                                                    onClick={() => openEditForm(user)}
+                                                    className="inline-flex items-center gap-1.5 rounded-lg bg-sky-50 px-3 py-1.5 text-xs font-semibold text-sky-700 transition-colors hover:bg-sky-100 cursor-pointer"
+                                                >
+                                                    <Pencil className="h-3 w-3" />
+                                                    Edit
+                                                </button>
+                                            </td>
+                                        </tr>
+                                    )
+                                })}
                             </tbody>
                         </table>
                     </div>
@@ -304,198 +388,271 @@ function AdminConfig() {
 
             {showForm && (
                 <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
-                    <div className="w-full max-w-2xl rounded-xl bg-card shadow-2xl">
-                        <div className="flex items-center justify-between border-b px-6 py-4">
-                            <h3 className="text-lg font-semibold text-foreground">{editingUser ? "Edit User" : "Add User"}</h3>
-                            <button onClick={closeForm} className="text-2xl leading-none text-muted-foreground hover:text-muted-foreground">×</button>
+                    <div className="flex max-h-[92vh] w-full max-w-2xl flex-col overflow-hidden rounded-2xl bg-card shadow-2xl">
+                        <div className="flex shrink-0 items-center justify-between bg-gradient-to-r from-sky-600 to-indigo-600 px-6 py-5 text-white">
+                            <div className="flex items-center gap-3">
+                                <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-white/15">
+                                    <Users className="h-5 w-5" />
+                                </div>
+                                <h3 className="text-lg font-bold tracking-tight">{editingUser ? "Edit User" : "Add User"}</h3>
+                            </div>
+                            <button onClick={closeForm} className="rounded-lg p-1.5 text-white/80 transition-colors hover:bg-white/10 hover:text-white cursor-pointer">
+                                <X className="h-5 w-5" />
+                            </button>
                         </div>
 
-                        <form onSubmit={handleSubmit}>
-                            <div className="grid max-h-[70vh] grid-cols-1 gap-4 overflow-y-auto p-6 sm:grid-cols-2">
-                                {[
-                                    ["username", "Username", "text", true],
-                                    ["password", "Password", "password", true],
-                                    ["name", "Name", "text", false]
-                                ].map(([key, label, type, required]) => (
-                                    <div key={key}>
-                                        <label className="mb-1 block text-sm font-medium text-muted-foreground">
-                                            {label}{required && <span className="text-red-500"> *</span>}
-                                        </label>
-                                        <input
-                                            type={type}
-                                            value={formData[key]}
-                                            onChange={(event) => setFormData(previous => ({ ...previous, [key]: event.target.value }))}
-                                            required={required}
-                                            autoComplete={key === "password" ? "new-password" : "off"}
-                                            className="w-full rounded-md border border-border px-3 py-2 text-sm focus:border-sky-500 focus:outline-none focus:ring-2 focus:ring-sky-500"
-                                        />
+                        <form onSubmit={handleSubmit} className="flex flex-1 flex-col overflow-hidden">
+                            <div className="flex-1 space-y-6 overflow-y-auto p-6">
+                                {/* Basic details */}
+                                <div className="rounded-2xl border border-slate-200/70 p-4">
+                                    <div className="mb-3 flex items-center gap-2 text-xs font-bold uppercase tracking-wider text-muted-foreground">
+                                        <KeyRound className="h-3.5 w-3.5" /> Basic Details
                                     </div>
-                                ))}
+                                    <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                                        {[
+                                            ["username", "Username", "text", true],
+                                            ["password", "Password", "password", true],
+                                            ["name", "Name", "text", false]
+                                        ].map(([key, label, type, required]) => (
+                                            <div key={key}>
+                                                <label className="mb-1 block text-sm font-medium text-muted-foreground">
+                                                    {label}{required && <span className="text-red-500"> *</span>}
+                                                </label>
+                                                <input
+                                                    type={type}
+                                                    value={formData[key]}
+                                                    onChange={(event) => setFormData(previous => ({ ...previous, [key]: event.target.value }))}
+                                                    required={required}
+                                                    autoComplete={key === "password" ? "new-password" : "off"}
+                                                    className="w-full rounded-lg border border-border px-3 py-2 text-sm focus:border-sky-500 focus:outline-none focus:ring-2 focus:ring-sky-500/30"
+                                                />
+                                            </div>
+                                        ))}
 
-                                <div>
-                                    <label className="mb-1 block text-sm font-medium text-muted-foreground">Role</label>
-                                    <select
-                                        value={formData.role}
-                                        onChange={(event) => setFormData(previous => ({ ...previous, role: event.target.value }))}
-                                        className="w-full rounded-md border border-border px-3 py-2 text-sm focus:border-sky-500 focus:outline-none focus:ring-2 focus:ring-sky-500"
-                                    >
-                                        <option value="">Select Role</option>
-                                        <option value="admin">Admin</option>
-                                        <option value="user">User</option>
-                                        <option value="viewer">Viewer</option>
-                                    </select>
+                                        <div>
+                                            <label className="mb-1 block text-sm font-medium text-muted-foreground">Role</label>
+                                            <select
+                                                value={formData.role}
+                                                onChange={(event) => setFormData(previous => ({ ...previous, role: event.target.value }))}
+                                                className="w-full rounded-lg border border-border px-3 py-2 text-sm focus:border-sky-500 focus:outline-none focus:ring-2 focus:ring-sky-500/30 cursor-pointer"
+                                            >
+                                                <option value="">Select Role</option>
+                                                <option value="admin">Admin</option>
+                                                <option value="user">User</option>
+                                                <option value="viewer">Viewer</option>
+                                            </select>
+                                        </div>
+                                    </div>
                                 </div>
 
-                                <div className="sm:col-span-2">
-                                    <label className="mb-2 block text-sm font-medium text-muted-foreground">Page Access</label>
-                                    <div className="grid grid-cols-1 gap-2 rounded-md border border-border p-3 sm:grid-cols-2">
-                                        {Object.keys(PAGE_ACCESS_OPTIONS).map(page => (
-                                            <label key={page} className="flex items-center gap-2 text-sm text-muted-foreground">
-                                                <input
-                                                    type="checkbox"
-                                                    checked={formData.pages.includes(page)}
-                                                    onChange={() => setFormData(previous => {
-                                                        const allPages = Object.keys(PAGE_ACCESS_OPTIONS)
-                                                        const selectablePages = allPages.filter(item => item !== "All")
+                                {/* Page Access */}
+                                <div className="rounded-2xl border border-slate-200/70 p-4">
+                                    <div className="mb-3 flex items-center gap-2 text-xs font-bold uppercase tracking-wider text-muted-foreground">
+                                        <LayoutGrid className="h-3.5 w-3.5" /> Page Access
+                                    </div>
+                                    <div className="flex flex-wrap gap-2">
+                                        {Object.keys(PAGE_ACCESS_OPTIONS).map(page => {
+                                            const isChecked = formData.pages.includes(page)
+                                            return (
+                                                <label
+                                                    key={page}
+                                                    className={`cursor-pointer select-none rounded-full border px-3.5 py-1.5 text-sm font-semibold transition-all ${
+                                                        isChecked
+                                                            ? "border-sky-600 bg-sky-50 text-sky-700 shadow-sm"
+                                                            : "border-border bg-card text-muted-foreground hover:bg-muted/60"
+                                                    }`}
+                                                >
+                                                    <input
+                                                        type="checkbox"
+                                                        checked={isChecked}
+                                                        onChange={() => setFormData(previous => {
+                                                            const allPages = Object.keys(PAGE_ACCESS_OPTIONS)
+                                                            const selectablePages = allPages.filter(item => item !== "All")
 
-                                                        if (page === "All") {
-                                                            const selectAll = !previous.pages.includes("All")
+                                                            if (page === "All") {
+                                                                const selectAll = !previous.pages.includes("All")
+                                                                return {
+                                                                    ...previous,
+                                                                    pages: selectAll ? allPages : [],
+                                                                    pageTabs: selectAll
+                                                                        ? Object.fromEntries(selectablePages.map(item => [item, previous.pageTabs[item] || []]))
+                                                                        : {}
+                                                                }
+                                                            }
+
+                                                            const isSelected = previous.pages.includes(page)
+                                                            const nextPageTabs = { ...previous.pageTabs }
+                                                            if (isSelected) delete nextPageTabs[page]
+                                                            else nextPageTabs[page] = []
+                                                            const nextPages = isSelected
+                                                                ? previous.pages.filter(item => item !== page && item !== "All")
+                                                                : [...previous.pages.filter(item => item !== "All"), page]
+                                                            const hasAllPages = selectablePages.every(item => nextPages.includes(item))
+
                                                             return {
                                                                 ...previous,
-                                                                pages: selectAll ? allPages : [],
-                                                                pageTabs: selectAll
-                                                                    ? Object.fromEntries(selectablePages.map(item => [item, previous.pageTabs[item] || []]))
-                                                                    : {}
+                                                                pages: hasAllPages ? ["All", ...selectablePages] : nextPages,
+                                                                pageTabs: nextPageTabs
                                                             }
-                                                        }
-
-                                                        const isSelected = previous.pages.includes(page)
-                                                        const nextPageTabs = { ...previous.pageTabs }
-                                                        if (isSelected) delete nextPageTabs[page]
-                                                        else nextPageTabs[page] = []
-                                                        const nextPages = isSelected
-                                                            ? previous.pages.filter(item => item !== page && item !== "All")
-                                                            : [...previous.pages.filter(item => item !== "All"), page]
-                                                        const hasAllPages = selectablePages.every(item => nextPages.includes(item))
-
-                                                        return {
-                                                            ...previous,
-                                                            pages: hasAllPages ? ["All", ...selectablePages] : nextPages,
-                                                            pageTabs: nextPageTabs
-                                                        }
-                                                    })}
-                                                    className="h-4 w-4 rounded border-border text-sky-600 focus:ring-sky-500"
-                                                />
-                                                {page}
-                                            </label>
-                                        ))}
+                                                        })}
+                                                        className="sr-only"
+                                                    />
+                                                    {page}
+                                                </label>
+                                            )
+                                        })}
                                     </div>
                                 </div>
 
                                 {formData.pages.some(page => PAGE_ACCESS_OPTIONS[page]?.length > 0) && (
-                                    <div className="sm:col-span-2">
-                                        <label className="mb-2 block text-sm font-medium text-muted-foreground">Tab Access</label>
-                                        <div className="space-y-3 rounded-md border border-border p-3">
+                                    <div className="rounded-2xl border border-slate-200/70 p-4">
+                                        <div className="mb-3 flex items-center gap-2 text-xs font-bold uppercase tracking-wider text-muted-foreground">
+                                            <LayoutGrid className="h-3.5 w-3.5" /> Tab Access
+                                        </div>
+                                        <div className="space-y-4">
                                             {formData.pages
                                                 .filter(page => PAGE_ACCESS_OPTIONS[page]?.length > 0)
-                                                .map(page => (
-                                                    <div key={page}>
-                                                        <p className="mb-2 text-sm font-semibold text-muted-foreground">{page}</p>
-                                                        <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
-                                                            <label className="flex items-center gap-2 text-sm font-medium text-muted-foreground">
-                                                                <input
-                                                                    type="checkbox"
-                                                                    checked={(formData.pageTabs[page] || []).length === PAGE_ACCESS_OPTIONS[page].length}
-                                                                    onChange={() => setFormData(previous => {
-                                                                        const selectedTabs = previous.pageTabs[page] || []
-                                                                        const selectAll = selectedTabs.length !== PAGE_ACCESS_OPTIONS[page].length
-                                                                        return {
-                                                                            ...previous,
-                                                                            pageTabs: {
-                                                                                ...previous.pageTabs,
-                                                                                [page]: selectAll ? [...PAGE_ACCESS_OPTIONS[page]] : []
-                                                                            }
-                                                                        }
-                                                                    })}
-                                                                    className="h-4 w-4 rounded border-border text-sky-600 focus:ring-sky-500"
-                                                                />
-                                                                All
-                                                            </label>
-                                                            {PAGE_ACCESS_OPTIONS[page].map(tab => (
-                                                                <label key={`${page}-${tab}`} className="flex items-center gap-2 text-sm text-muted-foreground">
+                                                .map(page => {
+                                                    const selectedTabs = formData.pageTabs[page] || []
+                                                    const isAllChecked = selectedTabs.length === PAGE_ACCESS_OPTIONS[page].length
+                                                    return (
+                                                        <div key={page}>
+                                                            <p className="mb-2 text-sm font-semibold text-foreground">{page}</p>
+                                                            <div className="flex flex-wrap gap-2">
+                                                                <label
+                                                                    className={`cursor-pointer select-none rounded-full border px-3 py-1 text-xs font-bold transition-all ${
+                                                                        isAllChecked
+                                                                            ? "border-indigo-600 bg-indigo-50 text-indigo-700"
+                                                                            : "border-border bg-card text-muted-foreground hover:bg-muted/60"
+                                                                    }`}
+                                                                >
                                                                     <input
                                                                         type="checkbox"
-                                                                        checked={(formData.pageTabs[page] || []).includes(tab)}
+                                                                        checked={isAllChecked}
                                                                         onChange={() => setFormData(previous => {
-                                                                            const selectedTabs = previous.pageTabs[page] || []
+                                                                            const currentTabs = previous.pageTabs[page] || []
+                                                                            const selectAll = currentTabs.length !== PAGE_ACCESS_OPTIONS[page].length
                                                                             return {
                                                                                 ...previous,
                                                                                 pageTabs: {
                                                                                     ...previous.pageTabs,
-                                                                                    [page]: selectedTabs.includes(tab)
-                                                                                        ? selectedTabs.filter(item => item !== tab)
-                                                                                        : [...selectedTabs, tab]
+                                                                                    [page]: selectAll ? [...PAGE_ACCESS_OPTIONS[page]] : []
                                                                                 }
                                                                             }
                                                                         })}
-                                                                        className="h-4 w-4 rounded border-border text-sky-600 focus:ring-sky-500"
+                                                                        className="sr-only"
                                                                     />
-                                                                    {tab}
+                                                                    All
                                                                 </label>
-                                                            ))}
+                                                                {PAGE_ACCESS_OPTIONS[page].map(tab => {
+                                                                    const isTabChecked = selectedTabs.includes(tab)
+                                                                    return (
+                                                                        <label
+                                                                            key={`${page}-${tab}`}
+                                                                            className={`cursor-pointer select-none rounded-full border px-3 py-1 text-xs font-medium transition-all ${
+                                                                                isTabChecked
+                                                                                    ? "border-indigo-600 bg-indigo-50 text-indigo-700"
+                                                                                    : "border-border bg-card text-muted-foreground hover:bg-muted/60"
+                                                                            }`}
+                                                                        >
+                                                                            <input
+                                                                                type="checkbox"
+                                                                                checked={isTabChecked}
+                                                                                onChange={() => setFormData(previous => {
+                                                                                    const tabs = previous.pageTabs[page] || []
+                                                                                    return {
+                                                                                        ...previous,
+                                                                                        pageTabs: {
+                                                                                            ...previous.pageTabs,
+                                                                                            [page]: tabs.includes(tab)
+                                                                                                ? tabs.filter(item => item !== tab)
+                                                                                                : [...tabs, tab]
+                                                                                        }
+                                                                                    }
+                                                                                })}
+                                                                                className="sr-only"
+                                                                            />
+                                                                            {tab}
+                                                                        </label>
+                                                                    )
+                                                                })}
+                                                            </div>
                                                         </div>
-                                                    </div>
-                                                ))}
+                                                    )
+                                                })}
                                         </div>
                                     </div>
                                 )}
 
-                                <div className="sm:col-span-2">
-                                    <label className="mb-2 block text-sm font-medium text-muted-foreground">Firm Name</label>
-                                    <div className="grid max-h-40 grid-cols-1 gap-2 overflow-y-auto rounded-md border border-border p-3 sm:grid-cols-2">
-                                        {firmOptions.length === 0 ? (
-                                            <span className="text-sm text-muted-foreground">No firm names found</span>
-                                        ) : (
-                                            <>
-                                                <label className="flex items-center gap-2 text-sm font-medium text-muted-foreground">
-                                                    <input
-                                                        type="checkbox"
-                                                        checked={formData.firms.length === firmOptions.length}
-                                                        onChange={() => setFormData(previous => ({
-                                                            ...previous,
-                                                            firms: previous.firms.length === firmOptions.length ? [] : [...firmOptions]
-                                                        }))}
-                                                        className="h-4 w-4 rounded border-border text-sky-600 focus:ring-sky-500"
-                                                    />
-                                                    All
-                                                </label>
-                                                {firmOptions.map(firm => (
-                                                    <label key={firm} className="flex items-center gap-2 text-sm text-muted-foreground">
-                                                <input
-                                                    type="checkbox"
-                                                    checked={formData.firms.includes(firm)}
-                                                    onChange={() => setFormData(previous => ({
-                                                        ...previous,
-                                                        firms: previous.firms.includes(firm)
-                                                            ? previous.firms.filter(item => item !== firm)
-                                                            : [...previous.firms, firm]
-                                                    }))}
-                                                    className="h-4 w-4 rounded border-border text-sky-600 focus:ring-sky-500"
-                                                />
-                                                {firm}
-                                            </label>
-                                                ))}
-                                            </>
-                                        )}
+                                {/* Firm Name */}
+                                <div className="rounded-2xl border border-slate-200/70 p-4">
+                                    <div className="mb-3 flex items-center gap-2 text-xs font-bold uppercase tracking-wider text-muted-foreground">
+                                        <Building2 className="h-3.5 w-3.5" /> Firm Name
                                     </div>
+                                    {firmOptions.length === 0 ? (
+                                        <span className="text-sm text-muted-foreground">No firm names found</span>
+                                    ) : (
+                                        <div className="flex max-h-40 flex-wrap gap-2 overflow-y-auto">
+                                            {(() => {
+                                                const isAllFirmsChecked = formData.firms.length === firmOptions.length
+                                                return (
+                                                    <label
+                                                        className={`cursor-pointer select-none rounded-full border px-3.5 py-1.5 text-sm font-bold transition-all ${
+                                                            isAllFirmsChecked
+                                                                ? "border-emerald-600 bg-emerald-50 text-emerald-700"
+                                                                : "border-border bg-card text-muted-foreground hover:bg-muted/60"
+                                                        }`}
+                                                    >
+                                                        <input
+                                                            type="checkbox"
+                                                            checked={isAllFirmsChecked}
+                                                            onChange={() => setFormData(previous => ({
+                                                                ...previous,
+                                                                firms: previous.firms.length === firmOptions.length ? [] : [...firmOptions]
+                                                            }))}
+                                                            className="sr-only"
+                                                        />
+                                                        All
+                                                    </label>
+                                                )
+                                            })()}
+                                            {firmOptions.map(firm => {
+                                                const isFirmChecked = formData.firms.includes(firm)
+                                                return (
+                                                    <label
+                                                        key={firm}
+                                                        className={`cursor-pointer select-none rounded-full border px-3.5 py-1.5 text-sm font-medium transition-all ${
+                                                            isFirmChecked
+                                                                ? "border-emerald-600 bg-emerald-50 text-emerald-700"
+                                                                : "border-border bg-card text-muted-foreground hover:bg-muted/60"
+                                                        }`}
+                                                    >
+                                                        <input
+                                                            type="checkbox"
+                                                            checked={isFirmChecked}
+                                                            onChange={() => setFormData(previous => ({
+                                                                ...previous,
+                                                                firms: previous.firms.includes(firm)
+                                                                    ? previous.firms.filter(item => item !== firm)
+                                                                    : [...previous.firms, firm]
+                                                            }))}
+                                                            className="sr-only"
+                                                        />
+                                                        {firm}
+                                                    </label>
+                                                )
+                                            })}
+                                        </div>
+                                    )}
                                 </div>
                             </div>
 
-                            <div className="flex justify-end gap-3 rounded-b-xl border-t bg-muted px-6 py-4">
-                                <button type="button" onClick={closeForm} disabled={isSaving} className="rounded-md border border-border bg-card px-4 py-2 text-sm font-medium text-muted-foreground hover:bg-muted">
+                            <div className="flex shrink-0 justify-end gap-3 border-t border-slate-100 bg-muted/50 px-6 py-4">
+                                <button type="button" onClick={closeForm} disabled={isSaving} className="rounded-lg border border-border bg-card px-4 py-2 text-sm font-medium text-muted-foreground hover:bg-muted cursor-pointer disabled:opacity-50">
                                     Cancel
                                 </button>
-                                <button type="submit" disabled={isSaving} className="rounded-md bg-sky-600 px-4 py-2 text-sm font-medium text-white hover:bg-sky-700 disabled:opacity-50">
+                                <button type="submit" disabled={isSaving} className="inline-flex items-center gap-2 rounded-lg bg-gradient-to-r from-sky-600 to-indigo-600 px-5 py-2 text-sm font-semibold text-white shadow-sm transition-all hover:shadow-md hover:from-sky-500 hover:to-indigo-500 disabled:opacity-50 cursor-pointer">
+                                    {isSaving && <div className="h-3.5 w-3.5 animate-spin rounded-full border-2 border-white/40 border-t-white" />}
                                     {isSaving ? "Saving..." : editingUser ? "Update User" : "Add User"}
                                 </button>
                             </div>
