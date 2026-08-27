@@ -814,36 +814,36 @@ function CRREnquiry() {
             )}
 
             {/* Table */}
-            <div className="bg-white rounded-lg shadow-md overflow-hidden">
+            <div className="bg-white rounded-2xl shadow-md border border-slate-200/70 overflow-hidden">
                 <div className="overflow-x-auto">
-                    <table className="w-full">
-                        <thead className="bg-muted border-b border-border">
+                    <table className="w-full border-collapse">
+                        <thead className="bg-muted border-b border-border sticky top-0 z-10">
                             <tr>
-                                <th className="px-6 py-3 text-center text-xs font-bold text-slate-700 uppercase tracking-wider whitespace-nowrap">
+                                <th className="px-6 py-3.5 text-center text-xs font-bold text-slate-700 uppercase tracking-wider whitespace-nowrap">
                                     Action / Status
                                 </th>
-                                <th className="px-6 py-3 text-left text-xs font-bold text-slate-700 uppercase tracking-wider whitespace-nowrap">
+                                <th className="px-6 py-3.5 text-left text-xs font-bold text-slate-700 uppercase tracking-wider whitespace-nowrap">
                                     Enquiry No
                                 </th>
-                                <th className="px-6 py-3 text-left text-xs font-bold text-slate-700 uppercase tracking-wider whitespace-nowrap">
+                                <th className="px-6 py-3.5 text-left text-xs font-bold text-slate-700 uppercase tracking-wider whitespace-nowrap">
                                     Firm Name
                                 </th>
-                                <th className="px-6 py-3 text-left text-xs font-bold text-slate-700 uppercase tracking-wider whitespace-nowrap">
+                                <th className="px-6 py-3.5 text-left text-xs font-bold text-slate-700 uppercase tracking-wider whitespace-nowrap">
                                     Party Name
                                 </th>
-                                <th className="px-6 py-3 text-left text-xs font-bold text-slate-700 uppercase tracking-wider whitespace-nowrap">
+                                <th className="px-6 py-3.5 text-left text-xs font-bold text-slate-700 uppercase tracking-wider whitespace-nowrap">
                                     Product
                                 </th>
-                                <th className="px-6 py-3 text-left text-xs font-bold text-slate-700 uppercase tracking-wider whitespace-nowrap">
+                                <th className="px-6 py-3.5 text-left text-xs font-bold text-slate-700 uppercase tracking-wider whitespace-nowrap">
                                     Qty
                                 </th>
-                                <th className="px-6 py-3 text-left text-xs font-bold text-slate-700 uppercase tracking-wider whitespace-nowrap">
+                                <th className="px-6 py-3.5 text-left text-xs font-bold text-slate-700 uppercase tracking-wider whitespace-nowrap">
                                     Sales Person
                                 </th>
-                                <th className="px-6 py-3 text-left text-xs font-bold text-slate-700 uppercase tracking-wider whitespace-nowrap">
+                                <th className="px-6 py-3.5 text-left text-xs font-bold text-slate-700 uppercase tracking-wider whitespace-nowrap">
                                     Status
                                 </th>
-                                <th className="px-6 py-3 text-center text-xs font-bold text-slate-700 uppercase tracking-wider whitespace-nowrap">
+                                <th className="px-6 py-3.5 text-center text-xs font-bold text-slate-700 uppercase tracking-wider whitespace-nowrap">
                                     Offer Image
                                 </th>
                             </tr>
@@ -968,11 +968,11 @@ function CRREnquiry() {
                                                     {enquiry.enquiryNo || '-'}
                                                 </span>
                                             </td>
-                                            <td className="px-6 py-4 text-foreground font-medium text-sm">{enquiry.firmName || '-'}</td>
-                                            <td className="px-6 py-4 text-muted-foreground text-sm">{enquiry.partyName || '-'}</td>
-                                            <td className="px-6 py-4 text-muted-foreground text-sm">{enquiry.productName || '-'}</td>
+                                            <td className="px-6 py-4 text-foreground font-medium text-sm max-w-[180px] truncate" title={enquiry.firmName}>{enquiry.firmName || '-'}</td>
+                                            <td className="px-6 py-4 text-muted-foreground text-sm max-w-[180px] truncate" title={enquiry.partyName}>{enquiry.partyName || '-'}</td>
+                                            <td className="px-6 py-4 text-muted-foreground text-sm max-w-[160px] truncate" title={enquiry.productName}>{enquiry.productName || '-'}</td>
                                             <td className="px-6 py-4 text-muted-foreground text-sm font-medium">{enquiry.qty || '-'}</td>
-                                            <td className="px-6 py-4 text-muted-foreground text-sm">{enquiry.salesPerson || '-'}</td>
+                                            <td className="px-6 py-4 text-muted-foreground text-sm max-w-[140px] truncate" title={enquiry.salesPerson}>{enquiry.salesPerson || '-'}</td>
                                             <td className="px-6 py-4 whitespace-nowrap">
                                                 <span className="inline-flex items-center px-2.5 py-1 rounded-full bg-gray-100 text-gray-600 text-xs font-semibold">
                                                     {enquiry.status || '-'}

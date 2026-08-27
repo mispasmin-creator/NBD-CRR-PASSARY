@@ -1600,7 +1600,7 @@ function CallTracker() {
       )}
 
       {/* ── Main Table ── */}
-      <div className="bg-card rounded-lg shadow-md overflow-hidden">
+      <div className="bg-card rounded-2xl shadow-md border border-slate-200/70 overflow-hidden">
         {/* Table Header Bar */}
         <div className="px-6 py-4 border-b border-slate-100 flex items-center justify-between bg-muted/60">
           <div>
@@ -1624,10 +1624,10 @@ function CallTracker() {
             <p className="text-[13px] font-medium">Loading from NBD ENQUIRY FMS...</p>
           </div>
         ) : (
-          <div className="bg-white rounded-lg shadow-md overflow-hidden">
+          <>
             <div className="overflow-x-auto">
-              <table className="min-w-full">
-                <thead>
+              <table className="min-w-full border-collapse">
+                <thead className="sticky top-0 z-10">
                   <tr className="bg-muted border-b border-border">
                   {/* Call button column — only on Call Tracker tab */}
                   {activeTab === "callTracker" && (
@@ -1817,8 +1817,8 @@ function CallTracker() {
                 )}
               </tbody>
             </table>
-          </div>
-          </div>
+            </div>
+          </>
         )}
       </div>
 
