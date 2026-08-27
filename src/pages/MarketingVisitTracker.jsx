@@ -8,7 +8,7 @@ import { X, ClipboardList, Send, Plus, Search, FileText, PhoneCall, History, Che
 
 const STORAGE_KEY = "nbd_marketing_visit_tracker_data";
 
-const TABS = ["All", "Assign Marketing", "Report", "Call Tracker", "History"];
+const TABS = ["Assign Marketing", "History"];
 
 const DEPARTMENT_OPTIONS = [
   "Boiler",
@@ -82,26 +82,6 @@ const formatToIndianDate = (isoStr) => {
   return isoStr;
 };
 
-// Helper to parse date strings (DD-MM-YYYY, YYYY-MM-DD, etc.) into Date object
-const parseDateObj = (dStr) => {
-  if (!dStr) return null;
-  const str = String(dStr).trim();
-  if (/^\d{4}-\d{2}-\d{2}/.test(str)) {
-    const dt = new Date(str.substring(0, 10));
-    if (!isNaN(dt)) return dt;
-  }
-  const parts = str.match(/^(\d{1,2})[-/.](\d{1,2})[-/.](\d{4})/);
-  if (parts) {
-    const dd = parseInt(parts[1], 10);
-    const mm = parseInt(parts[2], 10) - 1;
-    const yyyy = parseInt(parts[3], 10);
-    const dt = new Date(yyyy, mm, dd);
-    if (!isNaN(dt)) return dt;
-  }
-  const dt = new Date(str);
-  return isNaN(dt) ? null : dt;
-};
-
 const DEFAULT_HEADERS = [
   "Status Of Complaint",
   "Timestamp",
@@ -132,60 +112,17 @@ const DEFAULT_HEADERS = [
   "Next Call Date",
 ];
 
-// Check if visit is due for Marketing tab (e.g. Visit Date + Frequency days <= Today)
-const isDueForMarketingTab = (v) => {
-  if (v.currentStep !== "Marketing" && v.currentStep !== "Assign Marketing") return false;
-  const match = String(v.frequencyOfVisit || "").match(/\d+/);
-  const freqDays = match ? parseInt(match[0], 10) : 0;
-  
-  const baseStr = v.visitDate || v.timestamp;
-  const baseDate = parseDateObj(baseStr);
-  if (!baseDate) return true;
-
-  baseDate.setHours(0, 0, 0, 0);
-  const dueDate = new Date(baseDate);
-  dueDate.setDate(dueDate.getDate() + freqDays);
-
-  const today = new Date();
-  today.setHours(0, 0, 0, 0);
-
-  return today >= dueDate;
-};
-
-// Check if visit is in Assign Marketing tab (Actual is null/empty)
+// Two-stage model: a task lives in "Assign Marketing" until it's actioned (Actual gets
+// filled in), then it's done and moves straight to "History" — Report/Call Tracker are
+// no longer separate steps since Assign Marketing now captures the full visit outcome.
 const isAssignMarketingTab = (v) => {
-  if (v?.source === "NBD Lead" || v?.source === "NBD Enquiry") {
-    return true;
-  }
-  if (v?.source === "Manual") {
-    const a = String(v?.actual || "").trim();
-    return a === "";
-  }
-  return false;
+  const a = String(v?.actual || "").trim();
+  return a === "";
 };
 
-// Check if visit is in Report tab (Planned 1 is not null/empty and Actual 1 is null/empty)
-const isReportTab = (v) => {
-  if (v?.source !== "Manual") return false;
-  const p1 = String(v?.planned1 || "").trim();
-  const a1 = String(v?.actual1 || "").trim();
-  return p1 !== "" && a1 === "";
-};
-
-// Check if visit is in Call Tracker tab (Planned 2 is not null/empty and Actual 2 is null/empty)
-const isCallTrackerTab = (v) => {
-  if (v?.source !== "Manual") return false;
-  const p2 = String(v?.planned2 || "").trim();
-  const a2 = String(v?.actual2 || "").trim();
-  return p2 !== "" && a2 === "";
-};
-
-// Check if visit is in History tab (Planned 2 is not null/empty and Actual 2 is not null/empty)
 const isHistoryTab = (v) => {
-  if (v?.source !== "Manual") return false;
-  const p2 = String(v?.planned2 || "").trim();
-  const a2 = String(v?.actual2 || "").trim();
-  return p2 !== "" && a2 !== "";
+  const a = String(v?.actual || "").trim();
+  return a !== "";
 };
 
 // Helper to check if any status/remarks indicate cancellation, rejection, or regret
@@ -214,7 +151,7 @@ export default function MarketingVisitTracker() {
   const location = useLocation();
   const navigate = useNavigate();
   const [visits, setVisits] = useState([]);
-  const [activeTab, setActiveTab] = useState("All");
+  const [activeTab, setActiveTab] = useState("Assign Marketing");
   const [searchQuery, setSearchQuery] = useState("");
   const [firmFilter, setFirmFilter] = useState("all");
   const [sheetHeaders, setSheetHeaders] = useState([]);
@@ -324,109 +261,6 @@ export default function MarketingVisitTracker() {
   const [visitPhotos, setVisitPhotos] = useState([null, null, null]); // File objects for Photo 1/2/3
   const [isUploadingPhotos, setIsUploadingPhotos] = useState(false);
 
-  // Call Tracker Modal states
-  const [showCallTrackerModal, setShowCallTrackerModal] = useState(false);
-  const [callTrackerForm, setCallTrackerForm] = useState({
-    marketingVisitStatus: "Pending", // "Pending" | "Yes" | "No"
-    status: "WARM",
-    customerSay: "",
-    nextCallDate: getTodayISO(),
-  });
-  const [isCallTrackerSubmitting, setIsCallTrackerSubmitting] = useState(false);
-
-  const openCallTrackerModal = (visit) => {
-    setSelectedVisit(visit);
-    setCallTrackerForm({
-      marketingVisitStatus: visit.marketingVisitStatus || "Pending",
-      status: visit.status2 || "WARM",
-      customerSay: visit.customerSays || visit.actionToBeTaken1 || "",
-      nextCallDate: getTodayISO(),
-    });
-    setShowCallTrackerModal(true);
-  };
-
-  const handleCallTrackerSubmit = async (e) => {
-    e.preventDefault();
-    if (!selectedVisit) return;
-    setIsCallTrackerSubmitting(true);
-    try {
-      const scriptUrl = import.meta.env.VITE_GOOGLE_APPS_SCRIPT_URL;
-      const sheetName = import.meta.env.VITE_MARKETING_VISIT_SHEET_NAME || "Marketing Visit";
-      const targetRowIndex = selectedVisit.sheetRowIndex;
-      const now = new Date();
-      const actualTimestamp = formatIndianTimestamp(now);
-      const formattedNextDate = formatToIndianDate(callTrackerForm.nextCallDate);
-      const isCompleted = callTrackerForm.marketingVisitStatus === "Yes" || callTrackerForm.marketingVisitStatus === "No";
-
-      // 1. Update Actual 2 cell (col 22 -> 1-based column index 23)
-      // Only set Actual 2 when status is Yes or No. If Pending, keep empty.
-      const actual2ColIdx = findColIndex(sheetHeaders, ["Actual 2", "Actual2"], 22) + 1;
-      const actualPayload = new URLSearchParams();
-      actualPayload.append("action", "updateCell");
-      actualPayload.append("sheetName", sheetName);
-      actualPayload.append("rowIndex", targetRowIndex.toString());
-      actualPayload.append("columnIndex", actual2ColIdx.toString());
-      actualPayload.append("value", isCompleted ? actualTimestamp : "");
-      await axios.post(scriptUrl, actualPayload);
-
-      // 2. Update Marketing Visit Status cell (col 23 -> 1-based column index 24)
-      const mvStatusColIdx = findColIndex(sheetHeaders, ["Marketing Visit Status", "MarketingVisitStatus", "Person Assign Name 1", "Person Assign Name", "Order Received"], 23) + 1;
-      const mvStatusPayload = new URLSearchParams();
-      mvStatusPayload.append("action", "updateCell");
-      mvStatusPayload.append("sheetName", sheetName);
-      mvStatusPayload.append("rowIndex", targetRowIndex.toString());
-      mvStatusPayload.append("columnIndex", mvStatusColIdx.toString());
-      mvStatusPayload.append("value", callTrackerForm.marketingVisitStatus);
-      await axios.post(scriptUrl, mvStatusPayload);
-
-      // 3. Update Status 2 cell (col 24 -> 1-based column index 25)
-      const status2ColIdx = findColIndex(sheetHeaders, ["Status 2", "Status2"], 24) + 1;
-      const status2Payload = new URLSearchParams();
-      status2Payload.append("action", "updateCell");
-      status2Payload.append("sheetName", sheetName);
-      status2Payload.append("rowIndex", targetRowIndex.toString());
-      status2Payload.append("columnIndex", status2ColIdx.toString());
-      status2Payload.append("value", callTrackerForm.status);
-      await axios.post(scriptUrl, status2Payload);
-
-      // 4. Update What did Customer Says cell (col 25 -> 1-based column index 26)
-      const customerSayColIdx = findColIndex(sheetHeaders, ["What did Customer Says", "What did the Customer say", "What Did The Customer Say", "Action To Be Taken 1", "Action To Be Taken"], 25) + 1;
-      const customerSayPayload = new URLSearchParams();
-      customerSayPayload.append("action", "updateCell");
-      customerSayPayload.append("sheetName", sheetName);
-      customerSayPayload.append("rowIndex", targetRowIndex.toString());
-      customerSayPayload.append("columnIndex", customerSayColIdx.toString());
-      customerSayPayload.append("value", callTrackerForm.customerSay || "");
-      await axios.post(scriptUrl, customerSayPayload);
-
-      // 5. Update Next Call Date cell (col 26 -> 1-based column index 27)
-      // Only set Next Call Date when Pending; clear when Yes/No
-      const nextDateColIdx = findColIndex(sheetHeaders, ["Next Call Date", "Next Date Of Call", "Date Of Visit"], 26) + 1;
-      const nextDatePayload = new URLSearchParams();
-      nextDatePayload.append("action", "updateCell");
-      nextDatePayload.append("sheetName", sheetName);
-      nextDatePayload.append("rowIndex", targetRowIndex.toString());
-      nextDatePayload.append("columnIndex", nextDateColIdx.toString());
-      nextDatePayload.append("value", callTrackerForm.marketingVisitStatus === "Pending" ? formattedNextDate : "");
-      await axios.post(scriptUrl, nextDatePayload);
-
-      showNotification(
-        isCompleted
-          ? `Call Tracker status (${callTrackerForm.marketingVisitStatus}) saved & moved to History!`
-          : "Call Tracker status updated to Pending!",
-        "success"
-      );
-      setShowCallTrackerModal(false);
-      setSelectedVisit(null);
-      fetchVisitTrackerData();
-    } catch (err) {
-      console.error("Failed to submit call tracker:", err);
-      showNotification("Failed to submit call tracker: " + (err.message || err.toString()), "error");
-    } finally {
-      setIsCallTrackerSubmitting(false);
-    }
-  };
-
   const openStatusModal = (visit, type = "Assign Marketing") => {
     setSelectedVisit(visit);
     setStatusModalType(type);
@@ -489,13 +323,14 @@ export default function MarketingVisitTracker() {
         }
       }
 
-      // Writes the extra Assign Marketing fields (Order Status, Customer Say, Photos) that
-      // don't have dedicated columns yet — appended right after the last existing column
-      // ("Next Call Date"), same way the rest of this app tolerates sheets growing over time.
+      // Writes the extra Assign Marketing fields (Order Status, Customer Say, Photos).
+      // "Order Status" reuses the sheet's existing "Marketing Visit Status" column (Yes/No/Pending) —
+      // Photo 1/2/3 don't have dedicated columns yet, so they're appended right after the last
+      // existing column ("Next Call Date"), same way the rest of this app tolerates sheets growing.
       const writeAssignMarketingExtras = async (rowIndex) => {
         if (statusModalType !== "Assign Marketing") return;
         const extras = [
-          { names: ["Order Status"], val: orderStatusValue, defaultIdx: 27 },
+          { names: ["Marketing Visit Status", "MarketingVisitStatus", "Order Status"], val: orderStatusValue, defaultIdx: 23 },
           { names: ["What did Customer Says", "What Did Customer Say"], val: customerSayValue, defaultIdx: 25 },
           { names: ["Photo 1"], val: photoUrls[0], defaultIdx: 28 },
           { names: ["Photo 2"], val: photoUrls[1], defaultIdx: 29 },
@@ -998,20 +833,13 @@ export default function MarketingVisitTracker() {
   };
 
   const getTabCount = (tabName) => {
-    if (tabName === "All") return visits.filter((v) => !isHistoryTab(v)).length;
     if (tabName === "Assign Marketing") {
       return visits.filter(isAssignMarketingTab).length;
-    }
-    if (tabName === "Report") {
-      return visits.filter(isReportTab).length;
-    }
-    if (tabName === "Call Tracker") {
-      return visits.filter(isCallTrackerTab).length;
     }
     if (tabName === "History") {
       return visits.filter(isHistoryTab).length;
     }
-    return visits.filter((c) => c.currentStep === tabName).length;
+    return 0;
   };
 
   const finalSalesPersonsList = useMemo(() => {
@@ -1026,18 +854,10 @@ export default function MarketingVisitTracker() {
   const filteredVisits = useMemo(() => {
     return visits.filter((v) => {
       let matchesTab = false;
-      if (activeTab === "All") {
-        matchesTab = !isHistoryTab(v);
-      } else if (activeTab === "Assign Marketing") {
+      if (activeTab === "Assign Marketing") {
         matchesTab = isAssignMarketingTab(v);
-      } else if (activeTab === "Report") {
-        matchesTab = isReportTab(v);
-      } else if (activeTab === "Call Tracker") {
-        matchesTab = isCallTrackerTab(v);
       } else if (activeTab === "History") {
         matchesTab = isHistoryTab(v);
-      } else {
-        matchesTab = v.currentStep === activeTab;
       }
 
       const matchesSearch =
@@ -1230,7 +1050,7 @@ export default function MarketingVisitTracker() {
             <table className="w-full">
               <thead className="bg-muted border-b">
                 <tr>
-                  {(activeTab === "Assign Marketing" || activeTab === "Report" || activeTab === "Call Tracker") && (
+                  {activeTab === "Assign Marketing" && (
                     <th className="px-4 py-3 text-center text-xs font-semibold text-muted-foreground uppercase whitespace-nowrap">
                       Action
                     </th>
@@ -1296,30 +1116,6 @@ export default function MarketingVisitTracker() {
                           className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-[#14533a] hover:bg-[#0f3f2b] text-white text-xs font-bold rounded-lg shadow-sm transition-all hover:scale-105 active:scale-95 cursor-pointer"
                         >
                           <CheckCircle size={14} />
-                          Action
-                        </button>
-                      </td>
-                    )}
-                    {activeTab === "Report" && (
-                      <td className="px-4 py-3 whitespace-nowrap text-sm text-center">
-                        <button
-                          type="button"
-                          onClick={() => openStatusModal(v, "Report")}
-                          className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-[#14533a] hover:bg-[#0f3f2b] text-white text-xs font-bold rounded-lg shadow-sm transition-all hover:scale-105 active:scale-95 cursor-pointer"
-                        >
-                          <CheckCircle size={14} />
-                          Action
-                        </button>
-                      </td>
-                    )}
-                    {activeTab === "Call Tracker" && (
-                      <td className="px-4 py-3 whitespace-nowrap text-sm text-center">
-                        <button
-                          type="button"
-                          onClick={() => openCallTrackerModal(v)}
-                          className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-[#14533a] hover:bg-[#0f3f2b] text-white text-xs font-bold rounded-lg shadow-sm transition-all hover:scale-105 active:scale-95 cursor-pointer"
-                        >
-                          <PhoneCall size={14} />
                           Action
                         </button>
                       </td>
@@ -1975,129 +1771,6 @@ export default function MarketingVisitTracker() {
                         Submit Status
                       </>
                     )}
-                  </button>
-                </div>
-              </form>
-            </div>
-          </div>
-        )}
-
-        {/* Modal: Call Tracker Action Modal */}
-        {showCallTrackerModal && selectedVisit && (
-          <div
-            className="fixed inset-0 bg-black/50 backdrop-blur-xs flex items-center justify-center z-50 p-4"
-            onClick={() => !isCallTrackerSubmitting && setShowCallTrackerModal(false)}
-          >
-            <div
-              className="bg-card rounded-2xl shadow-2xl border border-border overflow-hidden w-full max-w-md mx-auto flex flex-col animate-in fade-in zoom-in-95 duration-200"
-              onClick={(e) => e.stopPropagation()}
-            >
-              {/* Header */}
-              <div className="px-6 pt-5 pb-3 flex justify-between items-center border-b border-border">
-                <div className="flex items-center gap-3">
-                  <div className="p-2 bg-emerald-50 text-emerald-700 rounded-xl">
-                    <PhoneCall size={20} />
-                  </div>
-                  <div>
-                    <h2 className="text-base font-bold text-foreground">Call Tracker</h2>
-                    <p className="text-xs text-muted-foreground font-medium">
-                      {selectedVisit.nameOfPlant || "Plant"} · <span className="font-bold text-emerald-700">{selectedVisit.id}</span>
-                    </p>
-                  </div>
-                </div>
-                <button
-                  type="button"
-                  onClick={() => !isCallTrackerSubmitting && setShowCallTrackerModal(false)}
-                  disabled={isCallTrackerSubmitting}
-                  className="text-muted-foreground hover:text-foreground transition-colors p-1.5 rounded-lg hover:bg-muted cursor-pointer disabled:opacity-50"
-                >
-                  <X size={18} />
-                </button>
-              </div>
-
-              {/* Form Body */}
-              <form onSubmit={handleCallTrackerSubmit} className="p-6 space-y-4">
-                {/* 1. MARKETING VISIT STATUS */}
-                <div>
-                  <label className="block text-[11px] font-semibold text-muted-foreground uppercase tracking-wider mb-1.5">
-                    MARKETING VISIT STATUS
-                  </label>
-                  <select
-                    value={callTrackerForm.marketingVisitStatus}
-                    onChange={(e) => setCallTrackerForm((prev) => ({ ...prev, marketingVisitStatus: e.target.value }))}
-                    className="w-full h-10 px-3 border border-border rounded-xl text-[13px] text-foreground bg-card focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-600 transition-all"
-                  >
-                    <option value="Pending">Pending</option>
-                    <option value="Yes">Yes</option>
-                    <option value="No">No</option>
-                  </select>
-                </div>
-
-                {/* 2. STATUS */}
-                <div>
-                  <label className="block text-[11px] font-semibold text-muted-foreground uppercase tracking-wider mb-1.5">
-                    STATUS
-                  </label>
-                  <select
-                    value={callTrackerForm.status}
-                    onChange={(e) => setCallTrackerForm((prev) => ({ ...prev, status: e.target.value }))}
-                    className="w-full h-10 px-3 border border-border rounded-xl text-[13px] text-foreground bg-card focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-600 transition-all"
-                  >
-                    <option value="WARM">WARM</option>
-                    <option value="HOT">HOT</option>
-                    <option value="COLD">COLD</option>
-                  </select>
-                </div>
-
-                {/* 3. WHAT DID THE CUSTOMER SAY * */}
-                <div>
-                  <label className="block text-[11px] font-semibold text-muted-foreground uppercase tracking-wider mb-1.5">
-                    WHAT DID THE CUSTOMER SAY <span className="text-red-500">*</span>
-                  </label>
-                  <textarea
-                    value={callTrackerForm.customerSay}
-                    onChange={(e) => setCallTrackerForm((prev) => ({ ...prev, customerSay: e.target.value }))}
-                    rows={3}
-                    required
-                    placeholder="Enter customer feedback or remarks..."
-                    className="w-full px-3.5 py-2.5 border border-border rounded-xl text-[13px] text-foreground bg-card focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-600 transition-all resize-none"
-                  />
-                </div>
-
-                {/* 4. NEXT DATE OF CALL (Only shown when Status is Pending) */}
-                {callTrackerForm.marketingVisitStatus === "Pending" && (
-                  <div>
-                    <label className="block text-[11px] font-semibold text-muted-foreground uppercase tracking-wider mb-1.5">
-                      NEXT DATE OF CALL
-                    </label>
-                    <input
-                      type="date"
-                      value={callTrackerForm.nextCallDate}
-                      onChange={(e) => setCallTrackerForm((prev) => ({ ...prev, nextCallDate: e.target.value }))}
-                      className="w-full h-10 px-3 border border-border rounded-xl text-[13px] text-foreground bg-card focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-600 transition-all"
-                    />
-                  </div>
-                )}
-
-                {/* Action Buttons */}
-                <div className="flex justify-end gap-3 pt-3 border-t border-border">
-                  <button
-                    type="button"
-                    onClick={() => setShowCallTrackerModal(false)}
-                    disabled={isCallTrackerSubmitting}
-                    className="h-10 px-5 border border-border rounded-xl text-[13px] font-semibold text-muted-foreground hover:bg-muted transition-colors cursor-pointer disabled:opacity-50"
-                  >
-                    Cancel
-                  </button>
-                  <button
-                    type="submit"
-                    disabled={isCallTrackerSubmitting}
-                    className="h-10 px-6 bg-[#14533a] hover:bg-[#0f3f2b] disabled:opacity-50 text-white rounded-xl font-semibold text-[13px] flex items-center gap-2 shadow-sm transition-colors cursor-pointer"
-                  >
-                    {isCallTrackerSubmitting && (
-                      <div className="animate-spin rounded-full h-3.5 w-3.5 border-2 border-white/40 border-t-white" />
-                    )}
-                    {isCallTrackerSubmitting ? "Submitting..." : "Submit"}
                   </button>
                 </div>
               </form>
