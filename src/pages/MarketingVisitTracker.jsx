@@ -576,7 +576,7 @@ export default function MarketingVisitTracker() {
           return [...new Set(rows.map((r) => String(r[activeIdx] || "").trim()).filter(Boolean))];
         };
 
-        const parties = getUniqueVal(["party name", "party names", "party", "firm name", "client"], 1);
+        const parties = getUniqueVal(["party name", "party names", "party", "client"], 1);
         if (parties.length > 0) setExistingParties(parties);
 
         const salesPersons = getUniqueVal(["name of the sales person", "sales persons", "sales person", "sales executive"], 3);
