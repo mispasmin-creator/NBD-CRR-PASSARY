@@ -4,6 +4,11 @@ import { useState, useEffect } from "react"
 import { useNavigate } from "react-router-dom"
 import { PlusIcon, XIcon, PhoneCallIcon } from "../components/Icons"
 import axios from "axios"
+import { Download } from "lucide-react"
+import Pagination from "../components/ui/Pagination"
+import { exportToCsv } from "../utils/exportCsv"
+
+const PAGE_SIZE = 10
 
 // LocalStorage key for leads
 const LEADS_STORAGE_KEY = "nbd_outgoing_leads"
@@ -90,6 +95,7 @@ function Leads() {
   const [notification, setNotification] = useState(null)
   const [isLoading, setIsLoading] = useState(true)
   const [activeTab, setActiveTab] = useState("updateStatus")
+  const [page, setPage] = useState(1)
   const [callDateFilter, setCallDateFilter] = useState("all") // "all" | "overdue" | "today" | "tomorrow" | "week"
 
   const [masterFirmOptions, setMasterFirmOptions] = useState([])
@@ -504,6 +510,25 @@ function Leads() {
       String(lead.location || "").toLowerCase().includes(searchLower)
     )
   })
+
+  // Reset to page 1 whenever the active tab, search, or call-date filter changes
+  useEffect(() => {
+    setPage(1)
+  }, [activeTab, searchTerm, callDateFilter])
+
+  const paginatedLeads = filteredLeads.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE)
+
+  const handleExportLeads = () => {
+    exportToCsv(`nbd-leads-${activeTab}`, [
+      { label: "Lead No.", value: (l) => l.leadNumber || "" },
+      { label: "Our Firm Name", value: (l) => l.ourFirmName || "" },
+      { label: "Lead Received From", value: (l) => l.leadReceivedFrom || "" },
+      { label: "Sales Person", value: (l) => l.salesPerson || "" },
+      { label: "Company", value: (l) => l.companyName || "" },
+      { label: "Department", value: (l) => l.department || "" },
+      { label: "Location", value: (l) => l.location || "" },
+    ], filteredLeads)
+  }
 
   // Update Status Modal State
   const [isUpdateModalOpen, setIsUpdateModalOpen] = useState(false)
@@ -1163,7 +1188,7 @@ function Leads() {
       </div>
 
       {/* Controls */}
-      <div className="bg-card rounded-lg shadow-md p-6 mb-6">
+      <div className="bg-card rounded-2xl shadow-sm border border-slate-200/70 p-6 mb-6">
         <div className="flex flex-col md:flex-row gap-4 justify-between items-start md:items-center">
           <div className="flex flex-col sm:flex-row gap-4 flex-1">
             <input
@@ -1176,8 +1201,16 @@ function Leads() {
           </div>
           <div className="flex gap-3">
             <button
+              onClick={handleExportLeads}
+              disabled={filteredLeads.length === 0}
+              className="bg-card border border-border text-muted-foreground hover:text-foreground hover:bg-muted font-medium py-2 px-4 rounded-md transition-colors flex items-center gap-2 cursor-pointer disabled:opacity-50"
+            >
+              <Download className="h-4 w-4" />
+              Export
+            </button>
+            <button
               onClick={() => setIsModalOpen(true)}
-              className="bg-sky-600 hover:bg-sky-700 text-white font-medium py-2 px-4 rounded-md transition-colors flex items-center gap-2"
+              className="bg-sky-600 hover:bg-sky-700 text-white font-medium py-2 px-4 rounded-md transition-colors flex items-center gap-2 cursor-pointer"
             >
               <PlusIcon className="h-4 w-4" />
               New Lead
@@ -1228,7 +1261,7 @@ function Leads() {
                         </td>
                       </tr>
                     ) : (
-                      filteredLeads.map((lead, index) => (
+                      paginatedLeads.map((lead, index) => (
                         <tr key={lead.leadNumber || index} className="hover:bg-teal-50/30 transition-colors duration-150">
                           <td className="px-5 py-3.5 whitespace-nowrap">
                             <button
@@ -1256,16 +1289,14 @@ function Leads() {
                 </table>
               )}
             </div>
-            {leads.length > 0 && (
-              <div className="px-5 py-3 bg-gray-50 border-t border-gray-200 text-sm font-medium text-gray-600 flex-shrink-0">
-                Showing {filteredLeads.length} of {leads.length} leads
-              </div>
+            {filteredLeads.length > 0 && (
+              <Pagination page={page} pageSize={PAGE_SIZE} totalItems={filteredLeads.length} onPageChange={setPage} />
             )}
           </div>
 
           {/* Mobile Card View - Update Status */}
           <div className="md:hidden space-y-3">
-            {filteredLeads.map((lead, index) => (
+            {paginatedLeads.map((lead, index) => (
               <div key={lead.leadNumber || index} className="bg-card rounded-xl shadow-md border border-gray-100 p-4">
                 <div className="flex justify-between items-start mb-2">
                   <span className="inline-flex items-center px-2.5 py-1 rounded-md bg-teal-100 text-teal-700 text-sm font-semibold">{lead.leadNumber || '-'}</span>
@@ -1389,7 +1420,7 @@ function Leads() {
                         </td>
                       </tr>
                     ) : (
-                      filteredLeads.map((lead, index) => (
+                      paginatedLeads.map((lead, index) => (
                         <tr key={lead.leadNumber || index} className="hover:bg-indigo-50/30 transition-colors duration-150">
                           <td className="px-5 py-3.5 whitespace-nowrap">
                             <button
@@ -1462,16 +1493,14 @@ function Leads() {
                 </table>
               )}
             </div>
-            {leads.length > 0 && (
-              <div className="px-5 py-3 bg-gray-50 border-t border-gray-200 text-sm font-medium text-gray-600 flex-shrink-0">
-                Showing {filteredLeads.length} of {leads.length} leads
-              </div>
+            {filteredLeads.length > 0 && (
+              <Pagination page={page} pageSize={PAGE_SIZE} totalItems={filteredLeads.length} onPageChange={setPage} />
             )}
           </div>
 
           {/* Mobile Card View - Call Tracking */}
           <div className="md:hidden space-y-3">
-            {filteredLeads.map((lead, index) => (
+            {paginatedLeads.map((lead, index) => (
               <div key={lead.leadNumber || index} className="bg-card rounded-xl shadow-md border border-gray-100 p-4">
                 <div className="flex justify-between items-start mb-2">
                   <span className="inline-flex items-center px-2.5 py-1 rounded-md bg-indigo-100 text-indigo-700 text-sm font-semibold">{lead.leadNumber || '-'}</span>
@@ -1554,7 +1583,7 @@ function Leads() {
                         </td>
                       </tr>
                     ) : (
-                      filteredLeads.map((lead, index) => {
+                      paginatedLeads.map((lead, index) => {
                         const isReceived = String(lead.trackerEnquiry || "").trim() === "Yes"
                         return (
                           <tr key={lead.leadNumber || index} className="hover:bg-slate-50/60 transition-colors duration-150">
@@ -1606,16 +1635,14 @@ function Leads() {
                 </table>
               )}
             </div>
-            {leads.length > 0 && (
-              <div className="px-5 py-3 bg-gray-50 border-t border-gray-200 text-sm font-medium text-gray-600 flex-shrink-0">
-                Showing {filteredLeads.length} of {leads.length} leads
-              </div>
+            {filteredLeads.length > 0 && (
+              <Pagination page={page} pageSize={PAGE_SIZE} totalItems={filteredLeads.length} onPageChange={setPage} />
             )}
           </div>
 
           {/* Mobile Card View - History */}
           <div className="md:hidden space-y-3">
-            {filteredLeads.map((lead, index) => {
+            {paginatedLeads.map((lead, index) => {
               const isReceived = String(lead.trackerEnquiry || "").trim() === "Yes"
               return (
                 <div key={lead.leadNumber || index} className="bg-card rounded-xl shadow-md border border-gray-100 p-4">
