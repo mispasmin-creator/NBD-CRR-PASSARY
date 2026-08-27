@@ -13,7 +13,11 @@ import {
   AlertTriangleIcon,
   FileTextIcon,
 } from "../components/Icons"
-import { X, Send, CheckCircle2 } from "lucide-react"
+import { X, Send, CheckCircle2, Download } from "lucide-react"
+import Pagination from "../components/ui/Pagination"
+import { exportToCsv } from "../utils/exportCsv"
+
+const PAGE_SIZE = 10
 
 // Helper to format date in Indian DD/MM/YYYY HH:mm:ss format
 const formatIndianTimestamp = (dateObj = new Date()) => {
@@ -72,6 +76,7 @@ function OrderNotReceivedFMS() {
   const [isLoading, setIsLoading] = useState(true)
   const [searchTerm, setSearchTerm] = useState("")
   const [activeTab, setActiveTab] = useState("All")
+  const [page, setPage] = useState(1)
   const [activeMainTab, setActiveMainTab] = useState("all")
 
   // Modal and Form States for "Order Not Received" Action Popup
@@ -548,6 +553,26 @@ function OrderNotReceivedFMS() {
       ].some((v) => v && v.toString().toLowerCase().includes(term))
     })
   }, [activeMainTabRecords, activeTab, searchTerm])
+
+  // Reset to page 1 whenever the main tab, source tab, or search term changes
+  useEffect(() => {
+    setPage(1)
+  }, [activeMainTab, activeTab, searchTerm])
+
+  const paginatedRecords = filteredRecords.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE)
+
+  const handleExportRecords = () => {
+    exportToCsv(`order-not-received-${activeMainTab}`, [
+      { label: "ONR No.", value: (r) => r.onrNo || "" },
+      { label: "Enquiry No.", value: (r) => r.enquiryNo || r.id || "" },
+      { label: "Firm Name", value: (r) => r.firmName || r.companyName || "" },
+      { label: "Party Name", value: (r) => r.partyName || "" },
+      { label: "Product", value: (r) => r.product || r.productName || "" },
+      { label: "Source", value: (r) => r.source || "" },
+      { label: "Reason", value: (r) => r.whyNotReceived || r.remark || "" },
+      { label: "Status", value: (r) => r.status || "" },
+    ], filteredRecords)
+  }
 
   const activeMainTabMeta = MAIN_TABS.find((t) => t.key === activeMainTab) || MAIN_TABS[0]
 
@@ -1028,7 +1053,7 @@ function OrderNotReceivedFMS() {
       activeMainTab !== "testing" &&
       activeMainTab !== "takeAction" &&
       activeMainTab !== "history" ? (
-        <div className="bg-card rounded-lg shadow-md p-16 flex flex-col items-center justify-center text-center">
+        <div className="bg-card rounded-2xl shadow-md border border-slate-200/70 p-16 flex flex-col items-center justify-center text-center">
           <activeMainTabMeta.icon className="h-12 w-12 text-gray-300 mb-4" />
           <h2 className="text-lg font-bold text-gray-700 mb-1">{activeMainTabMeta.label}</h2>
           <p className="text-sm text-gray-400 max-w-md">
@@ -1038,7 +1063,7 @@ function OrderNotReceivedFMS() {
       ) : (
         <>
           {/* Controls */}
-          <div className="bg-card rounded-lg shadow-md p-6 mb-6">
+          <div className="bg-card rounded-2xl shadow-sm border border-slate-200/70 p-6 mb-6">
             <div className="flex flex-col md:flex-row gap-4 justify-between items-start md:items-center">
               <div className="flex flex-col sm:flex-row gap-4 flex-1 w-full">
                 <div className="relative flex-1 max-w-md w-full">
@@ -1063,19 +1088,29 @@ function OrderNotReceivedFMS() {
                   ))}
                 </select>
               </div>
-              <button
-                onClick={fetchAllData}
-                disabled={isLoading}
-                className="inline-flex items-center gap-2 bg-rose-600 hover:bg-rose-700 disabled:opacity-50 text-white font-medium py-2 px-4 rounded-md transition-colors cursor-pointer"
-              >
-                <RefreshCwIcon className={`h-4 w-4 ${isLoading ? "animate-spin" : ""}`} />
-                Refresh
-              </button>
+              <div className="flex gap-2">
+                <button
+                  onClick={handleExportRecords}
+                  disabled={isLoading || filteredRecords.length === 0}
+                  className="inline-flex items-center gap-2 bg-card border border-border text-muted-foreground hover:text-foreground hover:bg-muted font-medium py-2 px-4 rounded-md transition-colors cursor-pointer disabled:opacity-50"
+                >
+                  <Download className="h-4 w-4" />
+                  Export
+                </button>
+                <button
+                  onClick={fetchAllData}
+                  disabled={isLoading}
+                  className="inline-flex items-center gap-2 bg-rose-600 hover:bg-rose-700 disabled:opacity-50 text-white font-medium py-2 px-4 rounded-md transition-colors cursor-pointer"
+                >
+                  <RefreshCwIcon className={`h-4 w-4 ${isLoading ? "animate-spin" : ""}`} />
+                  Refresh
+                </button>
+              </div>
             </div>
           </div>
 
           {/* Table */}
-          <div className="bg-card rounded-lg shadow-md overflow-hidden">
+          <div className="bg-card rounded-2xl shadow-md border border-slate-200/70 overflow-hidden">
             <div className="px-6 py-4 border-b border-slate-100 bg-muted/60 flex justify-between items-center">
               <div>
                 <h2 className="text-[15px] font-bold text-foreground">
@@ -1109,7 +1144,7 @@ function OrderNotReceivedFMS() {
                 {/* Desktop Table */}
                 <div className="hidden md:block overflow-x-auto">
                   <table className="w-full">
-                    <thead>
+                    <thead className="sticky top-0 z-10">
                       <tr className="bg-gradient-to-r from-rose-50 to-red-50 border-b border-gray-200">
                         <th className="px-4 py-3 text-center text-xs font-bold text-rose-700 uppercase tracking-wider whitespace-nowrap">
                           Action
@@ -1209,7 +1244,7 @@ function OrderNotReceivedFMS() {
                           </td>
                         </tr>
                       ) : (
-                        filteredRecords.map((r) => (
+                        paginatedRecords.map((r) => (
                           <tr key={r.key} className="hover:bg-rose-50/30 transition-all duration-150">
                             <td className="px-4 py-3 whitespace-nowrap text-sm text-center">
                               {activeMainTab === "takeAction" ? (
@@ -1575,6 +1610,9 @@ function OrderNotReceivedFMS() {
                   )}
                 </div>
               </>
+            )}
+            {!isLoading && filteredRecords.length > 0 && (
+              <Pagination page={page} pageSize={PAGE_SIZE} totalItems={filteredRecords.length} onPageChange={setPage} />
             )}
           </div>
         </>
