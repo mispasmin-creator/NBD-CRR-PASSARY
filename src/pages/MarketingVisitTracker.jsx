@@ -318,6 +318,12 @@ export default function MarketingVisitTracker() {
   const [selectedStatusValue, setSelectedStatusValue] = useState("Approved");
   const [isStatusSubmitting, setIsStatusSubmitting] = useState(false);
 
+  // Extra fields captured when closing out an "Assign Marketing" task
+  const [orderStatusValue, setOrderStatusValue] = useState("Pending"); // "Yes" | "No" | "Pending"
+  const [customerSayValue, setCustomerSayValue] = useState("");
+  const [visitPhotos, setVisitPhotos] = useState([null, null, null]); // File objects for Photo 1/2/3
+  const [isUploadingPhotos, setIsUploadingPhotos] = useState(false);
+
   // Call Tracker Modal states
   const [showCallTrackerModal, setShowCallTrackerModal] = useState(false);
   const [callTrackerForm, setCallTrackerForm] = useState({
@@ -425,7 +431,37 @@ export default function MarketingVisitTracker() {
     setSelectedVisit(visit);
     setStatusModalType(type);
     setSelectedStatusValue("Approved");
+    setOrderStatusValue("Pending");
+    setCustomerSayValue("");
+    setVisitPhotos([null, null, null]);
     setShowStatusModal(true);
+  };
+
+  // Upload one visit photo to Google Drive, same pattern used for Offer/Enquiry file uploads
+  const uploadVisitPhotoToDrive = async (file) => {
+    const scriptUrl = import.meta.env.VITE_GOOGLE_APPS_SCRIPT_URL;
+    const folderId = import.meta.env.VITE_NBD_DRIVE_FOLDER_ID;
+    if (!scriptUrl || !folderId) throw new Error("Google Drive folder ID or script URL missing in .env");
+
+    const base64 = await new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = () => resolve(reader.result.split(",")[1]);
+      reader.onerror = reject;
+      reader.readAsDataURL(file);
+    });
+
+    const payload = new URLSearchParams();
+    payload.append("action", "uploadFile");
+    payload.append("fileName", file.name);
+    payload.append("mimeType", file.type);
+    payload.append("base64Data", base64);
+    payload.append("folderId", folderId);
+
+    const response = await axios.post(scriptUrl, payload);
+    if (response.data && response.data.success) {
+      return response.data.fileUrl || response.data.url;
+    }
+    throw new Error(response.data?.error || "Photo upload failed");
   };
 
   const handleStatusSubmit = async (e) => {
@@ -439,6 +475,44 @@ export default function MarketingVisitTracker() {
       const now = new Date();
       const actualTimestamp = formatIndianTimestamp(now);
       const timestampStr = selectedVisit.timestamp || actualTimestamp;
+
+      // Upload any attached photos first (Assign Marketing only)
+      let photoUrls = ["", "", ""];
+      if (statusModalType === "Assign Marketing" && visitPhotos.some(Boolean)) {
+        setIsUploadingPhotos(true);
+        try {
+          photoUrls = await Promise.all(
+            visitPhotos.map((file) => (file ? uploadVisitPhotoToDrive(file) : Promise.resolve("")))
+          );
+        } finally {
+          setIsUploadingPhotos(false);
+        }
+      }
+
+      // Writes the extra Assign Marketing fields (Order Status, Customer Say, Photos) that
+      // don't have dedicated columns yet — appended right after the last existing column
+      // ("Next Call Date"), same way the rest of this app tolerates sheets growing over time.
+      const writeAssignMarketingExtras = async (rowIndex) => {
+        if (statusModalType !== "Assign Marketing") return;
+        const extras = [
+          { names: ["Order Status"], val: orderStatusValue, defaultIdx: 27 },
+          { names: ["What did Customer Says", "What Did Customer Say"], val: customerSayValue, defaultIdx: 25 },
+          { names: ["Photo 1"], val: photoUrls[0], defaultIdx: 28 },
+          { names: ["Photo 2"], val: photoUrls[1], defaultIdx: 29 },
+          { names: ["Photo 3"], val: photoUrls[2], defaultIdx: 30 },
+        ];
+        for (const extra of extras) {
+          if (!extra.val) continue;
+          const idx = findColIndex(sheetHeaders, extra.names, extra.defaultIdx);
+          const payload = new URLSearchParams();
+          payload.append("action", "updateCell");
+          payload.append("sheetName", sheetName);
+          payload.append("rowIndex", rowIndex.toString());
+          payload.append("columnIndex", (idx + 1).toString());
+          payload.append("value", extra.val);
+          await axios.post(scriptUrl, payload);
+        }
+      };
 
       // Case 1: External source (NBD Lead or NBD Enquiry) in Assign Marketing -> Insert into Marketing Visit sheet
       if (statusModalType === "Assign Marketing" && (selectedVisit.source === "NBD Lead" || selectedVisit.source === "NBD Enquiry")) {
@@ -496,6 +570,8 @@ export default function MarketingVisitTracker() {
         statusPayload.append("value", selectedStatusValue);
         await axios.post(scriptUrl, statusPayload);
 
+        await writeAssignMarketingExtras(totalRows);
+
         showNotification(`${selectedVisit.source} stored in Marketing Visit & marked as ${selectedStatusValue} successfully!`, "success");
       } else if (statusModalType === "Assign Marketing") {
         // Case 2: Manual Visit in Assign Marketing -> Update Actual & Status cells in Marketing Visit sheet
@@ -518,6 +594,8 @@ export default function MarketingVisitTracker() {
         statusPayload.append("columnIndex", statusColIdx.toString());
         statusPayload.append("value", selectedStatusValue);
         await axios.post(scriptUrl, statusPayload);
+
+        await writeAssignMarketingExtras(targetRowIndex);
 
         showNotification(`Marketing status marked as ${selectedStatusValue} successfully!`, "success");
       } else if (statusModalType === "Report") {
@@ -1682,7 +1760,7 @@ export default function MarketingVisitTracker() {
             onClick={() => !isStatusSubmitting && setShowStatusModal(false)}
           >
             <div
-              className="bg-card rounded-2xl shadow-2xl border border-border overflow-hidden w-full max-w-lg mx-auto flex flex-col animate-in fade-in zoom-in-95 duration-200"
+              className="bg-card rounded-2xl shadow-2xl border border-border overflow-hidden w-full max-w-lg mx-auto flex flex-col max-h-[92vh] animate-in fade-in zoom-in-95 duration-200"
               onClick={(e) => e.stopPropagation()}
             >
               {/* Modal Header */}
@@ -1703,7 +1781,8 @@ export default function MarketingVisitTracker() {
                 </button>
               </div>
 
-              <form onSubmit={handleStatusSubmit} className="p-6 space-y-6">
+              <form onSubmit={handleStatusSubmit} className="flex flex-col flex-1 min-h-0">
+                <div className="p-6 space-y-6 overflow-y-auto flex-1">
                 {/* Details Summary Card */}
                 <div className="bg-primary/20 border border-emerald-100 rounded-xl p-4 space-y-2 text-xs">
                   <div className="flex justify-between items-center">
@@ -1729,7 +1808,7 @@ export default function MarketingVisitTracker() {
                 {/* Status Selection Cards */}
                 <div className="space-y-3">
                   <label className="block text-xs font-bold text-muted-foreground uppercase tracking-wider">
-                    {statusModalType === "Assign Marketing" ? "Select Marketing Status" : "Select Status 1"}
+                    {statusModalType === "Assign Marketing" ? "Visit Status" : "Select Status 1"}
                   </label>
                   <div className="grid grid-cols-2 gap-4">
                     {/* Approved Option */}
@@ -1764,8 +1843,104 @@ export default function MarketingVisitTracker() {
                   </div>
                 </div>
 
+                {/* Extra close-out fields — only when logging an actual visit outcome */}
+                {statusModalType === "Assign Marketing" && (
+                  <>
+                    {/* Order Status */}
+                    <div className="space-y-2">
+                      <label className="block text-xs font-bold text-muted-foreground uppercase tracking-wider">
+                        Order Status
+                      </label>
+                      <div className="grid grid-cols-3 gap-2">
+                        {["Yes", "No", "Pending"].map((opt) => (
+                          <button
+                            key={opt}
+                            type="button"
+                            onClick={() => setOrderStatusValue(opt)}
+                            className={`py-2.5 rounded-lg border-2 text-sm font-bold transition-all cursor-pointer ${
+                              orderStatusValue === opt
+                                ? opt === "Yes"
+                                  ? "border-emerald-600 bg-emerald-50/80 text-emerald-800"
+                                  : opt === "No"
+                                    ? "border-rose-600 bg-rose-50/80 text-rose-800"
+                                    : "border-amber-500 bg-amber-50/80 text-amber-800"
+                                : "border-border bg-card hover:bg-muted/50 text-muted-foreground"
+                            }`}
+                          >
+                            {opt}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+
+                    {/* What Did The Customer Say */}
+                    <div className="space-y-1.5">
+                      <label className="block text-xs font-bold text-muted-foreground uppercase tracking-wider">
+                        What Did The Customer Say
+                      </label>
+                      <textarea
+                        rows={3}
+                        value={customerSayValue}
+                        onChange={(e) => setCustomerSayValue(e.target.value)}
+                        placeholder="Enter customer feedback from the visit..."
+                        className="w-full px-3 py-2.5 bg-card border border-border rounded-lg focus:outline-none focus:ring-2 focus:ring-[#14533a]/20 focus:border-[#14533a] text-foreground text-sm"
+                      />
+                    </div>
+
+                    {/* Visit Photos */}
+                    <div className="space-y-1.5">
+                      <label className="block text-xs font-bold text-muted-foreground uppercase tracking-wider">
+                        Visit Photos
+                      </label>
+                      <div className="grid grid-cols-3 gap-2">
+                        {[0, 1, 2].map((i) => (
+                          <div key={i} className="relative">
+                            <input
+                              type="file"
+                              accept="image/*"
+                              id={`visit-photo-${i}`}
+                              className="hidden"
+                              onChange={(e) => {
+                                const file = e.target.files?.[0] || null;
+                                setVisitPhotos((prev) => prev.map((p, idx) => (idx === i ? file : p)));
+                              }}
+                            />
+                            <label
+                              htmlFor={`visit-photo-${i}`}
+                              className={`flex flex-col items-center justify-center h-20 rounded-lg border-2 border-dashed cursor-pointer text-center px-1 transition-colors ${
+                                visitPhotos[i]
+                                  ? "border-emerald-400 bg-emerald-50/60 text-emerald-700"
+                                  : "border-border bg-muted/40 text-muted-foreground hover:bg-muted/70"
+                              }`}
+                            >
+                              {visitPhotos[i] ? (
+                                <>
+                                  <CheckCircle className="h-4 w-4 mb-1" />
+                                  <span className="text-[10px] font-semibold truncate w-full">{visitPhotos[i].name}</span>
+                                </>
+                              ) : (
+                                <span className="text-[11px] font-semibold">Photo {i + 1}</span>
+                              )}
+                            </label>
+                            {visitPhotos[i] && (
+                              <button
+                                type="button"
+                                onClick={() => setVisitPhotos((prev) => prev.map((p, idx) => (idx === i ? null : p)))}
+                                className="absolute -top-1.5 -right-1.5 bg-rose-500 text-white rounded-full p-0.5 shadow cursor-pointer"
+                              >
+                                <X size={10} />
+                              </button>
+                            )}
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  </>
+                )}
+                </div>
+
                 {/* Action Buttons */}
-                <div className="flex gap-3 justify-end pt-4 border-t border-border">
+                <div className="flex gap-3 justify-end px-6 py-4 border-t border-border shrink-0 bg-card">
                   <button
                     type="button"
                     onClick={() => setShowStatusModal(false)}
@@ -1783,7 +1958,7 @@ export default function MarketingVisitTracker() {
                     {isStatusSubmitting ? (
                       <>
                         <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-                        Submitting...
+                        {isUploadingPhotos ? "Uploading photos..." : "Submitting..."}
                       </>
                     ) : (
                       <>
