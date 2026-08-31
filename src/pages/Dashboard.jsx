@@ -1,125 +1,131 @@
-import { useState } from "react"
-import { motion } from "framer-motion"
-import DashboardMetrics from "../components/dashboard/DashboardMetrics"
-import DashboardCharts from "../components/dashboard/DashboardCharts"
-import PendingTasks from "../components/dashboard/PendingTasks"
-import RecentActivities from "../components/dashboard/RecentActivities"
-import PipelineStats from "../components/dashboard/PipelineStats"
-import MonthlyTargets from "../components/dashboard/MonthlyTargets"
-import KPIScore from "../components/dashboard/KPIScore"
-import ActiveEnquiries from "../components/dashboard/ActiveEnquiries"
+"use client"
 
-// Framer motion variants
+import { useState, useEffect, useCallback } from "react"
+import { motion } from "framer-motion"
+import { RefreshCwIcon } from "../components/Icons"
+import { fetchDashboardOverview } from "../services/dashboardStats"
+import HeroStats from "../components/dashboard/HeroStats"
+import ModuleStatCard from "../components/dashboard/ModuleStatCard"
+import StatusDonut from "../components/dashboard/StatusDonut"
+import MonthlyTrendChart from "../components/dashboard/MonthlyTrendChart"
+import StatusBreakdownChart from "../components/dashboard/StatusBreakdownChart"
+import AttentionPanel from "../components/dashboard/AttentionPanel"
+
 const containerVariants = {
   hidden: { opacity: 0 },
-  show: {
-    opacity: 1,
-    transition: { staggerChildren: 0.1 }
-  }
+  show: { opacity: 1, transition: { staggerChildren: 0.06 } },
 }
 
 const itemVariants = {
-  hidden: { opacity: 0, y: 20 },
-  show: { opacity: 1, y: 0, transition: { type: "spring", stiffness: 300, damping: 24 } }
+  hidden: { opacity: 0, y: 12 },
+  show: { opacity: 1, y: 0, transition: { type: "spring", stiffness: 300, damping: 26 } },
+}
+
+const EMPTY_TOTALS = { total: 0, pending: 0, inProgress: 0, completed: 0, delayed: 0 }
+
+function formatRelativeTime(date) {
+  if (!date) return ""
+  const diffSec = Math.max(0, Math.round((Date.now() - date.getTime()) / 1000))
+  if (diffSec < 10) return "just now"
+  if (diffSec < 60) return `${diffSec}s ago`
+  const diffMin = Math.round(diffSec / 60)
+  if (diffMin < 60) return `${diffMin}m ago`
+  const diffHr = Math.round(diffMin / 60)
+  return `${diffHr}h ago`
 }
 
 function Dashboard() {
-  const [filters, setFilters] = useState({
-    type: "All",
-    assignee: "All",
-    dateRange: "This Month"
-  })
+  const [modules, setModules] = useState([])
+  const [totals, setTotals] = useState(EMPTY_TOTALS)
+  const [monthlyTrend, setMonthlyTrend] = useState([])
+  const [fetchedAt, setFetchedAt] = useState(null)
+  const [isLoading, setIsLoading] = useState(true)
+  const [isRefreshing, setIsRefreshing] = useState(false)
+
+  const loadData = useCallback(async (isManualRefresh = false) => {
+    if (isManualRefresh) setIsRefreshing(true)
+    else setIsLoading(true)
+    try {
+      const overview = await fetchDashboardOverview()
+      setModules(overview.modules)
+      setTotals(overview.totals)
+      setMonthlyTrend(overview.monthlyTrend)
+      setFetchedAt(overview.fetchedAt)
+    } finally {
+      setIsLoading(false)
+      setIsRefreshing(false)
+    }
+  }, [])
+
+  useEffect(() => {
+    loadData()
+  }, [loadData])
 
   return (
-    <div className="min-h-screen bg-[radial-gradient(ellipse_at_top_right,_var(--tw-gradient-stops))] from-indigo-50 via-slate-50 to-white relative overflow-hidden">
-      {/* Decorative blurred background shapes */}
-      <div className="absolute top-0 right-0 -mr-20 -mt-20 w-96 h-96 rounded-full bg-indigo-500/10 blur-3xl pointer-events-none"></div>
-      <div className="absolute bottom-0 left-0 -ml-20 -mb-20 w-96 h-96 rounded-full bg-blue-500/10 blur-3xl pointer-events-none"></div>
-
-      <motion.div 
-        className="py-4 relative z-10"
-        variants={containerVariants}
-        initial="hidden"
-        animate="show"
-      >
-        {/* Filters Top Bar */}
-        <motion.section 
-          variants={itemVariants}
-          className="mb-8 bg-white/70 backdrop-blur-xl p-4 md:p-5 rounded-3xl shadow-[0_8px_30px_rgb(0,0,0,0.04)] border border-white flex flex-col md:flex-row gap-4 items-center justify-between transition-all duration-300"
-        >
-          <div className="flex items-center gap-4 text-slate-800 font-extrabold text-2xl tracking-tight">
-            <div className="bg-gradient-to-br from-indigo-500 to-blue-600 p-3 rounded-2xl shadow-lg shadow-indigo-500/20 border border-indigo-400/30">
-              <svg className="h-6 w-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2.586a1 1 0 01-.293.707l-6.414 6.414a1 1 0 00-.293.707V17l-4 4v-6.586a1 1 0 00-.293-.707L3.293 7.293A1 1 0 013 6.586V4z" /></svg>
-            </div>
-            Analytics Overview
+    <div className="min-h-full">
+      <motion.div variants={containerVariants} initial="hidden" animate="show" className="space-y-6 pb-4">
+        {/* Header */}
+        <motion.section variants={itemVariants} className="flex flex-col md:flex-row md:items-center md:justify-between gap-3">
+          <div>
+            <h1 className="text-2xl font-extrabold text-slate-900 tracking-tight">Dashboard</h1>
+            <p className="text-[13px] text-slate-500 font-medium mt-0.5">
+              Live overview across every module — jump straight into what needs work.
+            </p>
           </div>
-          <div className="flex flex-wrap gap-3">
-            <div className="relative group">
-              <select
-                value={filters.type}
-                onChange={(e) => setFilters(p => ({ ...p, type: e.target.value }))}
-                className="appearance-none pl-5 pr-11 py-3 rounded-2xl text-[14px] font-bold bg-white/50 text-slate-700 hover:bg-white border border-slate-200/60 focus:outline-none focus:ring-2 focus:ring-indigo-500/40 shadow-sm cursor-pointer transition-all duration-300 backdrop-blur-md"
-              >
-                <option value="All">All Segments</option>
-                <option value="NBD">New Business (NBD)</option>
-                <option value="CRR">Retention (CRR)</option>
-                <option value="NBD-CRR">Hybrid (NBD-CRR)</option>
-              </select>
-              <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-4 text-slate-400 group-hover:text-indigo-500 transition-colors">
-                <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 9l-7 7-7-7" /></svg>
-              </div>
-            </div>
-            <div className="relative group">
-              <select
-                value={filters.dateRange}
-                onChange={(e) => setFilters(p => ({ ...p, dateRange: e.target.value }))}
-                className="appearance-none pl-5 pr-11 py-3 rounded-2xl text-[14px] font-bold bg-white/50 text-slate-700 hover:bg-white border border-slate-200/60 focus:outline-none focus:ring-2 focus:ring-indigo-500/40 shadow-sm cursor-pointer transition-all duration-300 backdrop-blur-md"
-              >
-                <option value="Weekly">Weekly View</option>
-                <option value="Monthly">Monthly View</option>
-                <option value="Quarterly">Quarterly View</option>
-                <option value="Yearly">Yearly View</option>
-              </select>
-              <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-4 text-slate-400 group-hover:text-indigo-500 transition-colors">
-                <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 9l-7 7-7-7" /></svg>
-              </div>
-            </div>
+          <div className="flex items-center gap-3">
+            {fetchedAt && (
+              <span className="text-[12px] text-slate-400 font-medium">
+                Synced {formatRelativeTime(fetchedAt)}
+              </span>
+            )}
+            <button
+              type="button"
+              onClick={() => loadData(true)}
+              disabled={isRefreshing || isLoading}
+              className="flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-[13px] font-bold text-slate-600 shadow-sm hover:bg-slate-50 hover:text-slate-900 transition-colors disabled:opacity-50 cursor-pointer"
+            >
+              <RefreshCwIcon className={`h-4 w-4 ${isRefreshing ? "animate-spin" : ""}`} />
+              Refresh
+            </button>
           </div>
         </motion.section>
 
-        {/* Section 1: Pipeline Stats - Top Row */}
-        <motion.section variants={itemVariants} className="mb-8">
-          <PipelineStats filters={filters} />
+        {/* Hero KPIs */}
+        <motion.section variants={itemVariants}>
+          <HeroStats totals={totals} isLoading={isLoading} />
         </motion.section>
 
-        {/* Section 2: Monthly Targets & KPI Score - Two Columns on desktop, stacked on mobile */}
-        <motion.section variants={itemVariants} className="grid grid-cols-1 lg:grid-cols-2 gap-4 md:gap-8 mb-8">
-          <div className="h-full"><MonthlyTargets filters={filters} /></div>
-          <div className="h-full"><KPIScore filters={filters} /></div>
-        </motion.section>
-
-        {/* Section 3: Active Enquiries Table */}
-        <motion.section variants={itemVariants} className="mb-8">
-          <ActiveEnquiries filters={filters} />
-        </motion.section>
-
-        {/* Section 4: Existing Dashboard Metrics */}
-        <motion.section variants={itemVariants} className="mb-8">
-          <DashboardMetrics filters={filters} />
-        </motion.section>
-
-        {/* Section 4b: Recent Activity */}
-        <motion.section variants={itemVariants} className="mb-8">
-          <RecentActivities />
-        </motion.section>
-
-        {/* Section 5: Charts */}
-        <motion.section variants={itemVariants} className="bg-white/60 backdrop-blur-lg rounded-3xl shadow-[0_8px_30px_rgb(0,0,0,0.04)] border border-white mb-6 overflow-hidden">
-          <div className="p-4 md:p-8">
-            <DashboardCharts filters={filters} />
+        {/* Module status grid */}
+        <motion.section variants={itemVariants}>
+          <div className="flex items-center justify-between mb-3">
+            <h2 className="text-[13px] font-bold text-slate-500 uppercase tracking-widest">Module Status</h2>
           </div>
+          {isLoading ? (
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+              {Array.from({ length: 7 }).map((_, i) => (
+                <div key={i} className="h-[148px] rounded-2xl bg-white border border-slate-200 animate-pulse" />
+              ))}
+            </div>
+          ) : (
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+              {modules.map((mod) => (
+                <ModuleStatCard key={mod.key} mod={mod} />
+              ))}
+            </div>
+          )}
         </motion.section>
 
+        {/* Analytics: status distribution + activity trend */}
+        <motion.section variants={itemVariants} className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+          <StatusDonut totals={totals} isLoading={isLoading} />
+          <MonthlyTrendChart data={monthlyTrend} isLoading={isLoading} />
+        </motion.section>
+
+        {/* Analytics: per-module breakdown + needs attention */}
+        <motion.section variants={itemVariants} className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+          <StatusBreakdownChart modules={modules} isLoading={isLoading} />
+          <AttentionPanel modules={modules} isLoading={isLoading} />
+        </motion.section>
       </motion.div>
     </div>
   )

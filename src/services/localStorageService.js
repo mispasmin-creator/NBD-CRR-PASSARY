@@ -9,7 +9,8 @@ const FORM_KEYS = {
     NEW_FOLLOW_UP: 'form_newFollowUp',
     CALL_TRACKER_FORM: 'form_callTrackerForm',
     OUTGOING_LEADS: 'outgoing_leads_table',
-    OUTGOING_LEADS_COUNTER: 'outgoing_leads_counter'
+    OUTGOING_LEADS_COUNTER: 'outgoing_leads_counter',
+    CHAT_HISTORY: 'chat_history'
 }
 
 /**
