@@ -42,7 +42,6 @@ const AdminConfig = lazy(() => import("./pages/AdminConfig"));
 import Footer from "./components/Footer";
 import Notification from "./components/Notification";
 import Sidebar from "./components/Sidebar";
-import ChatWidget from "./components/chat/ChatWidget";
 import { MenuIcon } from "./components/Icons";
 import { mockApi } from "./services/mockApi";
 
@@ -419,7 +418,6 @@ function App() {
                 type={notification.type}
               />
             )}
-            {isAuthenticated && <ChatWidget />}
           </div>
         </Router>
       </DataContext.Provider>

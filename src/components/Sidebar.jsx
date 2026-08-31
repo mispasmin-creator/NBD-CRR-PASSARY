@@ -74,7 +74,7 @@ function Sidebar({ mobileMenuOpen, setMobileMenuOpen }) {
       },
       {
         to: "/marketing-visit-tracker",
-        label: "Marketing Visit Tracker",
+        label: "Marketing Visit",
         icon: <MapPinIcon className="h-6 w-6" />,
       },
       {
@@ -88,7 +88,7 @@ function Sidebar({ mobileMenuOpen, setMobileMenuOpen }) {
 
   const adminRoutes = useMemo(
     () => [
-      { to: "/admin-config", label: "Administration", icon: <SettingsIcon className="h-6 w-6" /> },
+      { to: "/admin-config", label: "User Management", icon: <SettingsIcon className="h-6 w-6" /> },
     ],
     []
   );

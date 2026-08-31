@@ -121,15 +121,22 @@ const crrStageIdx = (headers) => ({
   p4: findCol(headers, ["Planned 4", "Planned4"], 29),
 })
 
-const isOrderNotReceivedText = (v) => String(v || "").trim().toLowerCase().replace(/[\s_-]+/g, "").includes("notreceive")
+// Status 2 (Send Offer outcome) accepts "Yes"/"No" (was the order received?) as well as the
+// older "Order Receive"/"Order Not Receive" text still sitting in historical rows.
+const isOrderNotReceivedText = (v) => {
+  const s = String(v || "").trim().toLowerCase().replace(/[\s_-]+/g, "")
+  if (s === "no") return true
+  if (s === "yes") return false
+  return s.includes("notreceive")
+}
 
 function getCrrStage(row, idx) {
   const filled = (v) => v && String(v).trim() !== ""
-  if (filled(row[idx.p1]) && !filled(row[idx.a1])) return "Give Rates"
-  if ((filled(row[idx.p2]) || filled(row[idx.a1])) && !filled(row[idx.a2])) return "Send Offer"
-  if (filled(row[idx.a2])) return isOrderNotReceivedText(row[idx.s2]) ? "Order Not Received" : "Get Order"
-  if (filled(row[idx.p4])) return "Order Not Received"
-  return "Completed"
+  // Actual 1 not yet filled — covers a freshly-created enquiry (Planned 1 may still be
+  // blank, e.g. a sheet formula that hasn't populated yet) and one awaiting rates.
+  if (!filled(row[idx.a1])) return "Give Rates"
+  if (!filled(row[idx.a2])) return "Send Offer"
+  return isOrderNotReceivedText(row[idx.s2]) ? "Order Not Received" : "Get Order"
 }
 
 function computeCrrStats(rows) {
