@@ -16,36 +16,15 @@ import {
 import { X, Send, CheckCircle2, Download } from "lucide-react"
 import Pagination from "../components/ui/Pagination"
 import { exportToCsv } from "../utils/exportCsv"
+import { getCurrentTimestamp, reformatIfDate } from "../utils/dateTime"
 
 const PAGE_SIZE = 10
-
-// Helper to format date in Indian DD/MM/YYYY HH:mm:ss format
-const formatIndianTimestamp = (dateObj = new Date()) => {
-  const day = String(dateObj.getDate()).padStart(2, "0")
-  const month = String(dateObj.getMonth() + 1).padStart(2, "0")
-  const year = dateObj.getFullYear()
-  const hours = String(dateObj.getHours()).padStart(2, "0")
-  const minutes = String(dateObj.getMinutes()).padStart(2, "0")
-  const seconds = String(dateObj.getSeconds()).padStart(2, "0")
-  return `${day}/${month}/${year} ${hours}:${minutes}:${seconds}`
-}
 
 // Helper to format ISO date to display format
 const displayDate = (dateVal) => {
   if (!dateVal) return ""
   try {
-    if (typeof dateVal === "string" && !dateVal.includes("T")) {
-      return dateVal
-    }
-    const d = new Date(dateVal)
-    if (isNaN(d.getTime())) return dateVal
-    const day = String(d.getDate()).padStart(2, "0")
-    const m = String(d.getMonth() + 1).padStart(2, "0")
-    const yr = d.getFullYear()
-    const hr = String(d.getHours()).padStart(2, "0")
-    const min = String(d.getMinutes()).padStart(2, "0")
-    const sec = String(d.getSeconds()).padStart(2, "0")
-    return `${day}/${m}/${yr} ${hr}:${min}:${sec}`
+    return reformatIfDate(dateVal)
   } catch {
     return dateVal
   }
@@ -68,6 +47,28 @@ const SOURCE_BADGE_CLASSES = {
   "NBD Lead": "bg-sky-100 text-sky-800 border border-sky-200",
   "NBD Enquiry": "bg-indigo-100 text-indigo-800 border border-indigo-200",
   "CRR Enquiry": "bg-amber-100 text-amber-800 border border-amber-200",
+}
+
+// Which pipeline stage a record is currently sitting at (mirrors the
+// activeMainTabRecords partitioning logic below).
+const getRecordStage = (r) => {
+  if (!r.isSubmitted) return "notReceivedOrder"
+  if (!r.status1 || r.status1 === "-") return "getSample"
+  if (!r.actual2 || r.actual2 === "-") return "testing"
+  if (!r.actual3 || r.actual3 === "-") return "takeAction"
+  return "history"
+}
+
+// The "Planned N" column that represents the due date for whichever stage a
+// record is currently at — so whoever owns that stage knows by when they
+// need to act, instead of seeing every stage's planned date at once.
+const getDueDateForRecord = (r) => {
+  const stage = getRecordStage(r)
+  const val = stage === "getSample" ? r.planned1
+    : stage === "testing" ? r.planned2
+    : stage === "takeAction" ? r.planned3
+    : ""
+  return (!val || val === "-") ? "" : val
 }
 
 function OrderNotReceivedFMS() {
@@ -640,7 +641,7 @@ function OrderNotReceivedFMS() {
         throw new Error("Google Apps Script URL is missing in .env")
       }
 
-      const actualTimestamp = formatIndianTimestamp(new Date())
+      const actualTimestamp = getCurrentTimestamp()
 
       // Fetch latest sheet to find exact column index of "Actual 1" and "Status 1" and matching row
       const resCurrent = await axios.get(`${scriptUrl}?sheet=${encodeURIComponent(sheetName)}&t=${Date.now()}`)
@@ -738,7 +739,7 @@ function OrderNotReceivedFMS() {
         throw new Error("Google Apps Script URL is missing in .env")
       }
 
-      const actual2Timestamp = formatIndianTimestamp(new Date())
+      const actual2Timestamp = getCurrentTimestamp()
 
       // Fetch latest sheet to find exact column index of "Actual 2" and matching row
       const resCurrent = await axios.get(`${scriptUrl}?sheet=${encodeURIComponent(sheetName)}&t=${Date.now()}`)
@@ -822,7 +823,7 @@ function OrderNotReceivedFMS() {
         throw new Error("Google Apps Script URL is missing in .env")
       }
 
-      const actual3Timestamp = formatIndianTimestamp(new Date())
+      const actual3Timestamp = getCurrentTimestamp()
 
       // Fetch latest sheet to find exact column index of "Actual 3" and "Remarks" and matching row
       const resCurrent = await axios.get(`${scriptUrl}?sheet=${encodeURIComponent(sheetName)}&t=${Date.now()}`)
@@ -950,7 +951,7 @@ function OrderNotReceivedFMS() {
         }
       }
 
-      const timestampStr = formatIndianTimestamp(new Date())
+      const timestampStr = getCurrentTimestamp()
 
       // Sheet Column Layout for "Order Not Received":
       // Index 0: Timestamp (automatic)
@@ -1016,7 +1017,7 @@ function OrderNotReceivedFMS() {
   return (
     <div className="min-h-screen">
       {/* Main Workflow Tabs */}
-      <div className="flex space-x-2 rounded-2xl bg-white p-1.5 mb-8 w-fit mx-auto overflow-x-auto border border-slate-200 shadow-sm">
+      <div className="flex flex-wrap gap-2 rounded-2xl bg-white p-1.5 mb-8 w-full justify-center border border-slate-200 shadow-sm">
         {MAIN_TABS.map((tab) => {
           const Icon = tab.icon
           const isActive = activeMainTab === tab.key
@@ -1072,7 +1073,7 @@ function OrderNotReceivedFMS() {
                     placeholder="Search by ONR No, Enquiry No, Firm, Product, Reason..."
                     value={searchTerm}
                     onChange={(e) => setSearchTerm(e.target.value)}
-                    className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-rose-500"
+                    className="w-full !pl-10 !pr-4 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-rose-500"
                   />
                   <SearchIcon className="absolute left-3 top-2.5 h-4.5 w-4.5 text-gray-400" />
                 </div>
@@ -1191,9 +1192,11 @@ function OrderNotReceivedFMS() {
                         <th className="px-4 py-3 text-left text-xs font-bold text-rose-700 uppercase tracking-wider whitespace-nowrap">
                           Status
                         </th>
-                        <th className="px-4 py-3 text-left text-xs font-bold text-rose-700 uppercase tracking-wider whitespace-nowrap">
-                          Planned 1
-                        </th>
+                        {(activeMainTab === "getSample" || activeMainTab === "testing" || activeMainTab === "takeAction" || activeMainTab === "all") && (
+                          <th className="px-4 py-3 text-left text-xs font-bold text-amber-700 uppercase tracking-wider whitespace-nowrap">
+                            Due Date
+                          </th>
+                        )}
                         {(activeMainTab === "getSample" || activeMainTab === "testing" || activeMainTab === "takeAction" || activeMainTab === "history" || activeMainTab === "all") && (
                           <>
                             <th className="px-4 py-3 text-left text-xs font-bold text-rose-700 uppercase tracking-wider whitespace-nowrap">
@@ -1203,13 +1206,7 @@ function OrderNotReceivedFMS() {
                               Sample Status
                             </th>
                             <th className="px-4 py-3 text-left text-xs font-bold text-rose-700 uppercase tracking-wider whitespace-nowrap">
-                              Planned 2
-                            </th>
-                            <th className="px-4 py-3 text-left text-xs font-bold text-rose-700 uppercase tracking-wider whitespace-nowrap">
                               Actual 2
-                            </th>
-                            <th className="px-4 py-3 text-left text-xs font-bold text-rose-700 uppercase tracking-wider whitespace-nowrap">
-                              Planned 3
                             </th>
                             <th className="px-4 py-3 text-left text-xs font-bold text-rose-700 uppercase tracking-wider whitespace-nowrap">
                               Actual 3
@@ -1224,7 +1221,7 @@ function OrderNotReceivedFMS() {
                     <tbody className="divide-y divide-gray-100">
                       {filteredRecords.length === 0 ? (
                         <tr>
-                          <td colSpan={23} className="px-4 py-16 text-center">
+                          <td colSpan={21} className="px-4 py-16 text-center">
                             <div className="flex flex-col items-center justify-center text-gray-400">
                               <XCircleIcon className="h-10 w-10 mb-3 text-gray-300" />
                               <p className="text-lg font-semibold text-gray-500">
@@ -1376,9 +1373,17 @@ function OrderNotReceivedFMS() {
                                 {r.status || "-"}
                               </span>
                             </td>
-                            <td className="px-4 py-3 whitespace-nowrap text-xs text-gray-500 font-mono">
-                              {r.planned1 || "-"}
-                            </td>
+                            {(activeMainTab === "getSample" || activeMainTab === "testing" || activeMainTab === "takeAction" || activeMainTab === "all") && (
+                              <td className="px-4 py-3 whitespace-nowrap">
+                                {getDueDateForRecord(r) ? (
+                                  <span className="inline-flex items-center px-2.5 py-1 rounded-md bg-amber-50 text-amber-800 ring-1 ring-amber-200 text-xs font-bold">
+                                    {getDueDateForRecord(r)}
+                                  </span>
+                                ) : (
+                                  <span className="text-xs text-gray-400">-</span>
+                                )}
+                              </td>
+                            )}
                             {(activeMainTab === "getSample" || activeMainTab === "testing" || activeMainTab === "takeAction" || activeMainTab === "history" || activeMainTab === "all") && (
                               <>
                                 <td className="px-4 py-3 whitespace-nowrap text-xs text-gray-500 font-mono">
@@ -1400,13 +1405,7 @@ function OrderNotReceivedFMS() {
                                   )}
                                 </td>
                                 <td className="px-4 py-3 whitespace-nowrap text-xs text-gray-500 font-mono">
-                                  {r.planned2 || "-"}
-                                </td>
-                                <td className="px-4 py-3 whitespace-nowrap text-xs text-gray-500 font-mono">
                                   {r.actual2 || "-"}
-                                </td>
-                                <td className="px-4 py-3 whitespace-nowrap text-xs text-gray-500 font-mono">
-                                  {r.planned3 || "-"}
                                 </td>
                                 <td className="px-4 py-3 whitespace-nowrap text-xs text-gray-500 font-mono">
                                   {r.actual3 || "-"}
@@ -1493,10 +1492,12 @@ function OrderNotReceivedFMS() {
                             <span className="text-gray-400">Date:</span>{" "}
                             <span className="text-gray-700">{r.timestamp || "-"}</span>
                           </div>
-                          <div>
-                            <span className="text-gray-400">Planned 1:</span>{" "}
-                            <span className="text-gray-700">{r.planned1 || "-"}</span>
-                          </div>
+                          {(activeMainTab === "getSample" || activeMainTab === "testing" || activeMainTab === "takeAction" || activeMainTab === "all") && (
+                            <div>
+                              <span className="text-gray-400">Due Date:</span>{" "}
+                              <span className="text-amber-800 font-bold">{getDueDateForRecord(r) || "-"}</span>
+                            </div>
+                          )}
                           {(activeMainTab === "getSample" || activeMainTab === "testing" || activeMainTab === "takeAction" || activeMainTab === "history" || activeMainTab === "all") && (
                             <>
                               <div>
@@ -1508,16 +1509,8 @@ function OrderNotReceivedFMS() {
                                 <span className="text-gray-700 font-semibold">{r.status1 || "-"}</span>
                               </div>
                               <div>
-                                <span className="text-gray-400">Planned 2:</span>{" "}
-                                <span className="text-gray-700">{r.planned2 || "-"}</span>
-                              </div>
-                              <div>
                                 <span className="text-gray-400">Actual 2:</span>{" "}
                                 <span className="text-gray-700">{r.actual2 || "-"}</span>
-                              </div>
-                              <div>
-                                <span className="text-gray-400">Planned 3:</span>{" "}
-                                <span className="text-gray-700">{r.planned3 || "-"}</span>
                               </div>
                               <div>
                                 <span className="text-gray-400">Actual 3:</span>{" "}

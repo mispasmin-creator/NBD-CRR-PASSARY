@@ -8,6 +8,7 @@
     import { X, Send, Image as ImageIcon, ExternalLink, CheckCircle, Paperclip, Download } from "lucide-react"
     import Pagination from "../components/ui/Pagination"
     import { exportToCsv } from "../utils/exportCsv"
+    import { getCurrentTimestamp, reformatIfDate, formatTimestamp } from "../utils/dateTime"
 
     const PAGE_SIZE = 10
 
@@ -328,7 +329,7 @@
 
                 // Format all existing columns
                 for (let i = 0; i < updatedRow.length; i++) {
-                    updatedRow[i] = formatISODateToCustom(updatedRow[i])
+                    updatedRow[i] = reformatIfDate(updatedRow[i])
                 }
 
                 // Formula columns set to null so Apps Script doesn't overwrite formulas
@@ -372,37 +373,16 @@
             }
         }
 
+        // User picks a date (no time); we stamp it with the current time-of-day
+        // and format it the same way as every other timestamp in the app.
         const formatDateForSheet = (dateStr) => {
             if (!dateStr) return ""
             const parts = dateStr.split('-')
             if (parts.length !== 3) return ""
-            const year = parts[0]
-            const month = parseInt(parts[1], 10)
-            const day = parseInt(parts[2], 10)
+            const [year, month, day] = parts.map(p => parseInt(p, 10))
             const now = new Date()
-            const hours = now.getHours()
-            const minutes = now.getMinutes().toString().padStart(2, '0')
-            const seconds = now.getSeconds().toString().padStart(2, '0')
-            return `${month}/${day}/${year} ${hours}:${minutes}:${seconds}`
-        }
-
-        const formatISODateToCustom = (dateVal) => {
-            if (dateVal === null || dateVal === undefined) return null
-            if (!dateVal) return ""
-            if (typeof dateVal === 'string' && (dateVal.includes('T') || dateVal.match(/^\d{4}-\d{2}-\d{2}/))) {
-                const d = new Date(dateVal)
-                if (isNaN(d.getTime())) return dateVal
-
-                const hours = d.getHours()
-                const minutes = d.getMinutes().toString().padStart(2, '0')
-                const seconds = d.getSeconds().toString().padStart(2, '0')
-                return `${d.getMonth() + 1}/${d.getDate()}/${d.getFullYear()} ${hours}:${minutes}:${seconds}`
-            }
-            return dateVal
-        }
-
-        const getCurrentTimestamp = () => {
-            return formatISODateToCustom(new Date().toISOString())
+            const combined = new Date(year, month - 1, day, now.getHours(), now.getMinutes(), now.getSeconds())
+            return formatTimestamp(combined)
         }
 
         const fetchAllData = useCallback(async () => {
@@ -646,7 +626,7 @@
         return (
             <div className="py-2 min-h-screen">
                 {/* Tabs */}
-                <div className="flex space-x-2 rounded-2xl bg-white p-1.5 mb-8 w-fit mx-auto overflow-x-auto border border-slate-200 shadow-sm">
+                <div className="flex flex-wrap gap-2 rounded-2xl bg-white p-1.5 mb-8 w-full justify-center border border-slate-200 shadow-sm">
                     {TABS.map((tab) => {
                         const count = getTabCount(tab)
                         const isActive = activeTab === tab

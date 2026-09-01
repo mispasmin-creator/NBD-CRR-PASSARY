@@ -17,6 +17,7 @@ import axios from "axios"
 import { Download } from "lucide-react"
 import Pagination from "../components/ui/Pagination"
 import { exportToCsv } from "../utils/exportCsv"
+import { getCurrentTimestamp } from "../utils/dateTime"
 
 const PAGE_SIZE = 10
 
@@ -144,26 +145,6 @@ function Offer() {
     const [modalFormData, setModalFormData] = useState({})
     const [isModalSubmitting, setIsModalSubmitting] = useState(false)
 
-    /**
-     * Helper to format dates consistently for Google Sheets.
-     */
-    const formatISODateToCustom = (dateVal) => {
-        if (dateVal === null || dateVal === undefined) return null
-        if (!dateVal) return ""
-        if (typeof dateVal === 'string' && (dateVal.includes('T') || dateVal.match(/^\d{4}-\d{2}-\d{2}/))) {
-            const d = new Date(dateVal)
-            if (isNaN(d.getTime())) return dateVal
-            const hours = d.getHours()
-            const minutes = d.getMinutes().toString().padStart(2, '0')
-            const seconds = d.getSeconds().toString().padStart(2, '0')
-            return `${d.getMonth() + 1}/${d.getDate()}/${d.getFullYear()} ${hours}:${minutes}:${seconds}`
-        }
-        return dateVal
-    }
-
-    const getCurrentTimestamp = () => {
-        return formatISODateToCustom(new Date().toISOString())
-    }
 
     const parseEnquiryNo = (val) => {
         if (!val) return 0
@@ -223,7 +204,7 @@ function Offer() {
                 .map((row, index) => {
                     const rowObj = {}
                     headerRow.forEach((h, i) => {
-                        if (h) rowObj[h.trim()] = row[i] ? row[i].toString().trim() : ""
+                        if (h) rowObj[String(h).trim()] = row[i] ? row[i].toString().trim() : ""
                     })
 
                     rowObj._originalIndex = index
@@ -413,7 +394,7 @@ function Offer() {
     return (
         <div className="py-2 min-h-screen">
             {/* Tabs */}
-            <div className="flex space-x-2 rounded-2xl bg-white p-1.5 mb-8 w-fit mx-auto overflow-x-auto border border-slate-200 shadow-sm">
+            <div className="flex flex-wrap gap-2 rounded-2xl bg-white p-1.5 mb-8 w-full justify-center border border-slate-200 shadow-sm">
                 {TABS.map((tab) => {
                     const count = getTabCount(tab.id)
                     const isActive = activeTab === tab.id

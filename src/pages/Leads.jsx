@@ -7,6 +7,7 @@ import axios from "axios"
 import { Download } from "lucide-react"
 import Pagination from "../components/ui/Pagination"
 import { exportToCsv } from "../utils/exportCsv"
+import { getCurrentTimestamp, formatTimestamp, reformatIfDate } from "../utils/dateTime"
 
 const PAGE_SIZE = 10
 
@@ -106,22 +107,10 @@ function Leads() {
   const [masterNextActionOptions, setMasterNextActionOptions] = useState([])
   const [detectedFreqColIdx, setDetectedFreqColIdx] = useState(21)
 
-  // Helper to format ISO date (2026-02-14T09:53:00.000Z) to M/D/YYYY HH:mm:ss for display
+  // Reformat an ISO date from the sheet to the standard MM/DD/YYYY HH:MM:SS for display
   const displayDate = (dateVal) => {
     if (!dateVal) return ''
-    try {
-      const d = new Date(dateVal)
-      if (isNaN(d.getTime())) return dateVal // Return as-is if not a valid date
-      const m = d.getMonth() + 1
-      const day = d.getDate()
-      const yr = d.getFullYear()
-      const hr = d.getHours()
-      const min = d.getMinutes().toString().padStart(2, '0')
-      const sec = d.getSeconds().toString().padStart(2, '0')
-      return `${m}/${day}/${yr} ${hr}:${min}:${sec}`
-    } catch {
-      return dateVal
-    }
+    return formatTimestamp(dateVal)
   }
 
   // Fetch dropdown options from Master sheet
@@ -358,16 +347,7 @@ function Leads() {
     }
 
     try {
-      const now = new Date()
-
-      // Format timestamp as M/D/YYYY H:mm:ss (e.g., 7/15/2024 12:22:59)
-      const month = now.getMonth() + 1 // 0-indexed, so add 1
-      const day = now.getDate()
-      const year = now.getFullYear()
-      const hours = now.getHours()
-      const minutes = now.getMinutes().toString().padStart(2, '0')
-      const seconds = now.getSeconds().toString().padStart(2, '0')
-      const formattedTimestamp = `${month}/${day}/${year} ${hours}:${minutes}:${seconds}`
+      const formattedTimestamp = getCurrentTimestamp()
 
       // Submit to Google Sheets
       const scriptUrl = import.meta.env.VITE_GOOGLE_APPS_SCRIPT_URL
@@ -593,39 +573,13 @@ function Leads() {
         })
       }
 
-      // Generate timestamp for update (M/D/YYYY H:mm:ss)
-      const now = new Date()
-      const month = now.getMonth() + 1
-      const day = now.getDate()
-      const year = now.getFullYear()
-      const hours = now.getHours()
-      const minutes = now.getMinutes().toString().padStart(2, '0')
-      const seconds = now.getSeconds().toString().padStart(2, '0')
-      const formattedUpdateTimestamp = `${month}/${day}/${year} ${hours}:${minutes}:${seconds}`
+      const formattedUpdateTimestamp = getCurrentTimestamp()
 
-      // DEBUG: Log what rawData[0] contains so we can verify Column A preservation
-      console.log("Column A rawData[0] value:", currentLeadForUpdate.rawData?.[0])
-
-      // CRITICAL: Preserve Column A (original timestamp) - Convert ISO to M/D/YYYY HH:mm:ss format
-      // Google Sheets returns dates in ISO format (e.g., 2026-02-18T08:18:23.000Z)
-      // We must convert it to our standard format before sending back, otherwise Sheets re-interprets it
-      let originalColumnA = ""
+      // CRITICAL: Preserve Column A (original timestamp) - Google Sheets returns dates in
+      // ISO format (e.g., 2026-02-18T08:18:23.000Z); convert to our standard format before
+      // sending back, otherwise Sheets re-interprets it as text.
       const rawColA = currentLeadForUpdate.rawData?.[0] || currentLeadForUpdate.timestamp
-      if (rawColA) {
-        const colADate = new Date(rawColA)
-        if (!isNaN(colADate.getTime())) {
-          const aMonth = colADate.getMonth() + 1
-          const aDay = colADate.getDate()
-          const aYear = colADate.getFullYear()
-          const aHours = colADate.getHours()
-          const aMinutes = colADate.getMinutes().toString().padStart(2, '0')
-          const aSeconds = colADate.getSeconds().toString().padStart(2, '0')
-          originalColumnA = `${aMonth}/${aDay}/${aYear} ${aHours}:${aMinutes}:${aSeconds}`
-        } else {
-          originalColumnA = rawColA // If not a valid date, keep as-is
-        }
-      }
-      console.log("Column A formatted value being sent:", originalColumnA)
+      const originalColumnA = rawColA ? reformatIfDate(rawColA) : ""
 
       // Set formula-based columns to null to prevent overwriting/blocking formulas
       // We do NOT set updateRowData[1] to null anymore to preserve Lead No / Index Number
@@ -732,18 +686,7 @@ function Leads() {
         return
       }
 
-      // Helper to format any date to M/D/YYYY HH:mm:ss (no commas)
-      const formatDateToString = (dateInput) => {
-        const d = new Date(dateInput)
-        if (isNaN(d.getTime())) return ""
-        const m = d.getMonth() + 1
-        const day = d.getDate()
-        const yr = d.getFullYear()
-        const hr = d.getHours()
-        const min = d.getMinutes().toString().padStart(2, '0')
-        const sec = d.getSeconds().toString().padStart(2, '0')
-        return `${m}/${day}/${yr} ${hr}:${min}:${sec}`
-      }
+      const formatDateToString = (dateInput) => formatTimestamp(dateInput)
 
       let fmsRowData = [...(currentLeadForCall.rawData || [])]
       const fmsFreqCol = currentLeadForCall.freqColIdx ?? detectedFreqColIdx ?? 21
@@ -757,16 +700,7 @@ function Leads() {
       // Correctly format Column A timestamp to preserve it
       const rawColA = currentLeadForCall.rawData?.[0] || currentLeadForCall.timestamp
       if (rawColA) {
-        const colADate = new Date(rawColA)
-        if (!isNaN(colADate.getTime())) {
-          const aMonth = colADate.getMonth() + 1
-          const aDay = colADate.getDate()
-          const aYear = colADate.getFullYear()
-          const aHours = colADate.getHours()
-          const aMinutes = colADate.getMinutes().toString().padStart(2, '0')
-          const aSeconds = colADate.getSeconds().toString().padStart(2, '0')
-          fmsRowData[0] = `${aMonth}/${aDay}/${aYear} ${aHours}:${aMinutes}:${aSeconds}`
-        }
+        fmsRowData[0] = reformatIfDate(rawColA)
       }
 
       const isYes = callTrackerData.enquiryReceived === "Yes"
@@ -1151,7 +1085,7 @@ function Leads() {
       }
       
       {/* Tabs */}
-      <div className="flex space-x-2 rounded-2xl bg-white p-1.5 mb-8 w-fit mx-auto overflow-x-auto border border-slate-200 shadow-sm">
+      <div className="flex flex-wrap gap-2 rounded-2xl bg-white p-1.5 mb-8 w-full justify-center border border-slate-200 shadow-sm">
         <button
           onClick={() => { setActiveTab("updateStatus"); setCallDateFilter("all") }}
           className={`flex min-w-0 flex-col items-center justify-center gap-1 rounded-lg px-1 py-2 text-center text-xs font-medium leading-4 transition-all duration-200 [&>svg]:hidden sm:flex-row sm:gap-2 sm:px-4 sm:text-left sm:text-sm sm:leading-5 sm:whitespace-nowrap sm:[&>svg]:block ${activeTab === "updateStatus"
@@ -1693,7 +1627,10 @@ function Leads() {
                 {/* Header */}
                 <div className="flex items-center justify-between px-6 py-5 border-b border-slate-100">
                   <div>
-                    <h2 className="text-xl font-extrabold text-slate-800">New Outgoing Lead</h2>
+                    <h2 className="text-xl font-extrabold text-slate-800 flex items-center gap-2">
+                      <svg className="w-5 h-5 text-sky-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M12 4v16m8-8H4"></path></svg>
+                      New Outgoing Lead
+                    </h2>
                     <p className="text-sm font-medium text-slate-500 mt-1">Fill in the lead details below</p>
                   </div>
                   <button

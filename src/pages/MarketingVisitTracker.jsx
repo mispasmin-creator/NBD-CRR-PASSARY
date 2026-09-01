@@ -8,6 +8,7 @@ import { X, ClipboardList, Send, Plus, Search, FileText, PhoneCall, History, Che
 import Pagination from "../components/ui/Pagination";
 import ConfirmDialog from "../components/ui/ConfirmDialog";
 import { exportToCsv } from "../utils/exportCsv";
+import { getCurrentTimestamp, formatDateOnly } from "../utils/dateTime";
 
 const STORAGE_KEY = "nbd_marketing_visit_tracker_data";
 const PAGE_SIZE = 10;
@@ -28,31 +29,8 @@ const DEPARTMENT_OPTIONS = [
   "Steel Ladle",
 ];
 
-// Helper to format date in Indian DD/MM/YYYY HH:mm:ss format
-const formatIndianTimestamp = (dateObj = new Date()) => {
-  const day = String(dateObj.getDate()).padStart(2, "0");
-  const month = String(dateObj.getMonth() + 1).padStart(2, "0");
-  const year = dateObj.getFullYear();
-  const hours = String(dateObj.getHours()).padStart(2, "0");
-  const minutes = String(dateObj.getMinutes()).padStart(2, "0");
-  const seconds = String(dateObj.getSeconds()).padStart(2, "0");
-  return `${day}/${month}/${year} ${hours}:${minutes}:${seconds}`;
-};
-
-// Helper to format ISO dates to clean display DD/MM/YYYY
-const formatDisplayDate = (dStr) => {
-  if (!dStr) return "";
-  if (String(dStr).includes("T") || String(dStr).includes("-")) {
-    const dt = new Date(dStr);
-    if (!isNaN(dt)) {
-      const dd = String(dt.getDate()).padStart(2, "0");
-      const mm = String(dt.getMonth() + 1).padStart(2, "0");
-      const yyyy = dt.getFullYear();
-      return `${dd}/${mm}/${yyyy}`;
-    }
-  }
-  return dStr;
-};
+// Reformat any date-ish value as clean display MM/DD/YYYY
+const formatDisplayDate = (dStr) => formatDateOnly(dStr);
 
 // Helper to find exact column index dynamically regardless of sheet shifts
 const findColIndex = (hdrs, possibleNames, defaultIdx) => {
@@ -76,15 +54,8 @@ const getTodayISO = () => {
   return `${yyyy}-${mm}-${dd}`;
 };
 
-// Helper to format YYYY-MM-DD to DD-MM-YYYY
-const formatToIndianDate = (isoStr) => {
-  if (!isoStr) return "";
-  if (/^\d{4}-\d{2}-\d{2}/.test(isoStr)) {
-    const parts = isoStr.split("-");
-    return `${parts[2]}-${parts[1]}-${parts[0]}`;
-  }
-  return isoStr;
-};
+// Reformat YYYY-MM-DD (HTML date input) to the standard MM/DD/YYYY
+const formatToIndianDate = (isoStr) => formatDateOnly(isoStr);
 
 const DEFAULT_HEADERS = [
   "Status Of Complaint",
@@ -312,8 +283,7 @@ export default function MarketingVisitTracker() {
       const scriptUrl = import.meta.env.VITE_GOOGLE_APPS_SCRIPT_URL;
       const sheetName = import.meta.env.VITE_MARKETING_VISIT_SHEET_NAME || "Marketing Visit";
       const targetRowIndex = selectedVisit.sheetRowIndex;
-      const now = new Date();
-      const actualTimestamp = formatIndianTimestamp(now);
+      const actualTimestamp = getCurrentTimestamp();
       const timestampStr = selectedVisit.timestamp || actualTimestamp;
 
       // Upload any attached photos first (Assign Marketing only)
@@ -918,8 +888,7 @@ export default function MarketingVisitTracker() {
     setErrorMsg("");
 
     try {
-      const now = new Date();
-      const timestampStr = formatIndianTimestamp(now);
+      const timestampStr = getCurrentTimestamp();
       const formattedVisitDate = formatToIndianDate(formData.visitDate);
 
       const newRecord = {
@@ -994,7 +963,7 @@ export default function MarketingVisitTracker() {
         )}
 
         {/* Tabs Bar */}
-        <div className="flex space-x-2 rounded-2xl bg-white p-1.5 mb-8 w-fit mx-auto overflow-x-auto border border-slate-200 shadow-sm">
+        <div className="flex flex-wrap gap-2 rounded-2xl bg-white p-1.5 mb-8 w-full justify-center border border-slate-200 shadow-sm">
           {TABS.map((tab) => {
             const count = getTabCount(tab);
             const isActive = activeTab === tab;
@@ -1042,7 +1011,7 @@ export default function MarketingVisitTracker() {
                   placeholder="Search visits (Plant, Person, Source, Details)..."
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
-                  className="w-full pl-10 pr-4 py-2 border rounded-md focus:ring-2 focus:ring-[#14533a]/50 focus:border-[#14533a] border-gray-300 text-sm"
+                  className="w-full !pl-10 !pr-4 border rounded-md focus:ring-2 focus:ring-[#14533a]/50 focus:border-[#14533a] border-gray-300 text-sm"
                 />
                 <Search className="absolute left-3 top-2.5 h-4.5 w-4.5 text-gray-400" />
               </div>

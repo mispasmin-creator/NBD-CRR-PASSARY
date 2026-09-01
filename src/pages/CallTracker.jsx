@@ -9,6 +9,7 @@ import axios from "axios"
 import { Download } from "lucide-react"
 import Pagination from "../components/ui/Pagination"
 import { exportToCsv } from "../utils/exportCsv"
+import { getCurrentTimestamp, reformatIfDate } from "../utils/dateTime"
 
 const PAGE_SIZE = 10
 
@@ -92,33 +93,6 @@ const CALL_TRACKER_COLUMN_LABELS = {
   "Status": "Call Status",
   "Freq": "Freq",
 }
-
-/**
- * Google Apps Script returns date cells as UTC ISO-8601 strings (e.g. "2026-02-14T18:30:00.000Z").
- * Sending these back as-is via setValues() stores them as TEXT — corrupting the date format.
- *
- * Fix: convert to IST (Asia/Kolkata) and format as DD/MM/YYYY HH:mm:ss — the Indian date
- * format that an Indian-locale Google Sheet correctly parses as a real date via setValues().
- * e.g. "2026-02-14T18:30:00.000Z" (UTC) → "15/02/2026" (IST midnight = Feb 15 in India)
- */
-const normalizeForGSheets = (value) => {
-  if (typeof value !== "string" || !value) return value
-  if (!/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}/.test(value)) return value
-  const d = new Date(value)
-  if (isNaN(d.getTime())) return value
-  // Convert UTC → IST
-  const istDate = new Date(d.toLocaleString("en-US", { timeZone: "Asia/Kolkata" }))
-  const dd = String(istDate.getDate()).padStart(2, "0")
-  const mo = String(istDate.getMonth() + 1).padStart(2, "0")
-  const yr = istDate.getFullYear()
-  const hh = String(istDate.getHours()).padStart(2, "0")
-  const min = String(istDate.getMinutes()).padStart(2, "0")
-  const ss = String(istDate.getSeconds()).padStart(2, "0")
-  // Date-only if IST time is exactly midnight
-  const isDateOnly = istDate.getHours() === 0 && istDate.getMinutes() === 0 && istDate.getSeconds() === 0
-  return isDateOnly ? `${dd}/${mo}/${yr}` : `${dd}/${mo}/${yr} ${hh}:${min}:${ss}`
-}
-
 
 function CallTracker() {
   const { showNotification } = useContext(AuthContext)
@@ -267,18 +241,7 @@ function CallTracker() {
             }
             headerRow.forEach((h, idx) => {
               if (h) {
-                let val = String(row[idx] || "").trim()
-                if (/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}/.test(val)) {
-                  const d = new Date(val);
-                  if (!isNaN(d.getTime())) {
-                    val = new Intl.DateTimeFormat('en-US', {
-                      timeZone: 'Asia/Kolkata',
-                      month: 'numeric', day: 'numeric', year: 'numeric',
-                      hour: 'numeric', minute: 'numeric', second: 'numeric',
-                      hour12: false,
-                    }).format(d).replace(",", "")
-                  }
-                }
+                let val = reformatIfDate(String(row[idx] || "").trim())
                 obj[h] = val
                 if (/^(freq|frequency|no\.?\s*of\s*calls)/i.test(h)) {
                   obj["Freq"] = val
@@ -592,7 +555,7 @@ function CallTracker() {
       }
 
       // Full row: normalize existing cells so ISO date strings survive the round-trip
-      const existingFmsRow = (fmsData[fmsTargetIdx] || []).map(normalizeForGSheets)
+      const existingFmsRow = (fmsData[fmsTargetIdx] || []).map(reformatIfDate)
       while (existingFmsRow.length <= fmsCurrentStageCol) existingFmsRow.push("")
       existingFmsRow[fmsCurrentStageCol] = newStage
 
@@ -751,7 +714,7 @@ function CallTracker() {
         }
 
         // New fields
-        const nowISTStr = new Date().toLocaleDateString("en-GB", { timeZone: "Asia/Kolkata" }) // DD/MM/YYYY
+        const nowISTStr = getCurrentTimestamp()
         if (tkLastDateCol !== -1) existingTrackerRow[tkLastDateCol] = nowISTStr
 
         if (tkFreqCol !== -1) {
@@ -789,7 +752,7 @@ function CallTracker() {
         }
 
         // New fields
-        const nowISTStr = new Date().toLocaleDateString("en-GB", { timeZone: "Asia/Kolkata" }) // DD/MM/YYYY
+        const nowISTStr = getCurrentTimestamp()
         if (tkLastDateCol !== -1) newRow[tkLastDateCol] = nowISTStr
         if (tkFreqCol !== -1) {
           newRow[tkFreqCol] = (callTrackerForm.orderReceived === "Pending" && callTrackerForm.nextCallDate) ? 1 : 0
@@ -851,18 +814,11 @@ function CallTracker() {
         }
       }
 
-      const nowIST = new Date()
-      // Use IST format "MM/dd/yyyy HH:mm:ss" without double conversion which leads to offset shifts.
-      const formattedTs = new Intl.DateTimeFormat('en-US', {
-        timeZone: 'Asia/Kolkata',
-        month: 'numeric', day: 'numeric', year: 'numeric',
-        hour: 'numeric', minute: 'numeric', second: 'numeric',
-        hour12: false,
-      }).format(nowIST).replace(",", "")
+      const formattedTs = getCurrentTimestamp()
 
       if (fmsTargetIdx !== -1 && fmsTargetIdx < fmsData.length && fmsData[fmsTargetIdx]) {
         // Full row: normalize existing cells so ISO date strings survive the round-trip
-        const existingFmsRow = (fmsData[fmsTargetIdx] || []).map(normalizeForGSheets)
+        const existingFmsRow = (fmsData[fmsTargetIdx] || []).map(reformatIfDate)
         const maxFmsCol = Math.max(
           fmsCurrentStageCol, fmsTrackerStatusCol, fmsActual1Col, fmsStatusCol, fmsWhatCustomerSayCol, fmsFreqCol
         )
@@ -918,6 +874,7 @@ function CallTracker() {
       // Current Stage is set to "Make Offer" / "Make Re - Offer" ──
       const offerSheetName = import.meta.env.VITE_NBD_OFFER_FMS_SHEET_NAME
       const isOfferStage = callTrackerForm.currentStage === "Make Offer" || callTrackerForm.currentStage === "Make Re - Offer"
+      let offerHandoffFailed = false
       if ((callTrackerForm.orderReceived === "Yes" || isOfferStage) && offerSheetName) {
         try {
           const offerResponse = await axios.get(`${scriptUrl}?sheet=${encodeURIComponent(offerSheetName)}&t=${Date.now()}`)
@@ -997,9 +954,12 @@ function CallTracker() {
 
                 await axios.post(scriptUrl, offerPayload)
             }
+          } else {
+            offerHandoffFailed = true
           }
         } catch (err) {
           console.error("Error inserting into Offer FMS:", err)
+          offerHandoffFailed = true
         }
       }
 
@@ -1017,7 +977,11 @@ function CallTracker() {
         }
       }))
 
-      showNotification("Call Tracker details submitted successfully!", "success")
+      if (offerHandoffFailed) {
+        showNotification("Call Tracker saved, but the Offer sheet update failed — please check the Offer page for this enquiry.", "error")
+      } else {
+        showNotification("Call Tracker details submitted successfully!", "success")
+      }
       setShowCallTrackerModal(false)
       setCallTrackerRow(null)
       const wasOrderReceived = callTrackerForm.orderReceived === "Yes"
@@ -1077,14 +1041,7 @@ function CallTracker() {
       const newRow = new Array(maxCol + 1).fill("")
 
       if (tsCol !== -1) {
-        const nowIST = new Date()
-        const formattedTs = new Intl.DateTimeFormat('en-US', {
-          timeZone: 'Asia/Kolkata',
-          month: 'numeric', day: 'numeric', year: 'numeric',
-          hour: 'numeric', minute: 'numeric', second: 'numeric',
-          hour12: false,
-        }).format(nowIST).replace(",", "")
-        newRow[tsCol] = formattedTs
+        newRow[tsCol] = getCurrentTimestamp()
       }
 
       if (personCol !== -1) newRow[personCol] = cancelModalForm.personName
@@ -1117,7 +1074,7 @@ function CallTracker() {
     <div className="py-2">
 
       {/* Tabs */}
-      <div className="flex space-x-2 rounded-2xl bg-white p-1.5 mb-8 w-fit mx-auto overflow-x-auto border border-slate-200 shadow-sm">
+      <div className="flex flex-wrap gap-2 rounded-2xl bg-white p-1.5 mb-8 w-full justify-center border border-slate-200 shadow-sm">
         <button
           onClick={() => setActiveTab("all")}
           className={`flex items-center gap-2 rounded-lg px-4 py-2 text-sm font-medium leading-5 transition-all duration-200 whitespace-nowrap ${activeTab === "all"
@@ -1222,11 +1179,11 @@ function CallTracker() {
 
       {/* ── New Enquiry Modal ── */}
       {showNewCallTrackerForm && activeTab === "all" && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
-          <div className="bg-card rounded-lg shadow-xl w-full max-w-5xl h-[90vh] overflow-hidden relative flex flex-col">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm p-4">
+          <div className="bg-white rounded-2xl shadow-2xl border border-slate-200 w-full max-w-5xl h-[90vh] overflow-hidden relative flex flex-col">
             <button
               onClick={() => setShowNewCallTrackerForm(false)}
-              className="absolute top-4 right-4 text-gray-500 hover:text-gray-700 z-10 p-2 bg-card rounded-full shadow-sm"
+              className="absolute top-4 right-4 text-slate-400 hover:text-slate-600 hover:bg-slate-100 z-10 p-2 bg-white rounded-xl shadow-sm transition-colors"
               style={{ zIndex: 60 }}
             >
               <XIcon className="h-6 w-6" />
@@ -1243,20 +1200,20 @@ function CallTracker() {
 
       {/* ── View Details Modal ── */}
       {showViewModal && viewRow && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
-          <div className="bg-card rounded-lg shadow-xl w-full max-w-2xl max-h-[90vh] overflow-y-auto relative">
-            <div className="flex justify-between items-center p-6 border-b sticky top-0 bg-card z-10">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm p-4">
+          <div className="bg-white rounded-2xl shadow-2xl border border-slate-200 w-full max-w-2xl max-h-[90vh] overflow-y-auto relative">
+            <div className="flex justify-between items-center p-6 border-b border-slate-100 sticky top-0 bg-white/95 backdrop-blur z-10 rounded-t-2xl">
               <div>
-                <h2 className="text-lg font-bold text-gray-800">Enquiry Details</h2>
+                <h2 className="text-xl font-extrabold text-slate-800">Enquiry Details</h2>
                 <p className="text-sm text-sky-600 font-medium mt-0.5">
                   {viewRow["Enquiry No."] || viewRow["Enquiry No"] || ""}
                 </p>
               </div>
               <button
                 onClick={() => { setShowViewModal(false); setViewRow(null) }}
-                className="text-gray-400 hover:text-gray-600 p-1"
+                className="text-slate-400 hover:text-slate-600 hover:bg-slate-100 p-2 rounded-xl transition-colors"
               >
-                <XIcon className="h-6 w-6" />
+                <XIcon className="h-5 w-5" />
               </button>
             </div>
             <div className="p-6 space-y-1">

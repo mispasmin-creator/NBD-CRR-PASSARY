@@ -3,6 +3,7 @@
 import { useState, useEffect, useRef } from "react"
 import { mockApi } from "../services/mockApi"
 import axios from "axios"
+import { getCurrentTimestamp, formatDateOnly } from "../utils/dateTime"
 
 const CallTrackerForm = ({ onClose = () => window.history.back(), presetLeadNo = null }) => {
   const [formData, setFormData] = useState({
@@ -434,16 +435,10 @@ const CallTrackerForm = ({ onClose = () => window.history.back(), presetLeadNo =
       }
 
       // 4. Format Timestamp
-      const now = new Date()
-      // Format: M/D/YYYY H:mm:ss (e.g., 2/19/2026 4:58:00)
-      const formattedTimestamp = `${now.getMonth() + 1}/${now.getDate()}/${now.getFullYear()} ${now.getHours()}:${now.getMinutes()}:${now.getSeconds()}`
+      const formattedTimestamp = getCurrentTimestamp()
 
       // Format When Required date
-      const formattedWhenRequired = formData.whenRequired ? (() => {
-        const parts = formData.whenRequired.split("-")
-        if (parts.length === 3) return `${parts[2]}/${parts[1]}/${parts[0]}`
-        return formData.whenRequired
-      })() : ""
+      const formattedWhenRequired = formData.whenRequired ? formatDateOnly(formData.whenRequired) : ""
 
       // Map fields to header names as per user requirement
       const fieldMapping = {

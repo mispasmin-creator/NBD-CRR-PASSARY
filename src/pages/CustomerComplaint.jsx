@@ -7,11 +7,13 @@ import axios from "axios";
 import { Download } from "lucide-react";
 import Pagination from "../components/ui/Pagination";
 import { exportToCsv } from "../utils/exportCsv";
+import { getCurrentTimestamp, formatDateOnly, formatTimestamp } from "../utils/dateTime";
 
 const STORAGE_KEY = "nbd_customer_complaints_tracker_data";
 const PAGE_SIZE = 10;
 
 export const COMPLAINT_STEPS = [
+  "Call Tracker",
   "Problem Assigned",
   "Site Report",
   "Problem Not Solve Next Action",
@@ -47,32 +49,19 @@ const DEFAULT_HEADERS = [
   "Action To Be Taken 3",
   "Next Date",
   "Freq",
+  "Call Status",
+  "What Did The Customer Say (Call)",
+  "Next Call Date",
 ];
 
-// Helper to format date in Indian DD/MM/YYYY HH:mm:ss format exactly as requested: 30/06/2021 15:04:00
-const formatIndianTimestamp = (dateObj = new Date()) => {
-  const day = String(dateObj.getDate()).padStart(2, "0");
-  const month = String(dateObj.getMonth() + 1).padStart(2, "0");
-  const year = dateObj.getFullYear();
-  const hours = String(dateObj.getHours()).padStart(2, "0");
-  const minutes = String(dateObj.getMinutes()).padStart(2, "0");
-  const seconds = String(dateObj.getSeconds()).padStart(2, "0");
-  return `${day}/${month}/${year} ${hours}:${minutes}:${seconds}`;
-};
-
-// Helper to format ISO dates (like 2026-06-25T18:30:00.000Z) to clean display DD/MM/YYYY
-const formatDisplayDate = (dStr) => {
-  if (!dStr) return "";
-  if (String(dStr).includes("T")) {
-    const dt = new Date(dStr);
-    if (!isNaN(dt)) {
-      const dd = String(dt.getDate()).padStart(2, "0");
-      const mm = String(dt.getMonth() + 1).padStart(2, "0");
-      const yyyy = dt.getFullYear();
-      return `${dd}/${mm}/${yyyy}`;
-    }
-  }
-  return dStr;
+// The "Planned N" column that represents the due date for whichever stage a
+// complaint is currently sitting at — so whoever owns that stage knows by
+// when they need to act. Call Tracker/History have nothing currently pending.
+const getDueDateForStage = (step, planned1, planned2, planned3) => {
+  if (step === "Problem Assigned") return planned1;
+  if (step === "Site Report") return planned2;
+  if (step === "Problem Not Solve Next Action") return planned3;
+  return "";
 };
 
 // Helper to find exact column index dynamically regardless of sheet shifts
@@ -136,6 +125,9 @@ export default function CustomerComplaint() {
     personAssignName3: "",
     dateOfVisit3: new Date().toISOString().split("T")[0],
     actionToBeTaken3: "",
+    callStatus: "",
+    callRemarks: "",
+    nextCallDate: "",
   });
 
   // Fetch firm names dropdown from Master sheet
@@ -173,6 +165,18 @@ export default function CustomerComplaint() {
     const p4 = getVal(["Planned 4"], 17);
     const a4 = getVal(["Actual 4"], 18);
     const statusOfSolved = getVal(["Status  Of Solved", "Status Of Solved", "Status of Solved", "Status"], 19);
+    const callStatus = getVal(["Call Status"], 30);
+
+    // -1. Complaint hasn't been successfully called yet AND Problem Assigned hasn't been
+    // actioned. Gated on Actual 1 (only ever set once someone submits the Problem Assigned
+    // step), NOT Planned 1 (that's an auto-formula column on the real sheet that populates
+    // the instant a row exists, so it's never a reliable "not started yet" signal).
+    // This keeps complaints that already progressed before this stage existed — which will
+    // never have Call Status filled in — from getting pulled backward into Call Tracker.
+    // "Not Reachable" loops back here too, for a retry call.
+    if (a1 === "" && (callStatus === "" || callStatus === "Not Reachable")) {
+      return "Call Tracker";
+    }
 
     // 0. If Action 1 is Reject or Status is Rejected -> History
     if (action1.toLowerCase() === "reject" || statusOfSolved.toLowerCase() === "rejected") {
@@ -299,7 +303,11 @@ export default function CustomerComplaint() {
             const actionToBeTaken3Val = getColVal(["Action To Be Taken 3", "Action To Be Taken", "Action 3"], 22);
             const nextDateVal = getColVal(["Next Date", "Next Date Of Visit", "Date Of Visite", "Date Of Visit 3", "Date Of Visit"], 23);
             const freqVal = getColVal(["Freq", "Frequency", "Frequency Of Visit"], 24);
+            const callStatusVal = getColVal(["Call Status"], 30);
+            const callRemarksVal = getColVal(["What Did The Customer Say (Call)", "What Did The Customer Say"], 31);
+            const nextCallDateVal = getColVal(["Next Call Date"], 32);
 
+            const stepForRow = determineCurrentStep(row, curHeaders);
             return {
               id: complaintNo,
               timestamp: tsVal,
@@ -326,7 +334,11 @@ export default function CustomerComplaint() {
               actionToBeTaken3: actionToBeTaken3Val,
               dateOfVisit3: nextDateVal,
               freq: freqVal || "0",
-              currentStep: determineCurrentStep(row, curHeaders),
+              callStatus: callStatusVal,
+              callRemarks: callRemarksVal,
+              nextCallDate: nextCallDateVal,
+              currentStep: stepForRow,
+              dueDate: getDueDateForStage(stepForRow, planned1Val, planned2Val, planned3Val),
               rawRow: [...row],
               sheetRowIndex: headerIdx + 2 + idx,
             };
@@ -449,7 +461,7 @@ export default function CustomerComplaint() {
     };
 
     setColVal(["Status Of Complaint"], "", 0);
-    setColVal(["Timestamp", "Time Stamp"], visitData.timestamp || formatIndianTimestamp(new Date()), 1);
+    setColVal(["Timestamp", "Time Stamp"], visitData.timestamp || getCurrentTimestamp(), 1);
     setColVal(["Task ID", "Task ID.", "Task Id", "TaskID", "Complaint No.", "Complaint No"], visitData.taskId, 2);
     setColVal(["Visit Date", "VisitDate", "Date of Visit"], visitData.visitDate || "", 3);
     setColVal(["Sales Person", "SalesPerson"], visitData.salesPerson || "Admin", 4);
@@ -512,7 +524,7 @@ export default function CustomerComplaint() {
   const handleExportComplaints = () => {
     exportToCsv(`complaints-${activeTab.replace(/\s+/g, "-").toLowerCase()}`, [
       { label: "Complaint No.", value: (c) => c.id || "" },
-      { label: "Date", value: (c) => formatDisplayDate(c.date) },
+      { label: "Date", value: (c) => formatDateOnly(c.date) },
       { label: "Firm Name", value: (c) => c.firmName || "" },
       { label: "Customer Name", value: (c) => c.customerName || "" },
       { label: "Person Name", value: (c) => c.personName || "" },
@@ -529,7 +541,7 @@ export default function CustomerComplaint() {
       return;
     }
 
-    const timestampStr = formatIndianTimestamp(new Date());
+    const timestampStr = getCurrentTimestamp();
     const nextNum = complaints.length + 1;
     const autoComplaintNo = `CO-${String(nextNum).padStart(3, "0")}`;
 
@@ -558,8 +570,6 @@ export default function CustomerComplaint() {
       newForm.receivedBy || "Admin",
       7
     );
-    setColVal(["Planned 1", "Planned1", "Plan 1"], timestampStr, 8);
-
     const newRecord = {
       id: autoComplaintNo,
       timestamp: timestampStr,
@@ -569,7 +579,7 @@ export default function CustomerComplaint() {
       personName: newForm.personName || "N/A",
       problem: newForm.problem,
       receivedBy: newForm.receivedBy || "Admin",
-      planned1: timestampStr,
+      planned1: "",
       actual1: "",
       personAssignName1: "",
       dateOfVisit: "",
@@ -578,12 +588,15 @@ export default function CustomerComplaint() {
       actual2: "",
       statusOfSolved: "",
       siteReport: "",
-      currentStep: "Problem Assigned",
+      callStatus: "",
+      callRemarks: "",
+      nextCallDate: "",
+      currentStep: "Call Tracker",
       rawRow: [...sheetRow],
       sheetRowIndex: complaints.length + 2,
       history: [
         {
-          step: "Problem Assigned",
+          step: "Call Tracker",
           updatedBy: newForm.receivedBy || "Admin",
           updatedAt: timestampStr,
           remarks: "Complaint registered in Complaint Tracker.",
@@ -630,6 +643,9 @@ export default function CustomerComplaint() {
       personAssignName3: "",
       dateOfVisit3: new Date().toISOString().split("T")[0],
       actionToBeTaken3: "",
+      callStatus: complaint.callStatus || "",
+      callRemarks: complaint.callRemarks || "",
+      nextCallDate: complaint.nextCallDate || "",
     });
     setShowProcessModal(true);
   };
@@ -641,7 +657,16 @@ export default function CustomerComplaint() {
     const currentIdx = COMPLAINT_STEPS.indexOf(selectedComplaint.currentStep);
     let nextStep = selectedComplaint.currentStep;
 
-    if (selectedComplaint.currentStep === "Problem Assigned") {
+    if (selectedComplaint.currentStep === "Call Tracker") {
+      if (processForm.callStatus === "Not Genuine / False Complaint") {
+        nextStep = "History";
+      } else if (processForm.callStatus === "Not Reachable") {
+        nextStep = "Call Tracker";
+      } else {
+        // "Connected" — proceed to Problem Assigned
+        nextStep = "Problem Assigned";
+      }
+    } else if (selectedComplaint.currentStep === "Problem Assigned") {
       const actionChosen = processForm.actionToBeTaken1;
       if (actionChosen === "Approved" || actionChosen === "Arrange Visit") {
         nextStep = "Site Report";
@@ -674,7 +699,7 @@ export default function CustomerComplaint() {
       nextStep = COMPLAINT_STEPS[currentIdx + 1];
     }
 
-    const timestampStr = formatIndianTimestamp(new Date());
+    const timestampStr = getCurrentTimestamp();
     const isSolved =
       processForm.statusOfSolved === "Problem Solved" ||
       processForm.statusOfSolved === "Yes" ||
@@ -688,7 +713,9 @@ export default function CustomerComplaint() {
       updatedBy: currentUser?.username || "Admin",
       updatedAt: timestampStr,
       remarks:
-        selectedComplaint.currentStep === "Problem Assigned"
+        selectedComplaint.currentStep === "Call Tracker"
+          ? `Call Status: ${processForm.callStatus}${processForm.callRemarks ? `, Customer Said: ${processForm.callRemarks}` : ""}${processForm.callStatus === "Not Reachable" ? `, Next Call: ${processForm.nextCallDate || "N/A"}` : ""}`
+          : selectedComplaint.currentStep === "Problem Assigned"
           ? `Action: ${processForm.actionToBeTaken1}, Assigned: ${processForm.personAssignName1}, Visit: ${processForm.dateOfVisit}`
           : selectedComplaint.currentStep === "Site Report"
           ? `Status: ${solvedVal}, Site Report: ${processForm.siteReport}`
@@ -711,7 +738,20 @@ export default function CustomerComplaint() {
       if (idx !== -1) updatedSheetRow[idx] = val;
     };
 
-    if (selectedComplaint.currentStep === "Problem Assigned") {
+    if (selectedComplaint.currentStep === "Call Tracker") {
+      setRowVal(["Call Status"], processForm.callStatus || "", 30);
+      setRowVal(["What Did The Customer Say (Call)", "What Did The Customer Say"], processForm.callRemarks || "", 31);
+
+      if (processForm.callStatus === "Not Reachable") {
+        setRowVal(["Next Call Date"], processForm.nextCallDate || "", 32);
+      } else if (processForm.callStatus === "Not Genuine / False Complaint") {
+        setRowVal(["Status  Of Solved", "Status Of Solved", "Status of Solved", "Status"], "Rejected", 19);
+        setRowVal(["Site Report", "Site Report Remarks", "Report"], "Marked not genuine at Call Tracker stage", 20);
+      }
+      // "Connected" needs no extra write here — Planned 1 is an auto-formula column on the
+      // real sheet (already populates itself); writing a plain string into it would overwrite
+      // and break the formula, same as it must never be touched elsewhere in this file.
+    } else if (selectedComplaint.currentStep === "Problem Assigned") {
       setRowVal(["Actual 1", "Actual1", "Act 1", "Actual - 1"], timestampStr, 9);
       setRowVal(["Person Assign Name 1", "Person Assign Name", "Person Assign", "Assign Name 1", "Assigned Person 1", "Person Assigned 1", "Assign Person 1"], processForm.personAssignName1 || "", 10);
       setRowVal(["Date Of Visit", "Date Of Visite", "Date Of Visit 1", "Visit Date", "Date of Visit"], processForm.dateOfVisit || "", 11);
@@ -847,7 +887,7 @@ export default function CustomerComplaint() {
   const handleBulkSubmitTakeSiteReport = async () => {
     if (selectedComplaintIds.length === 0) return;
 
-    const timestampStr = formatIndianTimestamp(new Date());
+    const timestampStr = getCurrentTimestamp();
     const complaintsToUpdate = complaints.filter((c) =>
       selectedComplaintIds.includes(c.id)
     );
@@ -925,7 +965,7 @@ export default function CustomerComplaint() {
 
 
         {/* Tabs Bar */}
-        <div className="flex space-x-2 rounded-2xl bg-white p-1.5 mb-8 w-fit mx-auto overflow-x-auto border border-slate-200 shadow-sm">
+        <div className="flex flex-wrap gap-2 rounded-2xl bg-white p-1.5 mb-8 w-full justify-center border border-slate-200 shadow-sm">
           {TABS.map((tab) => {
             const count = getTabCount(tab);
             const isActive = activeTab === tab;
@@ -1012,27 +1052,37 @@ export default function CustomerComplaint() {
                       Action
                     </th>
                   )}
+                  {activeTab !== "Call Tracker" && activeTab !== "History" && (
+                    <th className="px-4 py-3 text-left text-xs font-bold text-amber-700 uppercase whitespace-nowrap">
+                      Due Date
+                    </th>
+                  )}
                   <th className="px-4 py-3 text-left text-xs font-semibold text-muted-foreground uppercase whitespace-nowrap">
                     Complaint No.
                   </th>
                   <th className="px-4 py-3 text-left text-xs font-semibold text-muted-foreground uppercase whitespace-nowrap">
                     Date
                   </th>
-                  <th className="px-4 py-3 text-left text-xs font-semibold text-muted-foreground uppercase whitespace-nowrap">
+                  <th className="px-4 py-3 text-left text-xs font-semibold text-muted-foreground uppercase">
                     Firm Name
                   </th>
-                  <th className="px-4 py-3 text-left text-xs font-semibold text-muted-foreground uppercase whitespace-nowrap">
+                  <th className="px-4 py-3 text-left text-xs font-semibold text-muted-foreground uppercase">
                     Customer Name
                   </th>
-                  <th className="px-4 py-3 text-left text-xs font-semibold text-muted-foreground uppercase whitespace-nowrap">
-                    Person Name (Complainer)
+                  <th className="px-4 py-3 text-left text-xs font-semibold text-muted-foreground uppercase">
+                    Person Name
                   </th>
                   <th className="px-4 py-3 text-left text-xs font-semibold text-muted-foreground uppercase">
                     Problem
                   </th>
-                  <th className="px-4 py-3 text-left text-xs font-semibold text-muted-foreground uppercase whitespace-nowrap">
-                    Complain Received By whom
+                  <th className="px-4 py-3 text-left text-xs font-semibold text-muted-foreground uppercase">
+                    Received By
                   </th>
+                  {activeTab === "Call Tracker" && (
+                    <th className="px-4 py-3 text-left text-xs font-semibold text-muted-foreground uppercase whitespace-nowrap">
+                      Call Status
+                    </th>
+                  )}
                   {(activeTab === "Site Report" || activeTab === "Problem Not Solve Next Action" || activeTab === "History") && (
                     <th className="px-4 py-3 text-left text-xs font-semibold text-muted-foreground uppercase whitespace-nowrap">
                       Status Of Solved
@@ -1072,29 +1122,59 @@ export default function CustomerComplaint() {
                         </div>
                       </td>
                     )}
+                    {activeTab !== "Call Tracker" && activeTab !== "History" && (
+                      <td className="px-4 py-3 whitespace-nowrap">
+                        {c.dueDate ? (
+                          <span className="inline-flex items-center px-2.5 py-1 rounded-md bg-amber-50 text-amber-800 ring-1 ring-amber-200 text-xs font-bold">
+                            {formatTimestamp(c.dueDate)}
+                          </span>
+                        ) : (
+                          <span className="text-slate-300 text-xs">—</span>
+                        )}
+                      </td>
+                    )}
                     <td className="px-4 py-3 whitespace-nowrap">
                       <span className="inline-flex items-center px-2.5 py-1 rounded-md bg-sky-100 text-sky-700 text-sm font-semibold">
                         {c.id}
                       </span>
                     </td>
                     <td className="px-4 py-3 whitespace-nowrap text-sm text-muted-foreground">
-                      {formatDisplayDate(c.date)}
+                      {formatDateOnly(c.date)}
                     </td>
-                    <td className="px-4 py-3 whitespace-nowrap text-sm font-bold text-foreground">
+                    <td className="px-4 py-3 text-sm font-bold text-foreground max-w-[140px] break-words">
                       {c.firmName}
                     </td>
-                    <td className="px-4 py-3 whitespace-nowrap text-sm text-muted-foreground">
+                    <td className="px-4 py-3 text-sm text-muted-foreground max-w-[140px] break-words">
                       {c.customerName}
                     </td>
-                    <td className="px-4 py-3 whitespace-nowrap text-sm font-medium text-muted-foreground">
+                    <td className="px-4 py-3 text-sm font-medium text-muted-foreground max-w-[140px] break-words">
                       {c.personName}
                     </td>
-                    <td className="px-4 py-3 text-sm text-muted-foreground max-w-xs truncate" title={c.problem}>
+                    <td className="px-4 py-3 text-sm text-muted-foreground max-w-[180px] break-words" title={c.problem}>
                       {c.problem}
                     </td>
-                    <td className="px-4 py-3 whitespace-nowrap text-sm text-muted-foreground">
+                    <td className="px-4 py-3 text-sm text-muted-foreground max-w-[110px] break-words">
                       {c.receivedBy}
                     </td>
+                    {activeTab === "Call Tracker" && (
+                      <td className="px-4 py-3 whitespace-nowrap">
+                        {c.callStatus ? (
+                          <span
+                            className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold ${
+                              c.callStatus === "Connected"
+                                ? "bg-green-100 text-green-800 ring-1 ring-green-300"
+                                : c.callStatus === "Not Reachable"
+                                ? "bg-amber-100 text-amber-800 ring-1 ring-amber-300"
+                                : "bg-rose-100 text-rose-800 ring-1 ring-rose-300"
+                            }`}
+                          >
+                            {c.callStatus}
+                          </span>
+                        ) : (
+                          <span className="text-slate-300 text-xs">—</span>
+                        )}
+                      </td>
+                    )}
                     {(activeTab === "Site Report" || activeTab === "Problem Not Solve Next Action" || activeTab === "History") && (
                       <td className="px-4 py-3 whitespace-nowrap">
                         {c.statusOfSolved ? (
@@ -1157,20 +1237,21 @@ export default function CustomerComplaint() {
         {/* ── Popup: Register new Complaint (Clean 6 fields) ─────────────────── */}
         {showNewModal && (
           <div
-            className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4"
+            className="fixed inset-0 bg-black/40 backdrop-blur-sm flex items-center justify-center z-50 p-4"
             onClick={() => setShowNewModal(false)}
           >
             <div
-              className="bg-card rounded-lg shadow-xl p-6 max-w-lg w-full max-h-[90vh] overflow-y-auto"
+              className="bg-white rounded-2xl shadow-2xl border border-slate-200 p-6 max-w-lg w-full max-h-[90vh] overflow-y-auto"
               onClick={(e) => e.stopPropagation()}
             >
-              <h2 className="text-xl font-bold mb-4 text-foreground border-b pb-2">
+              <h2 className="text-xl font-extrabold text-slate-800 mb-4 pb-3 border-b border-slate-100 flex items-center gap-2">
+                <svg className="w-5 h-5 text-sky-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M12 4v16m8-8H4"></path></svg>
                 Register new Complaint
               </h2>
               <form onSubmit={handleCreateComplaint} className="space-y-4 text-sm">
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <div>
-                    <label className="block font-medium text-muted-foreground mb-1">
+                    <label className="block text-[13px] font-bold text-slate-700 mb-1.5 uppercase tracking-wider">
                       Date *
                     </label>
                     <input
@@ -1180,11 +1261,11 @@ export default function CustomerComplaint() {
                       onChange={(e) =>
                         setNewForm({ ...newForm, date: e.target.value })
                       }
-                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-sky-500"
+                      className="w-full px-4 py-2.5 text-sm border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-sky-500/50 focus:border-sky-500 bg-slate-50 hover:bg-slate-100 transition-colors"
                     />
                   </div>
                   <div>
-                    <label className="block font-medium text-muted-foreground mb-1">
+                    <label className="block text-[13px] font-bold text-slate-700 mb-1.5 uppercase tracking-wider">
                       Firm Name *
                     </label>
                     <select
@@ -1193,7 +1274,7 @@ export default function CustomerComplaint() {
                       onChange={(e) =>
                         setNewForm({ ...newForm, firmName: e.target.value })
                       }
-                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-sky-500 bg-card"
+                      className="w-full px-4 py-2.5 text-sm border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-sky-500/50 focus:border-sky-500 bg-slate-50 hover:bg-slate-100 transition-colors cursor-pointer"
                     >
                       <option value="">Select Firm Name</option>
                       {firmNamesList.map((firm) => (
@@ -1207,7 +1288,7 @@ export default function CustomerComplaint() {
 
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <div>
-                    <label className="block font-medium text-muted-foreground mb-1">
+                    <label className="block text-[13px] font-bold text-slate-700 mb-1.5 uppercase tracking-wider">
                       Customer Name *
                     </label>
                     <input
@@ -1218,11 +1299,11 @@ export default function CustomerComplaint() {
                       onChange={(e) =>
                         setNewForm({ ...newForm, customerName: e.target.value })
                       }
-                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-sky-500"
+                      className="w-full px-4 py-2.5 text-sm border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-sky-500/50 focus:border-sky-500 bg-slate-50 hover:bg-slate-100 transition-colors"
                     />
                   </div>
                   <div>
-                    <label className="block font-medium text-muted-foreground mb-1">
+                    <label className="block text-[13px] font-bold text-slate-700 mb-1.5 uppercase tracking-wider">
                       Person Name (Complainer) *
                     </label>
                     <input
@@ -1233,13 +1314,13 @@ export default function CustomerComplaint() {
                       onChange={(e) =>
                         setNewForm({ ...newForm, personName: e.target.value })
                       }
-                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-sky-500"
+                      className="w-full px-4 py-2.5 text-sm border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-sky-500/50 focus:border-sky-500 bg-slate-50 hover:bg-slate-100 transition-colors"
                     />
                   </div>
                 </div>
 
                 <div>
-                  <label className="block font-medium text-muted-foreground mb-1">
+                  <label className="block text-[13px] font-bold text-slate-700 mb-1.5 uppercase tracking-wider">
                     Problem *
                   </label>
                   <textarea
@@ -1250,12 +1331,12 @@ export default function CustomerComplaint() {
                     onChange={(e) =>
                       setNewForm({ ...newForm, problem: e.target.value })
                     }
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-sky-500"
+                    className="w-full px-4 py-2.5 text-sm border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-sky-500/50 focus:border-sky-500 bg-slate-50 hover:bg-slate-100 transition-colors"
                   ></textarea>
                 </div>
 
                 <div>
-                  <label className="block font-medium text-muted-foreground mb-1">
+                  <label className="block text-[13px] font-bold text-slate-700 mb-1.5 uppercase tracking-wider">
                     Complain Received By whom *
                   </label>
                   <input
@@ -1266,21 +1347,21 @@ export default function CustomerComplaint() {
                     onChange={(e) =>
                       setNewForm({ ...newForm, receivedBy: e.target.value })
                     }
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-sky-500"
+                    className="w-full px-4 py-2.5 text-sm border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-sky-500/50 focus:border-sky-500 bg-slate-50 hover:bg-slate-100 transition-colors"
                   />
                 </div>
 
-                <div className="flex gap-2 pt-3 border-t">
+                <div className="flex gap-3 pt-4 border-t border-slate-100">
                   <button
                     type="submit"
-                    className="bg-sky-600 hover:bg-sky-700 text-white py-2 px-6 rounded-md font-medium"
+                    className="px-6 py-2.5 text-sm font-bold text-white bg-sky-600 rounded-xl shadow-md hover:bg-sky-700 hover:shadow-lg focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-sky-500 transition-all transform hover:-translate-y-0.5"
                   >
                     Register Complaint
                   </button>
                   <button
                     type="button"
                     onClick={() => setShowNewModal(false)}
-                    className="bg-gray-200 hover:bg-gray-300 text-foreground py-2 px-6 rounded-md font-medium"
+                    className="px-6 py-2.5 text-sm font-bold text-slate-700 bg-white border border-slate-200 rounded-xl shadow-sm hover:bg-slate-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-slate-500 transition-all"
                   >
                     Cancel
                   </button>
@@ -1293,14 +1374,15 @@ export default function CustomerComplaint() {
         {/* ── Popup: Action / Process Workflow Step ───────────────────────────── */}
         {showProcessModal && selectedComplaint && (
           <div
-            className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4"
+            className="fixed inset-0 bg-black/40 backdrop-blur-sm flex items-center justify-center z-50 p-4"
             onClick={() => setShowProcessModal(false)}
           >
             <div
-              className="bg-card rounded-lg shadow-xl p-6 max-w-lg w-full"
+              className="bg-white rounded-2xl shadow-2xl border border-slate-200 p-6 max-w-lg w-full"
               onClick={(e) => e.stopPropagation()}
             >
-              <h2 className="text-xl font-bold mb-1 text-foreground border-b pb-2">
+              <h2 className="text-xl font-extrabold text-slate-800 mb-1 pb-3 border-b border-slate-100 flex items-center gap-2">
+                <svg className="w-5 h-5 text-sky-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M13 10V3L4 14h7v7l9-11h-7z"></path></svg>
                 Take Action — {selectedComplaint.currentStep}
               </h2>
               <p className="text-xs text-muted-foreground my-3">
@@ -1311,10 +1393,76 @@ export default function CustomerComplaint() {
               </p>
 
               <form onSubmit={handleProcessSubmit} className="space-y-4 text-sm">
+                {selectedComplaint.currentStep === "Call Tracker" && (
+                  <div className="space-y-4">
+                    <div>
+                      <label className="block text-[13px] font-bold text-slate-700 mb-1.5 uppercase tracking-wider">
+                        Call Status *
+                      </label>
+                      <select
+                        required
+                        value={processForm.callStatus}
+                        onChange={(e) =>
+                          setProcessForm({
+                            ...processForm,
+                            callStatus: e.target.value,
+                          })
+                        }
+                        className="w-full px-4 py-2.5 text-sm border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-sky-500/50 focus:border-sky-500 bg-slate-50 hover:bg-slate-100 transition-colors cursor-pointer"
+                      >
+                        <option value="">Select call outcome...</option>
+                        <option value="Connected">Connected</option>
+                        <option value="Not Reachable">Not Reachable</option>
+                        <option value="Not Genuine / False Complaint">Not Genuine / False Complaint</option>
+                      </select>
+                    </div>
+
+                    {processForm.callStatus === "Not Reachable" && (
+                      <div>
+                        <label className="block text-[13px] font-bold text-slate-700 mb-1.5 uppercase tracking-wider">
+                          Next Call Date *
+                        </label>
+                        <input
+                          type="date"
+                          required
+                          value={processForm.nextCallDate}
+                          onChange={(e) =>
+                            setProcessForm({
+                              ...processForm,
+                              nextCallDate: e.target.value,
+                            })
+                          }
+                          className="w-full px-4 py-2.5 text-sm border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-sky-500/50 focus:border-sky-500 bg-slate-50 hover:bg-slate-100 transition-colors cursor-pointer"
+                        />
+                      </div>
+                    )}
+
+                    {processForm.callStatus === "Connected" && (
+                      <div>
+                        <label className="block text-[13px] font-bold text-slate-700 mb-1.5 uppercase tracking-wider">
+                          What Did The Customer Say *
+                        </label>
+                        <textarea
+                          rows={3}
+                          required
+                          placeholder="Customer feedback from the call..."
+                          value={processForm.callRemarks}
+                          onChange={(e) =>
+                            setProcessForm({
+                              ...processForm,
+                              callRemarks: e.target.value,
+                            })
+                          }
+                          className="w-full px-4 py-2.5 text-sm border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-sky-500/50 focus:border-sky-500 bg-slate-50 hover:bg-slate-100 transition-colors"
+                        ></textarea>
+                      </div>
+                    )}
+                  </div>
+                )}
                 {selectedComplaint.currentStep === "Problem Assigned" && (
                   <div className="space-y-4">
                     <div>
-                      <label className="block font-medium text-muted-foreground mb-1">
+                      <label className="block text-[13px] font-bold text-slate-700 mb-1.5 uppercase tracking-wider">
                         Person Assign Name 1 *
                       </label>
                       <input
@@ -1328,11 +1476,11 @@ export default function CustomerComplaint() {
                             personAssignName1: e.target.value,
                           })
                         }
-                        className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-sky-500"
+                        className="w-full px-4 py-2.5 text-sm border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-sky-500/50 focus:border-sky-500 bg-slate-50 hover:bg-slate-100 transition-colors"
                       />
                     </div>
                     <div>
-                      <label className="block font-medium text-muted-foreground mb-1">
+                      <label className="block text-[13px] font-bold text-slate-700 mb-1.5 uppercase tracking-wider">
                         Date Of Visit *
                       </label>
                       <input
@@ -1345,11 +1493,11 @@ export default function CustomerComplaint() {
                             dateOfVisit: e.target.value,
                           })
                         }
-                        className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-sky-500"
+                        className="w-full px-4 py-2.5 text-sm border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-sky-500/50 focus:border-sky-500 bg-slate-50 hover:bg-slate-100 transition-colors"
                       />
                     </div>
                     <div>
-                      <label className="block font-medium text-muted-foreground mb-1">
+                      <label className="block text-[13px] font-bold text-slate-700 mb-1.5 uppercase tracking-wider">
                         Action To Be Taken 1 *
                       </label>
                       <select
@@ -1361,7 +1509,7 @@ export default function CustomerComplaint() {
                             actionToBeTaken1: e.target.value,
                           })
                         }
-                        className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-sky-500 bg-card"
+                        className="w-full px-4 py-2.5 text-sm border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-sky-500/50 focus:border-sky-500 bg-slate-50 hover:bg-slate-100 transition-colors cursor-pointer"
                       >
                         <option value="">Select action...</option>
                         <option value="Arrange Visit">Arrange Visit</option>
@@ -1375,7 +1523,7 @@ export default function CustomerComplaint() {
                 {selectedComplaint.currentStep === "Site Report" && (
                   <div className="space-y-4">
                     <div>
-                      <label className="block font-medium text-muted-foreground mb-1">
+                      <label className="block text-[13px] font-bold text-slate-700 mb-1.5 uppercase tracking-wider">
                         Status Of Solved *
                       </label>
                       <select
@@ -1388,14 +1536,14 @@ export default function CustomerComplaint() {
                             isSolved: e.target.value,
                           })
                         }
-                        className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-sky-500 bg-card"
+                        className="w-full px-4 py-2.5 text-sm border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-sky-500/50 focus:border-sky-500 bg-slate-50 hover:bg-slate-100 transition-colors cursor-pointer"
                       >
                         <option value="Problem Not Solved">Problem Not Solved</option>
                         <option value="Problem Solved">Problem Solved</option>
                       </select>
                     </div>
                     <div>
-                      <label className="block font-medium text-muted-foreground mb-1">
+                      <label className="block text-[13px] font-bold text-slate-700 mb-1.5 uppercase tracking-wider">
                         Site Report *
                       </label>
                       <textarea
@@ -1410,7 +1558,7 @@ export default function CustomerComplaint() {
                             remarks: e.target.value,
                           })
                         }
-                        className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-sky-500"
+                        className="w-full px-4 py-2.5 text-sm border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-sky-500/50 focus:border-sky-500 bg-slate-50 hover:bg-slate-100 transition-colors"
                       ></textarea>
                     </div>
                   </div>
@@ -1419,7 +1567,7 @@ export default function CustomerComplaint() {
                 {selectedComplaint.currentStep === "Problem Not Solve Next Action" && (
                   <div className="space-y-4">
                     <div>
-                      <label className="block font-medium text-muted-foreground mb-1">
+                      <label className="block text-[13px] font-bold text-slate-700 mb-1.5 uppercase tracking-wider">
                         Action To Be Taken *
                       </label>
                       <select
@@ -1431,7 +1579,7 @@ export default function CustomerComplaint() {
                             actionToBeTaken3: e.target.value,
                           })
                         }
-                        className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-sky-500 bg-card"
+                        className="w-full px-4 py-2.5 text-sm border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-sky-500/50 focus:border-sky-500 bg-slate-50 hover:bg-slate-100 transition-colors cursor-pointer"
                       >
                         <option value="">Select Action...</option>
                         <option value="Problem Solved">Problem Solved</option>
@@ -1443,7 +1591,7 @@ export default function CustomerComplaint() {
                     {processForm.actionToBeTaken3 === "Still Pending" && (
                       <>
                         <div>
-                          <label className="block font-medium text-muted-foreground mb-1">
+                          <label className="block text-[13px] font-bold text-slate-700 mb-1.5 uppercase tracking-wider">
                             Next Date *
                           </label>
                           <input
@@ -1456,11 +1604,11 @@ export default function CustomerComplaint() {
                                 dateOfVisit3: e.target.value,
                               })
                             }
-                            className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-sky-500 bg-card"
+                            className="w-full px-4 py-2.5 text-sm border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-sky-500/50 focus:border-sky-500 bg-slate-50 hover:bg-slate-100 transition-colors cursor-pointer"
                           />
                         </div>
                         <div>
-                          <label className="block font-medium text-muted-foreground mb-1">
+                          <label className="block text-[13px] font-bold text-slate-700 mb-1.5 uppercase tracking-wider">
                             Remark *
                           </label>
                           <textarea
@@ -1474,7 +1622,7 @@ export default function CustomerComplaint() {
                                 remarks: e.target.value,
                               })
                             }
-                            className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-sky-500"
+                            className="w-full px-4 py-2.5 text-sm border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-sky-500/50 focus:border-sky-500 bg-slate-50 hover:bg-slate-100 transition-colors"
                           ></textarea>
                         </div>
                       </>
@@ -1482,7 +1630,7 @@ export default function CustomerComplaint() {
 
                     {processForm.actionToBeTaken3 === "Not solved" && (
                       <div>
-                        <label className="block font-medium text-muted-foreground mb-1">
+                        <label className="block text-[13px] font-bold text-slate-700 mb-1.5 uppercase tracking-wider">
                           Remark *
                         </label>
                         <textarea
@@ -1496,7 +1644,7 @@ export default function CustomerComplaint() {
                               remarks: e.target.value,
                             })
                           }
-                          className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-sky-500"
+                          className="w-full px-4 py-2.5 text-sm border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-sky-500/50 focus:border-sky-500 bg-slate-50 hover:bg-slate-100 transition-colors"
                         ></textarea>
                       </div>
                     )}
@@ -1505,7 +1653,7 @@ export default function CustomerComplaint() {
 
                 {selectedComplaint.currentStep === "Take Site Report 2" && (
                   <div>
-                    <label className="block font-medium text-muted-foreground mb-1">
+                    <label className="block text-[13px] font-bold text-slate-700 mb-1.5 uppercase tracking-wider">
                       Final Resolution Sign-off Notes
                     </label>
                     <textarea
@@ -1516,22 +1664,22 @@ export default function CustomerComplaint() {
                       onChange={(e) =>
                         setProcessForm({ ...processForm, remarks: e.target.value })
                       }
-                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-sky-500"
+                      className="w-full px-4 py-2.5 text-sm border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-sky-500/50 focus:border-sky-500 bg-slate-50 hover:bg-slate-100 transition-colors"
                     ></textarea>
                   </div>
                 )}
 
-                <div className="flex gap-2 pt-3 border-t">
+                <div className="flex gap-3 pt-4 border-t border-slate-100">
                   <button
                     type="submit"
-                    className="bg-[#0f4d38] hover:bg-[#0b3b2b] text-white font-semibold py-2 px-6 rounded-md shadow-sm transition"
+                    className="px-6 py-2.5 text-sm font-bold text-white bg-sky-600 rounded-xl shadow-md hover:bg-sky-700 hover:shadow-lg focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-sky-500 transition-all transform hover:-translate-y-0.5"
                   >
                     Confirm & Save
                   </button>
                   <button
                     type="button"
                     onClick={() => setShowProcessModal(false)}
-                    className="bg-gray-200 hover:bg-gray-300 text-foreground font-semibold py-2 px-6 rounded-md transition"
+                    className="px-6 py-2.5 text-sm font-bold text-slate-700 bg-white border border-slate-200 rounded-xl shadow-sm hover:bg-slate-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-slate-500 transition-all"
                   >
                     Cancel
                   </button>
@@ -1544,14 +1692,14 @@ export default function CustomerComplaint() {
         {/* ── Popup: Complaint Details & History ─────────────────────────────── */}
         {showDetailModal && selectedComplaint && (
           <div
-            className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4"
+            className="fixed inset-0 bg-black/40 backdrop-blur-sm flex items-center justify-center z-50 p-4"
             onClick={() => setShowDetailModal(false)}
           >
             <div
-              className="bg-card rounded-lg shadow-xl p-6 max-w-lg w-full max-h-[90vh] flex flex-col"
+              className="bg-white rounded-2xl shadow-2xl border border-slate-200 p-6 max-w-lg w-full max-h-[90vh] flex flex-col"
               onClick={(e) => e.stopPropagation()}
             >
-              <h2 className="text-xl font-bold mb-1 text-foreground border-b pb-2">
+              <h2 className="text-xl font-extrabold text-slate-800 mb-1 pb-3 border-b border-slate-100">
                 Complaint Tracker Details ({selectedComplaint.id})
               </h2>
               <div className="space-y-2 text-sm my-4">
@@ -1599,10 +1747,10 @@ export default function CustomerComplaint() {
                 ))}
               </div>
 
-              <div className="flex justify-end pt-3 border-t">
+              <div className="flex justify-end pt-4 border-t border-slate-100">
                 <button
                   onClick={() => setShowDetailModal(false)}
-                  className="bg-gray-200 hover:bg-gray-300 text-foreground py-2 px-6 rounded-md font-medium text-sm"
+                  className="px-6 py-2.5 text-sm font-bold text-slate-700 bg-white border border-slate-200 rounded-xl shadow-sm hover:bg-slate-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-slate-500 transition-all"
                 >
                   Close
                 </button>

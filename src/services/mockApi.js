@@ -1,5 +1,6 @@
 import axios from 'axios';
 import { users, dropdowns, companies, fmsData, quotations, enquiryTracker, enquiryToOrder, products } from '../data/dummyData';
+import { getCurrentTimestamp } from '../utils/dateTime';
 
 const simulateDelay = () => new Promise(resolve => setTimeout(resolve, 500));
 
@@ -55,7 +56,7 @@ export const mockApi = {
                         if (lastLoginIdx !== -1) {
                             const updatedRow = [...row];
                             while (updatedRow.length < headers.length) updatedRow.push("");
-                            updatedRow[lastLoginIdx] = `${loginTime.getMonth() + 1}/${loginTime.getDate()}/${loginTime.getFullYear()} ${loginTime.getHours()}:${String(loginTime.getMinutes()).padStart(2, "0")}:${String(loginTime.getSeconds()).padStart(2, "0")}`;
+                            updatedRow[lastLoginIdx] = getCurrentTimestamp();
 
                             try {
                                 const payload = new FormData();
