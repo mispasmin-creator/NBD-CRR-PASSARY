@@ -150,18 +150,21 @@ const CallTrackerForm = ({ onClose = () => window.history.back(), presetLeadNo =
         .filter(row => row[0]) // Only rows with a timestamp
         .map(row => {
           const leadNumber = row[1] ? String(row[1]).trim() : ""
-          const nextAction = row[16] ? String(row[16]).trim() : ""
-          const enquiryReceived = row[18] || ""
+          // Note: Work Type / Project Size were added as new columns I/J on the FMS
+          // sheet, which shifted every column from Planned 1 onward right by 2 —
+          // these indices (13/14/15/16/18/20) reflect the current real positions.
+          const nextAction = row[18] ? String(row[18]).trim() : ""
+          const enquiryReceived = row[20] || ""
           return {
             leadNumber,
             companyName: row[5] || "",
             location: row[7] || "",
             salesPerson: row[4] || "",
             department: row[6] || "",
-            productName: row[11] || "",
-            customerName: row[12] || "",
-            contactNo: row[13] || "",
-            emailId: row[14] || "",
+            productName: row[13] || "",
+            customerName: row[14] || "",
+            contactNo: row[15] || "",
+            emailId: row[16] || "",
             nextAction,
             enquiryReceived: String(enquiryReceived).trim(),
           }

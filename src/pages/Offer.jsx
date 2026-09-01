@@ -196,9 +196,19 @@ function Offer() {
 
             const allRows = response.data.data || []
 
-            // Header is in row 5 (index 4)
-            const headerRow = allRows[4] || []
-            const dataRows = allRows.slice(5)
+            // Find the header row dynamically (look for "Enquiry No.") instead of
+            // assuming a fixed position — a stray row added above it in the sheet
+            // would otherwise silently shift everything and empty out the page.
+            let headerIdx = 4
+            for (let i = 0; i < Math.min(allRows.length, 10); i++) {
+                const r = (allRows[i] || []).map(c => String(c || "").trim().toLowerCase())
+                if (r.some(cell => cell === "enquiry no." || cell === "enquiry no")) {
+                    headerIdx = i
+                    break
+                }
+            }
+            const headerRow = allRows[headerIdx] || []
+            const dataRows = allRows.slice(headerIdx + 1)
 
             const mapped = dataRows
                 .map((row, index) => {
@@ -208,7 +218,7 @@ function Offer() {
                     })
 
                     rowObj._originalIndex = index
-                    rowObj._sheetRowIdx = index + 5
+                    rowObj._sheetRowIdx = headerIdx + index + 1
                     rowObj.rawRow = row
 
                     return rowObj

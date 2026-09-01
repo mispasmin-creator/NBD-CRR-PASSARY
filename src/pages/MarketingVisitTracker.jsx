@@ -634,22 +634,25 @@ export default function MarketingVisitTracker() {
       let nbdLeadVisits = [];
       if (resFms?.data?.success && Array.isArray(resFms.data.data)) {
         const fmsRows = resFms.data.data.slice(6); // Data starts row 7
+        // Note: Work Type / Project Size were added as new columns I/J on the FMS
+        // sheet, which shifted every column from Planned 1 onward right by 2 —
+        // these indices reflect the current real positions.
         nbdLeadVisits = fmsRows
           .filter((row) => {
-            if (!row || !row[0] || !String(row[16] || "").trim()) return false;
+            if (!row || !row[0] || !String(row[18] || "").trim()) return false;
             const leadId = String(row[1] || "").trim();
             const plantName = String(row[5] || "").trim();
-            const contactPerson = String(row[12] || "").trim();
+            const contactPerson = String(row[14] || "").trim();
 
             // If already imported into Marketing Visit sheet, do not show duplicate
             if (manualVisits.some((m) => (leadId && (m.id === leadId || m.remark?.includes(leadId))) || (m.nameOfPlant && plantName && m.nameOfPlant.toLowerCase() === plantName.toLowerCase() && m.contactPerson?.toLowerCase() === contactPerson.toLowerCase()))) {
               return false;
             }
 
-            const nextAction = String(row[16] || "").trim();
-            const callStatus = String(row[17] || "").trim();
-            const enquiryReceived = String(row[18] || "").trim();
-            const remarks = String(row[19] || row[15] || "").trim();
+            const nextAction = String(row[18] || "").trim();
+            const callStatus = String(row[19] || "").trim();
+            const enquiryReceived = String(row[20] || "").trim();
+            const remarks = String(row[21] || row[17] || "").trim();
 
             // Only show if Next Action is "Arrange visit"
             const cleanAction = nextAction.toLowerCase();
@@ -665,17 +668,17 @@ export default function MarketingVisitTracker() {
           .map((row, idx) => ({
             id: String(row[1] || "").trim() || `LEAD-${idx + 1}`,
             timestamp: formatDisplayDate(row[0]) || "",
-            visitDate: formatDisplayDate(row[20]) || formatDisplayDate(row[9]) || formatDisplayDate(row[0]) || "",
+            visitDate: formatDisplayDate(row[22]) || formatDisplayDate(row[11]) || formatDisplayDate(row[0]) || "",
             salesPerson: String(row[4] || "").trim(),
             nameOfPlant: String(row[5] || "").trim(),
-            contactPerson: String(row[12] || "").trim(),
+            contactPerson: String(row[14] || "").trim(),
             designation: String(row[7] || "").trim(), // Location
             department: String(row[6] || "").trim(),
-            contentDetails: String(row[16] || "").trim() + (row[11] ? ` (${row[11]})` : ""), // Next Action + Product
+            contentDetails: String(row[18] || "").trim() + (row[13] ? ` (${row[13]})` : ""), // Next Action + Product
             shutdown: String(row[7] || "").trim() || "Lead",
-            remark: String(row[19] || row[15] || "").trim(), // Cust. Remarks / Update remarks
+            remark: String(row[21] || row[17] || "").trim(), // Cust. Remarks / Update remarks
             frequencyOfVisit: "",
-            currentStep: String(row[17] || "Marketing").trim() || "Marketing",
+            currentStep: String(row[19] || "Marketing").trim() || "Marketing",
             source: "NBD Lead",
             rawRow: [...row],
             sheetRowIndex: 7 + idx,

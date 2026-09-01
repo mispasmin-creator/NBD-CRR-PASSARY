@@ -48,7 +48,9 @@ const initialFormData = {
   salesPerson: "",
   companyName: "",
   department: "",
-  location: ""
+  location: "",
+  workType: "",
+  projectSize: ""
 }
 
 // Helper functions for localStorage
@@ -212,7 +214,7 @@ function Leads() {
             break
           }
         }
-        if (freqColIdx === -1) freqColIdx = 21 // Column V (index 21) as default
+        if (freqColIdx === -1) freqColIdx = 23 // Column X (index 23) as default
         setDetectedFreqColIdx(freqColIdx)
 
         const processedLeads = sheetData
@@ -238,20 +240,20 @@ function Leads() {
               department: row[6] || '',          // Column G: Department
               location: row[7] || '',            // Column H: Location
               // Additional fields if they exist in sheet
-              productName: row[11] || '',        // Column L
-              customerName: row[12] || '',       // Column M
-              contactNo: row[13] || '',          // Column N
-              emailId: row[14] || '',            // Column O
-              remarks: row[15] || '',            // Column P
+              productName: row[13] || '',        // Column N
+              customerName: row[14] || '',       // Column O
+              contactNo: row[15] || '',          // Column P
+              emailId: row[16] || '',            // Column Q
+              remarks: row[17] || '',            // Column R
               // Call Tracker Data directly from FMS Sheet
-              trackerNextAction: row[16] || '',  // Column Q: Next Action
-              trackerStatus: row[17] || '',      // Column R: Call Status
-              trackerLastCall: displayDate(row[9]) || '', // Column J: Actual 1 / Last Call
-              trackerEnquiry: row[18] || '',     // Column S: Enquiry Received
-              trackerRemarks: row[19] || '',     // Column T: Cust Remarks
-              trackerNextCall: (row[20] ? displayDate(row[20]) : "") || '', // Column U: Next Call Date
-              trackerNextCallRaw: row[20] || '',  // Column U raw value, for date-based filtering
-              trackerFreq: (row[freqColIdx] !== undefined && row[freqColIdx] !== null && String(row[freqColIdx]).trim() !== "") ? (parseInt(row[freqColIdx], 10) || 0) : (parseInt(row[21], 10) || 0)
+              trackerNextAction: row[18] || '',  // Column S: Next Action
+              trackerStatus: row[19] || '',      // Column T: Call Status
+              trackerLastCall: displayDate(row[11]) || '', // Column L: Actual 1 / Last Call
+              trackerEnquiry: row[20] || '',     // Column U: Enquiry Received
+              trackerRemarks: row[21] || '',     // Column V: Cust Remarks
+              trackerNextCall: (row[22] ? displayDate(row[22]) : "") || '', // Column W: Next Call Date
+              trackerNextCallRaw: row[22] || '',  // Column W raw value, for date-based filtering
+              trackerFreq: (row[freqColIdx] !== undefined && row[freqColIdx] !== null && String(row[freqColIdx]).trim() !== "") ? (parseInt(row[freqColIdx], 10) || 0) : (parseInt(row[23], 10) || 0)
             }
           })
           .reverse() // Show newest first
@@ -388,10 +390,10 @@ function Leads() {
       const newLeadNumber = `LE-${maxId + 1}`
 
       // Prepare data for Google Sheets
-      // Only send: Column A (Timestamp) and Columns C-H (form fields)
+      // A: Timestamp, C: Our Firm Name, D: Lead Received From,
+      // E: Name Of The Sales Person, F: Name Of The Company, G: Department, H: Location,
+      // I: Work Type, J: Project Size
       // Column B (Lead No.) is now generated and sent
-      // A: Timestamp, C: Our Firm Name, D: Lead Received From, 
-      // E: Name Of The Sales Person, F: Name Of The Company, G: Department, H: Location
       const rowData = [
         formattedTimestamp,        // Column A: Timestamp
         newLeadNumber,             // Column B: Lead No (Generated)
@@ -400,7 +402,9 @@ function Leads() {
         formData.salesPerson,       // Column E: Name Of The Sales Person
         formData.companyName,       // Column F: Name Of The Company
         formData.department,        // Column G: Department
-        formData.location          // Column H: Location
+        formData.location,         // Column H: Location
+        formData.workType,          // Column I: Work Type
+        formData.projectSize       // Column J: Project Size
       ]
 
       const formDataToSend = new URLSearchParams()
@@ -437,25 +441,26 @@ function Leads() {
 
   // Filter leads based on search and active tab
   const filteredLeads = leads.filter(lead => {
-    // Tab-based filtering using Column I (index 8) and Column J (index 9)
+    // Tab-based filtering using Column K (index 10, Planned 1) and Column L (index 11, Actual 1) —
+    // shifted +2 from the old I/J positions since Work Type/Project Size now occupy columns I/J.
     if (activeTab === "leads") {
       // All Leads = brand new leads only. Once "Update Status" has been done on a lead
-      // (Column I / Planned 1 gets filled), it must move on and stop showing up here too.
-      const colI = lead.rawData && lead.rawData[8] ? lead.rawData[8].toString().trim() : ""
+      // (Column K / Planned 1 gets filled), it must move on and stop showing up here too.
+      const colI = lead.rawData && lead.rawData[10] ? lead.rawData[10].toString().trim() : ""
       if (colI) return false
       const enquiryReceived = String(lead.trackerEnquiry || "").trim()
       if (enquiryReceived === "Yes" || enquiryReceived === "Cancel") return false
     }
     if (activeTab === "updateStatus") {
-      // Show only when Column I is filled AND Column J is empty
-      const colI = lead.rawData && lead.rawData[8] ? lead.rawData[8].toString().trim() : ""
-      const colJ = lead.rawData && lead.rawData[9] ? lead.rawData[9].toString().trim() : ""
+      // Show only when Column K is filled AND Column L is empty
+      const colI = lead.rawData && lead.rawData[10] ? lead.rawData[10].toString().trim() : ""
+      const colJ = lead.rawData && lead.rawData[11] ? lead.rawData[11].toString().trim() : ""
       if (!colI || colJ) return false
     }
     if (activeTab === "callTracking") {
-      // Show only when both Column I AND Column J are filled
-      const colI = lead.rawData && lead.rawData[8] ? lead.rawData[8].toString().trim() : ""
-      const colJ = lead.rawData && lead.rawData[9] ? lead.rawData[9].toString().trim() : ""
+      // Show only when both Column K AND Column L are filled
+      const colI = lead.rawData && lead.rawData[10] ? lead.rawData[10].toString().trim() : ""
+      const colJ = lead.rawData && lead.rawData[11] ? lead.rawData[11].toString().trim() : ""
       if (!colI || !colJ) return false
       // Exclude leads already resolved as Enquiry Received (Yes) or Not Received (Cancel) —
       // those now live under their own tabs, only active/pending ones stay here
@@ -555,21 +560,23 @@ function Leads() {
       }
 
       // Create a sparse array for update
-      // We need to place values at correct indices matching Columns L, M, N, O, P
-      // Column L is index 11
-      // Column M is index 12
+      // We need to place values at correct indices matching Columns N, O, P, Q, R
+      // (shifted +2 from their old L-P positions since Work Type/Project Size were
+      // inserted as new columns I/J, pushing everything from Planned 1 onward right by 2)
       // Column N is index 13
       // Column O is index 14
       // Column P is index 15
+      // Column Q is index 16
+      // Column R is index 17
 
       // Start with existing data to preserve other columns
-      // Create array of size 16 (up to Col P) filled with empty strings
-      let updateRowData = new Array(16).fill("")
+      // Create array of size 18 (up to Col R) filled with empty strings
+      let updateRowData = new Array(18).fill("")
 
       // If we have raw data from the sheet, populate it first
       if (currentLeadForUpdate.rawData && Array.isArray(currentLeadForUpdate.rawData)) {
         currentLeadForUpdate.rawData.forEach((val, idx) => {
-          if (idx < 16) updateRowData[idx] = val
+          if (idx < 18) updateRowData[idx] = val
         })
       }
 
@@ -583,21 +590,21 @@ function Leads() {
 
       // Set formula-based columns to null to prevent overwriting/blocking formulas
       // We do NOT set updateRowData[1] to null anymore to preserve Lead No / Index Number
-      updateRowData[8] = null;  // Column I: Planned 1
-      updateRowData[10] = null; // Column K: Delay 1
+      updateRowData[10] = null;  // Column K: Planned 1
+      updateRowData[12] = null; // Column M: Delay 1
 
-      // Column J (Index 9): Actual 1 - NOW UPDATED WITH TIMESTAMP
-      updateRowData[9] = formattedUpdateTimestamp
+      // Column L (Index 11): Actual 1 - NOW UPDATED WITH TIMESTAMP
+      updateRowData[11] = formattedUpdateTimestamp
 
       // IMPORTANT: Re-set Column A to its original value after any clearing
       updateRowData[0] = originalColumnA
 
       // Overwrite specific columns with new form data
-      updateRowData[11] = updateFormData.productName
-      updateRowData[12] = updateFormData.customerName
-      updateRowData[13] = updateFormData.contactNo
-      updateRowData[14] = updateFormData.emailId
-      updateRowData[15] = updateFormData.remarks
+      updateRowData[13] = updateFormData.productName
+      updateRowData[14] = updateFormData.customerName
+      updateRowData[15] = updateFormData.contactNo
+      updateRowData[16] = updateFormData.emailId
+      updateRowData[17] = updateFormData.remarks
 
       const formDataToSend = new URLSearchParams()
       formDataToSend.append('action', 'update')
@@ -649,16 +656,16 @@ function Leads() {
   // Open Call Tracker Modal
   const handleCallTrackerClick = (lead) => {
     setCurrentLeadForCall(lead)
-    const existingNextAction = lead.trackerNextAction || lead.rawData?.[16] || ""
+    const existingNextAction = lead.trackerNextAction || lead.rawData?.[18] || ""
     const isEnquiryReceived = String(existingNextAction).trim().toLowerCase().includes("enquiry received")
-    const existingEnquiry = isEnquiryReceived ? "Yes" : (lead.trackerEnquiry || lead.rawData?.[18] || "Pending")
+    const existingEnquiry = isEnquiryReceived ? "Yes" : (lead.trackerEnquiry || lead.rawData?.[20] || "Pending")
 
     setCallTrackerData({
       nextAction: existingNextAction,
-      status: lead.trackerStatus || lead.rawData?.[17] || "",
+      status: lead.trackerStatus || lead.rawData?.[19] || "",
       enquiryReceived: existingEnquiry,
       targetSystem: "",
-      customerRemarks: lead.trackerRemarks || lead.rawData?.[19] || "",
+      customerRemarks: lead.trackerRemarks || lead.rawData?.[21] || "",
       nextCallDate: "",
       lastCallDate: new Date().toISOString().slice(0, 16)
     })
@@ -689,13 +696,13 @@ function Leads() {
       const formatDateToString = (dateInput) => formatTimestamp(dateInput)
 
       let fmsRowData = [...(currentLeadForCall.rawData || [])]
-      const fmsFreqCol = currentLeadForCall.freqColIdx ?? detectedFreqColIdx ?? 21
-      const targetLen = Math.max(22, fmsFreqCol + 1)
+      const fmsFreqCol = currentLeadForCall.freqColIdx ?? detectedFreqColIdx ?? 23
+      const targetLen = Math.max(24, fmsFreqCol + 1)
       while (fmsRowData.length < targetLen) fmsRowData.push("")
 
       // Preserve formulas and timestamp format in FMS sheet
-      fmsRowData[8] = null;  // Column I: Planned 1
-      fmsRowData[10] = null; // Column K: Delay 1
+      fmsRowData[10] = null;  // Column K: Planned 1
+      fmsRowData[12] = null; // Column M: Delay 1
 
       // Correctly format Column A timestamp to preserve it
       const rawColA = currentLeadForCall.rawData?.[0] || currentLeadForCall.timestamp
@@ -712,11 +719,11 @@ function Leads() {
         return
       }
 
-      fmsRowData[16] = callTrackerData.nextAction     // Column Q: Next Action
-      fmsRowData[17] = callTrackerData.status         // Column R: Call Status
-      fmsRowData[18] = callTrackerData.enquiryReceived // Column S: Enquiry Received
-      fmsRowData[19] = isYes ? "" : callTrackerData.customerRemarks // Column T: Customer Remarks
-      fmsRowData[20] = (isYes || isCancel) ? "" : (callTrackerData.nextCallDate ? formatDateToString(callTrackerData.nextCallDate) : "") // Column U: Next Call Date
+      fmsRowData[18] = callTrackerData.nextAction     // Column S: Next Action
+      fmsRowData[19] = callTrackerData.status         // Column T: Call Status
+      fmsRowData[20] = callTrackerData.enquiryReceived // Column U: Enquiry Received
+      fmsRowData[21] = isYes ? "" : callTrackerData.customerRemarks // Column V: Customer Remarks
+      fmsRowData[22] = (isYes || isCancel) ? "" : (callTrackerData.nextCallDate ? formatDateToString(callTrackerData.nextCallDate) : "") // Column W: Next Call Date
 
       // Frequency increment: if Next Call Date is entered, increment Freq by +1
       if (callTrackerData.nextCallDate && !isYes && !isCancel) {
@@ -755,8 +762,6 @@ function Leads() {
         })
         if (isYes && callTrackerData.targetSystem === "CRR") {
           navigate("/crr-enquiry", { state: { openNewEnquiry: true, lead: leadForHandoff } })
-        } else if (isYes && callTrackerData.targetSystem === "NBD") {
-          navigate("/call-tracker", { state: { openNewEnquiry: true, lead: leadForHandoff } })
         } else if (isArrangeVisitSelected) {
           navigate("/marketing-visit-tracker", { state: { openNewVisit: true, lead: leadForHandoff } })
         } else {
@@ -928,7 +933,7 @@ function Leads() {
 
                       <form onSubmit={handleCallTrackerSubmit} className="space-y-5">
 
-                        {/* Last Date Of Call (Column K) - Read-Only */}
+                        {/* Last Date Of Call (Column L) - Read-Only */}
                         <div>
                           <label className="block text-[13px] font-bold text-slate-700 text-left mb-1.5 uppercase tracking-wider">Last Date Of Call</label>
                           <input
@@ -1095,7 +1100,7 @@ function Leads() {
         >
           <svg className={`h-4 w-4 ${activeTab === "updateStatus" ? "" : "text-gray-400"}`} fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" /></svg>
           Update Status
-          <span className={`text-xs px-2 py-0.5 rounded-full font-semibold ${activeTab === "updateStatus" ? "bg-teal-100 text-teal-700" : "bg-gray-100 text-gray-500"}`}>{leads.filter(l => { const ci = l.rawData && l.rawData[8] ? l.rawData[8].toString().trim() : ""; const cj = l.rawData && l.rawData[9] ? l.rawData[9].toString().trim() : ""; return ci && !cj; }).length}</span>
+          <span className={`text-xs px-2 py-0.5 rounded-full font-semibold ${activeTab === "updateStatus" ? "bg-teal-100 text-teal-700" : "bg-gray-100 text-gray-500"}`}>{leads.filter(l => { const ci = l.rawData && l.rawData[10] ? l.rawData[10].toString().trim() : ""; const cj = l.rawData && l.rawData[11] ? l.rawData[11].toString().trim() : ""; return ci && !cj; }).length}</span>
         </button>
         <button
           onClick={() => setActiveTab("callTracking")}
@@ -1106,7 +1111,7 @@ function Leads() {
         >
           <svg className={`h-4 w-4 ${activeTab === "callTracking" ? "" : "text-gray-400"}`} fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 5a2 2 0 012-2h3.28a1 1 0 01.948.684l1.498 4.493a1 1 0 01-.502 1.21l-2.257 1.13a11.042 11.042 0 005.516 5.516l1.13-2.257a1 1 0 011.21-.502l4.493 1.498a1 1 0 01.684.949V19a2 2 0 01-2 2h-1C9.716 21 3 14.284 3 6V5z" /></svg>
           Call Tracking
-          <span className={`text-xs px-2 py-0.5 rounded-full font-semibold ${activeTab === "callTracking" ? "bg-indigo-100 text-indigo-700" : "bg-gray-100 text-gray-500"}`}>{leads.filter(l => { const ci = l.rawData && l.rawData[8] ? l.rawData[8].toString().trim() : ""; const cj = l.rawData && l.rawData[9] ? l.rawData[9].toString().trim() : ""; const er = String(l.trackerEnquiry || "").trim(); return ci && cj && er !== "Yes" && er !== "Cancel"; }).length}</span>
+          <span className={`text-xs px-2 py-0.5 rounded-full font-semibold ${activeTab === "callTracking" ? "bg-indigo-100 text-indigo-700" : "bg-gray-100 text-gray-500"}`}>{leads.filter(l => { const ci = l.rawData && l.rawData[10] ? l.rawData[10].toString().trim() : ""; const cj = l.rawData && l.rawData[11] ? l.rawData[11].toString().trim() : ""; const er = String(l.trackerEnquiry || "").trim(); return ci && cj && er !== "Yes" && er !== "Cancel"; }).length}</span>
         </button>
         <button
           onClick={() => { setActiveTab("history"); setCallDateFilter("all") }}
@@ -1256,8 +1261,8 @@ function Leads() {
           {/* Who do I need to call — Today / Tomorrow / This Week */}
           {(() => {
             const eligible = leads.filter(l => {
-              const colI = l.rawData && l.rawData[8] ? l.rawData[8].toString().trim() : ""
-              const colJ = l.rawData && l.rawData[9] ? l.rawData[9].toString().trim() : ""
+              const colI = l.rawData && l.rawData[10] ? l.rawData[10].toString().trim() : ""
+              const colJ = l.rawData && l.rawData[11] ? l.rawData[11].toString().trim() : ""
               const er = String(l.trackerEnquiry || "").trim()
               return colI && colJ && er !== "Yes" && er !== "Cancel"
             })
@@ -1751,6 +1756,43 @@ function Leads() {
                           className="w-full px-4 py-2.5 text-sm border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-sky-500/50 focus:border-sky-500 bg-slate-50 hover:bg-slate-100 transition-colors"
                           required
                         />
+                      </div>
+
+                      {/* Work Type */}
+                      <div className="space-y-1">
+                        <label htmlFor="workType" className="block text-[13px] font-bold text-slate-700 text-left mb-1.5 uppercase tracking-wider">
+                          Work Type <span className="text-rose-500">*</span>
+                        </label>
+                        <select
+                          id="workType"
+                          value={formData.workType}
+                          onChange={handleChange}
+                          className="w-full px-4 py-2.5 text-sm border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-sky-500/50 focus:border-sky-500 bg-slate-50 hover:bg-slate-100 transition-colors cursor-pointer"
+                          required
+                        >
+                          <option value="">Select work type</option>
+                          <option value="Project">Project</option>
+                          <option value="Relining">Relining</option>
+                        </select>
+                      </div>
+
+                      {/* Project Size */}
+                      <div className="space-y-1">
+                        <label htmlFor="projectSize" className="block text-[13px] font-bold text-slate-700 text-left mb-1.5 uppercase tracking-wider">
+                          Project Size <span className="text-rose-500">*</span>
+                        </label>
+                        <select
+                          id="projectSize"
+                          value={formData.projectSize}
+                          onChange={handleChange}
+                          className="w-full px-4 py-2.5 text-sm border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-sky-500/50 focus:border-sky-500 bg-slate-50 hover:bg-slate-100 transition-colors cursor-pointer"
+                          required
+                        >
+                          <option value="">Select project size</option>
+                          {["50", "100", "200", "350", "500", "650", "900", "1000", "1200"].map((size) => (
+                            <option key={size} value={`DRI ${size} tpd`}>DRI {size} tpd</option>
+                          ))}
+                        </select>
                       </div>
                     </div>
                   </div>

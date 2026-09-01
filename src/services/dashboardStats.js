@@ -88,12 +88,15 @@ function computeLeadsStats(rows) {
 
   const dataRows = rows.slice(6).filter((r) => r && r[0])
   let pendingNew = 0, pendingUpdate = 0, pendingCallTracking = 0, converted = 0, notConverted = 0
+  // Note: Work Type / Project Size were added as new columns I/J on the FMS
+  // sheet, which shifted every column from Planned 1 onward right by 2 —
+  // these indices reflect the current real positions.
   dataRows.forEach((row) => {
-    const trackerEnquiry = String(row[17] || "").trim()
+    const trackerEnquiry = String(row[20] || "").trim()
     if (trackerEnquiry === "Yes") { converted++; return }
     if (trackerEnquiry === "Cancel") { notConverted++; return }
-    const colI = String(row[8] || "").trim()
-    const colJ = String(row[9] || "").trim()
+    const colI = String(row[10] || "").trim()
+    const colJ = String(row[11] || "").trim()
     if (!colI) { pendingNew++; return }
     if (!colJ) { pendingUpdate++; return }
     pendingCallTracking++
@@ -346,8 +349,9 @@ function computeOrderNotReceivedStats(onrRows, fmsRows, nbdEnquiryRows, crrRows)
 
   let notLogged = 0
   if (fmsRows) {
+    // Column shifted +2 (Work Type/Project Size inserted at I/J on the FMS sheet)
     fmsRows.slice(6).forEach((row) => {
-      if (row && row[0] && String(row[18] || "").trim() === "Cancel") {
+      if (row && row[0] && String(row[20] || "").trim() === "Cancel") {
         const id = String(row[1] || "").trim().toLowerCase()
         if (!id || !submitted.has(id)) notLogged++
       }

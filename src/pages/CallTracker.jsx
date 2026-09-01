@@ -151,18 +151,6 @@ function CallTracker() {
     fetchMasterDropdowns()
   }, [])
 
-  // ── Handoff from NBD Lead: "Enquiry Received" → "NBD Enquiry" opens this New Enquiry form ──
-  useEffect(() => {
-    if (location.state?.openNewEnquiry) {
-      setActiveTab("all")
-      setPresetLeadNo(location.state.lead?.leadNumber || null)
-      setShowNewCallTrackerForm(true)
-      // Clear the handoff state so a refresh/back doesn't reopen it
-      navigate(location.pathname, { replace: true, state: {} })
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [location.state])
-
   // ── Fetch Master Sheet (Col G = Status, Col I = Stage) ───────────────────
   const fetchMasterDropdowns = async () => {
     const scriptUrl = import.meta.env.VITE_GOOGLE_APPS_SCRIPT_URL
@@ -277,8 +265,11 @@ function CallTracker() {
             const leadNo = String(fmsRow[1] || "").trim()
             if (!leadNo) return
 
-            const nextAction = String(fmsRow[16] || "").trim()
-            const enquiryReceived = String(fmsRow[18] || "").trim()
+            // Note: Work Type / Project Size were added as new columns I/J on the FMS
+            // sheet, which shifted every column from Planned 1 onward right by 2 —
+            // these indices reflect the current real positions.
+            const nextAction = String(fmsRow[18] || "").trim()
+            const enquiryReceived = String(fmsRow[20] || "").trim()
 
             const isEnquiry = enquiryReceived.toLowerCase() === "yes" || nextAction.toLowerCase().includes("enquiry received")
 
@@ -299,18 +290,18 @@ function CallTracker() {
                 "Party Name": String(fmsRow[5] || "").trim(),
                 "Department": String(fmsRow[6] || "").trim(),
                 "Location": String(fmsRow[7] || "").trim(),
-                "Product Names": String(fmsRow[11] || "").trim(),
-                "Customer Name": String(fmsRow[12] || "").trim(),
-                "Contact Person Name": String(fmsRow[12] || "").trim(),
-                "Contact Person Mobile No.": String(fmsRow[13] || "").trim(),
-                "Email Id": String(fmsRow[14] || "").trim(),
-                "Remarks": String(fmsRow[15] || "").trim(),
+                "Product Names": String(fmsRow[13] || "").trim(),
+                "Customer Name": String(fmsRow[14] || "").trim(),
+                "Contact Person Name": String(fmsRow[14] || "").trim(),
+                "Contact Person Mobile No.": String(fmsRow[15] || "").trim(),
+                "Email Id": String(fmsRow[16] || "").trim(),
+                "Remarks": String(fmsRow[17] || "").trim(),
                 "Enquiry status": "Active",
-                "Status": String(fmsRow[17] || "").trim(),
+                "Status": String(fmsRow[19] || "").trim(),
                 "Current Stage": "Enquiry",
                 "Tracker Status": "",
                 "Actual 1": "",
-                "Freq": String(fmsRow[21] || "0").trim()
+                "Freq": String(fmsRow[23] || "0").trim()
               })
             }
           })

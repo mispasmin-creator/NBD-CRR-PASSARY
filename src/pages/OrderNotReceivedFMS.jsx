@@ -242,8 +242,11 @@ function OrderNotReceivedFMS() {
       let leadRecords = []
       if (resLead?.data?.success && Array.isArray(resLead.data.data)) {
         const rows = resLead.data.data.slice(6)
+        // Note: Work Type / Project Size were added as new columns I/J on the FMS
+        // sheet, which shifted every column from Planned 1 onward right by 2 —
+        // these indices reflect the current real positions.
         leadRecords = rows
-          .filter((row) => row && row[0] && String(row[18] || "").trim() === "Cancel")
+          .filter((row) => row && row[0] && String(row[20] || "").trim() === "Cancel")
           .map((row, idx) => {
             const id = String(row[1] || "").trim() || `LEAD-${idx + 1}`
             return {
@@ -256,22 +259,22 @@ function OrderNotReceivedFMS() {
               timestamp: displayDate(row[0]),
               firmName: String(row[5] || "").trim(),
               companyName: String(row[5] || "").trim(),
-              partyName: String(row[12] || "").trim(),
+              partyName: String(row[14] || "").trim(),
               salesPerson: String(row[4] || "").trim(),
               department: String(row[6] || "").trim(),
               location: String(row[7] || "").trim(),
-              product: String(row[11] || "").trim(),
-              productName: String(row[11] || "").trim(),
+              product: String(row[13] || "").trim(),
+              productName: String(row[13] || "").trim(),
               qty: "-",
               totalEnquiryValue: "-",
               givenToWhom: "-",
               rate: "-",
-              whyNotReceived: String(row[19] || "").trim(),
+              whyNotReceived: String(row[21] || "").trim(),
               haveToTakeSample: "-",
-              contactNo: String(row[13] || "").trim(),
-              email: String(row[14] || "").trim(),
-              remark: String(row[19] || "").trim(),
-              status: String(row[18] || "").trim() || "Cancel",
+              contactNo: String(row[15] || "").trim(),
+              email: String(row[16] || "").trim(),
+              remark: String(row[21] || "").trim(),
+              status: String(row[20] || "").trim() || "Cancel",
               planned1: "-",
               actual1: "-",
               status1: "-",
