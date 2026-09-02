@@ -37,7 +37,8 @@ const TAB_CONFIG = {
         filterEmpty: 7,    // Actual1
         timestampCol: 7,
         inputColumns: [
-            { key: 'offerLetter', label: 'Upload Offer Letter', storeCol: 9, type: 'file' }
+            { key: 'offerNumber', label: 'Offer Number', headerName: 'Offer Number', storeCol: 5, type: 'text' },
+            { key: 'offerLetter', label: 'Upload Offer Letter', headerName: 'Offer Letter', storeCol: 9, type: 'file' }
         ],
         icon: <TrendingUpIcon className="h-4 w-4" />,
         colorClass: "bg-teal-50 text-teal-700 shadow-sm ring-1 ring-teal-200",
@@ -49,7 +50,7 @@ const TAB_CONFIG = {
         timestampCol: 11,
         inputColumns: [
             { key: 'status', label: 'Status', storeCol: 13, type: 'select', options: ['Yes', 'No'] },
-            { key: 'remarks', label: 'Remarks', storeCol: 14 }
+            { key: 'remarks', label: 'Remarks', headerName: 'Remarks', storeCol: 14 }
         ],
         icon: <AlertCircleIcon className="h-4 w-4" />,
         colorClass: "bg-amber-50 text-amber-700 shadow-sm ring-1 ring-amber-200",
@@ -61,7 +62,7 @@ const TAB_CONFIG = {
         timestampCol: 16,
         inputColumns: [
             { key: 'status2', label: 'Status', storeCol: 18, type: 'select', options: ['Yes', 'No'] },
-            { key: 'remarks2', label: 'Remarks', storeCol: 19 }
+            { key: 'remarks2', label: 'Remarks', headerName: 'Remarks2', storeCol: 19 }
         ],
         icon: <PhoneCallIcon className="h-4 w-4" />,
         colorClass: "bg-indigo-50 text-indigo-700 shadow-sm ring-1 ring-indigo-200",
@@ -72,7 +73,8 @@ const TAB_CONFIG = {
         filterEmpty: 21,    // Actual5
         timestampCol: 21,
         inputColumns: [
-            { key: 'offerLetter', label: 'Upload Offer Letter', storeCol: 9, type: 'file' }
+            { key: 'offerLetter', label: 'Upload Offer Letter', headerName: 'Offer Letter', storeCol: 9, type: 'file' },
+            { key: 'remarks3', label: 'Remarks', headerName: 'Remarks3', storeCol: 24 }
         ],
         icon: <MessageSquareIcon className="h-4 w-4" />,
         colorClass: "bg-violet-50 text-violet-700 shadow-sm ring-1 ring-violet-200",
@@ -82,7 +84,10 @@ const TAB_CONFIG = {
         filterNotEmpty: 25, // Planned 2
         filterEmpty: 26,    // Actual2
         timestampCol: 26,
-        inputColumns: [],
+        inputColumns: [
+            { key: 'finalOfferLetter', label: 'Final Upload Offer Letter', headerName: 'Final Upload Offer Letter', storeCol: 28, type: 'file' },
+            { key: 'dataSheetAttachment', label: 'Data Sheet Attachment', headerName: 'Data Sheet Attachment', storeCol: 29, type: 'file' }
+        ],
         icon: <ShareIcon className="h-4 w-4" />,
         colorClass: "bg-primary/20 text-primary shadow-sm ring-1 ring-emerald-200",
         badgeClass: "bg-emerald-100 text-primary"
@@ -135,6 +140,7 @@ function Offer() {
     const [searchTerm, setSearchTerm] = useState("")
     const [isLoading, setIsLoading] = useState(true)
     const [offerRows, setOfferRows] = useState([])
+    const [offerHeaderRow, setOfferHeaderRow] = useState([])
     const [activeTab, setActiveTab] = useState("All Enquiries")
     const [page, setPage] = useState(1)
 
@@ -209,6 +215,7 @@ function Offer() {
             }
             const headerRow = allRows[headerIdx] || []
             const dataRows = allRows.slice(headerIdx + 1)
+            setOfferHeaderRow(headerRow)
 
             const mapped = dataRows
                 .map((row, index) => {
@@ -322,6 +329,16 @@ function Offer() {
         ], filteredRows)
     }
 
+    // Resolve a column by matching its sheet header text, falling back to the
+    // hardcoded index — so a new/reordered column in the sheet doesn't need a code change.
+    const resolveInputCol = (inputConfig) => {
+        if (inputConfig.headerName && offerHeaderRow.length) {
+            const idx = offerHeaderRow.findIndex(h => String(h || "").trim().toLowerCase() === inputConfig.headerName.toLowerCase())
+            if (idx !== -1) return idx
+        }
+        return inputConfig.storeCol
+    }
+
     const isActionTab = !!TAB_CONFIG[activeTab]
     const currentTabConfig = TAB_CONFIG[activeTab]
 
@@ -384,7 +401,7 @@ function Offer() {
                 inputPayload.append('action', 'updateCell')
                 inputPayload.append('sheetName', sheetName)
                 inputPayload.append('rowIndex', targetRowIndex.toString())
-                inputPayload.append('columnIndex', (inputConfig.storeCol + 1).toString())
+                inputPayload.append('columnIndex', (resolveInputCol(inputConfig) + 1).toString())
                 inputPayload.append('value', valueToStore)
                 await axios.post(scriptUrl, inputPayload)
             }
