@@ -39,6 +39,7 @@ const OrderNotReceivedFMS = lazy(() => import("./pages/OrderNotReceivedFMS"));
 const ControlPanel = lazy(() => import("./pages/ControlPanel"));
 const RiskControl = lazy(() => import("./pages/RiskControl"));
 const AdminConfig = lazy(() => import("./pages/AdminConfig"));
+const MasterSheet = lazy(() => import("./pages/MasterSheet"));
 import Footer from "./components/Footer";
 import Notification from "./components/Notification";
 import Sidebar from "./components/Sidebar";
@@ -244,6 +245,14 @@ function AnimatedRoutes() {
             element={
               <ProtectedRoute adminOnly={true}>
                 <AdminConfig />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/master-sheet"
+            element={
+              <ProtectedRoute adminOnly={true}>
+                <MasterSheet />
               </ProtectedRoute>
             }
           />

@@ -15,6 +15,7 @@ import {
   SettingsIcon,
   LogoutIcon,
   XCircleIcon,
+  BuildingIcon,
 } from "./Icons";
 
 const SIDEBAR_COLLAPSED_KEY = "sidebar_collapsed";
@@ -94,6 +95,7 @@ function Sidebar({ mobileMenuOpen, setMobileMenuOpen }) {
   const adminRoutes = useMemo(
     () => [
       { to: "/admin-config", label: "User Management", icon: <SettingsIcon className="h-5 w-5" /> },
+      { to: "/master-sheet", label: "Master", icon: <BuildingIcon className="h-5 w-5" /> },
     ],
     []
   );
