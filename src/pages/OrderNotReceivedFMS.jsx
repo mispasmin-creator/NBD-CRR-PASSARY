@@ -14,11 +14,8 @@ import {
   FileTextIcon,
 } from "../components/Icons"
 import { X, Send, CheckCircle2, Download } from "lucide-react"
-import Pagination from "../components/ui/Pagination"
 import { exportToCsv } from "../utils/exportCsv"
 import { getCurrentTimestamp, reformatIfDate } from "../utils/dateTime"
-
-const PAGE_SIZE = 10
 
 // Helper to format ISO date to display format
 const displayDate = (dateVal) => {
@@ -77,7 +74,6 @@ function OrderNotReceivedFMS() {
   const [isLoading, setIsLoading] = useState(true)
   const [searchTerm, setSearchTerm] = useState("")
   const [activeTab, setActiveTab] = useState("All")
-  const [page, setPage] = useState(1)
   const [activeMainTab, setActiveMainTab] = useState("all")
 
   // Modal and Form States for "Order Not Received" Action Popup
@@ -558,12 +554,7 @@ function OrderNotReceivedFMS() {
     })
   }, [activeMainTabRecords, activeTab, searchTerm])
 
-  // Reset to page 1 whenever the main tab, source tab, or search term changes
-  useEffect(() => {
-    setPage(1)
-  }, [activeMainTab, activeTab, searchTerm])
-
-  const paginatedRecords = filteredRecords.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE)
+  const paginatedRecords = filteredRecords
 
   const handleExportRecords = () => {
     exportToCsv(`order-not-received-${activeMainTab}`, [
@@ -1018,9 +1009,9 @@ function OrderNotReceivedFMS() {
   }
 
   return (
-    <div className="min-h-screen">
+    <div className="h-full flex flex-col">
       {/* Main Workflow Tabs */}
-      <div className="flex flex-wrap gap-2 rounded-2xl bg-white p-1.5 mb-8 w-full justify-center border border-slate-200 shadow-sm">
+      <div className="shrink-0 flex flex-wrap gap-2 rounded-2xl bg-white p-1.5 mb-8 w-full justify-center border border-slate-200 shadow-sm">
         {MAIN_TABS.map((tab) => {
           const Icon = tab.icon
           const isActive = activeMainTab === tab.key
@@ -1065,9 +1056,9 @@ function OrderNotReceivedFMS() {
           </p>
         </div>
       ) : (
-        <>
+        <div className="flex-1 min-h-0 flex flex-col">
           {/* Controls */}
-          <div className="bg-card rounded-2xl shadow-sm border border-slate-200/70 p-6 mb-6">
+          <div className="shrink-0 bg-card rounded-2xl shadow-sm border border-slate-200/70 p-6 mb-6">
             <div className="flex flex-col md:flex-row gap-4 justify-between items-start md:items-center">
               <div className="flex flex-col sm:flex-row gap-4 flex-1 w-full">
                 <div className="relative flex-1 max-w-md w-full">
@@ -1114,8 +1105,8 @@ function OrderNotReceivedFMS() {
           </div>
 
           {/* Table */}
-          <div className="bg-card rounded-2xl shadow-md border border-slate-200/70 overflow-hidden">
-            <div className="px-6 py-4 border-b border-slate-100 bg-muted/60 flex justify-between items-center">
+          <div className="flex-1 min-h-0 flex flex-col bg-card rounded-2xl shadow-md border border-slate-200/70 overflow-hidden">
+            <div className="shrink-0 px-6 py-4 border-b border-slate-100 bg-muted/60 flex justify-between items-center">
               <div>
                 <h2 className="text-[15px] font-bold text-foreground">
                   {activeMainTab === "getSample"
@@ -1144,9 +1135,9 @@ function OrderNotReceivedFMS() {
                 <p className="text-[13px] font-medium">Loading Order Not Received data...</p>
               </div>
             ) : (
-              <>
+              <div className="flex-1 min-h-0 flex flex-col">
                 {/* Desktop Table */}
-                <div className="hidden md:block overflow-x-auto">
+                <div className="hidden md:block flex-1 min-h-0 overflow-auto">
                   <table className="w-full">
                     <thead className="sticky top-0 z-10">
                       <tr className="bg-gradient-to-r from-rose-50 to-red-50 border-b border-gray-200">
@@ -1426,7 +1417,7 @@ function OrderNotReceivedFMS() {
                 </div>
 
                 {/* Mobile Card View */}
-                <div className="md:hidden space-y-3 p-4">
+                <div className="md:hidden flex-1 min-h-0 space-y-3 p-4 overflow-auto">
                   {filteredRecords.length === 0 ? (
                     <div className="text-center py-12 text-gray-400">
                       <p className="text-sm font-semibold">
@@ -1605,13 +1596,15 @@ function OrderNotReceivedFMS() {
                     ))
                   )}
                 </div>
-              </>
+              </div>
             )}
             {!isLoading && filteredRecords.length > 0 && (
-              <Pagination page={page} pageSize={PAGE_SIZE} totalItems={filteredRecords.length} onPageChange={setPage} />
+              <div className="shrink-0 px-5 py-2.5 bg-gray-50 border-t border-gray-200 text-xs text-gray-500 font-medium">
+                {filteredRecords.length} {filteredRecords.length === 1 ? "record" : "records"}
+              </div>
             )}
           </div>
-        </>
+        </div>
       )}
 
       {/* Modal 1: Order Not Received Form Popup */}

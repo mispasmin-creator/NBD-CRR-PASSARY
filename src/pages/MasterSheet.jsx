@@ -5,10 +5,7 @@ import { AuthContext } from "../App"
 import axios from "axios"
 import { BuildingIcon, SearchIcon, PlusIcon, XIcon } from "../components/Icons"
 import { Download } from "lucide-react"
-import Pagination from "../components/ui/Pagination"
 import { exportToCsv } from "../utils/exportCsv"
-
-const PAGE_SIZE = 10
 
 // Order here must exactly match the Master sheet's header row (row 1) —
 // a new entry is submitted as a plain array in this same order.
@@ -35,7 +32,6 @@ function MasterSheet() {
   const [rows, setRows] = useState([])
   const [isLoading, setIsLoading] = useState(true)
   const [searchTerm, setSearchTerm] = useState("")
-  const [page, setPage] = useState(1)
   const [showNewModal, setShowNewModal] = useState(false)
   const [form, setForm] = useState(emptyForm)
   const [isSubmitting, setIsSubmitting] = useState(false)
@@ -87,11 +83,7 @@ function MasterSheet() {
     return FIELDS.some((f) => row[f.key]?.toLowerCase().includes(term))
   })
 
-  useEffect(() => {
-    setPage(1)
-  }, [searchTerm])
-
-  const paginatedRows = filteredRows.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE)
+  const paginatedRows = filteredRows
 
   const handleExport = () => {
     exportToCsv(
@@ -130,10 +122,10 @@ function MasterSheet() {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-b from-slate-50 to-slate-100">
-      <div className="py-2">
+    <div className="h-full flex flex-col bg-gradient-to-b from-slate-50 to-slate-100">
+      <div className="h-full flex flex-col py-2">
         {/* Controls Bar */}
-        <div className="bg-card rounded-2xl shadow-sm border border-slate-200/70 p-6 mb-6">
+        <div className="shrink-0 bg-card rounded-2xl shadow-sm border border-slate-200/70 p-6 mb-6">
           <div className="flex flex-col md:flex-row gap-4 justify-between">
             <div className="relative flex-1 max-w-md">
               <SearchIcon className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
@@ -166,8 +158,8 @@ function MasterSheet() {
         </div>
 
         {/* Table */}
-        <div className="bg-white rounded-2xl shadow-md border border-slate-200/70 overflow-hidden">
-          <div className="overflow-x-auto">
+        <div className="flex-1 min-h-0 flex flex-col bg-white rounded-2xl shadow-md border border-slate-200/70 overflow-hidden">
+          <div className="flex-1 min-h-0 overflow-auto">
             <table className="w-full">
               <thead className="bg-muted border-b sticky top-0 z-10">
                 <tr>
@@ -208,8 +200,10 @@ function MasterSheet() {
               </tbody>
             </table>
           </div>
-          {!isLoading && filteredRows.length > 0 && (
-            <Pagination page={page} pageSize={PAGE_SIZE} totalItems={filteredRows.length} onPageChange={setPage} />
+          {!isLoading && (
+            <div className="px-5 py-2.5 bg-gray-50 border-t border-gray-200 text-xs text-gray-500 font-medium">
+              {filteredRows.length} {filteredRows.length === 1 ? "entry" : "entries"}
+            </div>
           )}
         </div>
       </div>

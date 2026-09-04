@@ -203,11 +203,11 @@ function computeNbdEnquiryStats(rows) {
 
 // ── Offer (NBD OFFER FMS sheet) — fixed pipeline in real workflow order ─────
 const OFFER_STAGES = [
-  { pIdx: 6, aIdx: 7 },   // Get Rates
-  { pIdx: 10, aIdx: 11 }, // Accounts Check
-  { pIdx: 15, aIdx: 16 }, // Sales Check
-  { pIdx: 20, aIdx: 21 }, // Tech Discussion
-  { pIdx: 25, aIdx: 26 }, // Send Offer Letter
+  { pIdx: 7, aIdx: 8 },   // Get Rates
+  { pIdx: 11, aIdx: 12 }, // Accounts Check
+  { pIdx: 16, aIdx: 17 }, // Sales Check
+  { pIdx: 21, aIdx: 22 }, // Tech Discussion
+  { pIdx: 26, aIdx: 27 }, // Send Offer Letter
 ]
 
 function getOfferStageIndex(row) {
@@ -395,6 +395,55 @@ function computeOrderNotReceivedStats(onrRows, fmsRows, nbdEnquiryRows, crrRows)
   }
 }
 
+// Classify a "Next Call" date against today — same rule Leads.jsx uses for its own due-calls filter.
+function getCallDateCategory(rawVal) {
+  if (!rawVal) return null
+  const d = new Date(rawVal)
+  if (isNaN(d.getTime())) return null
+  const dayOnly = new Date(d.getFullYear(), d.getMonth(), d.getDate())
+  const now = new Date()
+  const today = new Date(now.getFullYear(), now.getMonth(), now.getDate())
+  const diffDays = Math.round((dayOnly - today) / 86400000)
+  if (diffDays < 0) return "overdue"
+  if (diffDays === 0) return "today"
+  if (diffDays === 1) return "tomorrow"
+  if (diffDays <= 7) return "week"
+  return "later"
+}
+
+// ── Sales pulse: today's calls, upcoming leads, and a sales-person leaderboard ──
+// Reads the same FMS (NBD Lead) rows computeLeadsStats() reads, off the raw
+// sheet rows already fetched by the orchestrator — no extra network call.
+function computeSalesInsights(rows) {
+  if (!rows) return { todayCalls: 0, upcomingLeads: 0, leaderboard: [] }
+
+  const dataRows = rows.slice(6).filter((r) => r && r[0])
+  const bySalesPerson = new Map()
+  let todayCalls = 0, upcomingLeads = 0
+
+  dataRows.forEach((row) => {
+    const salesPerson = String(row[4] || "").trim()
+    const trackerEnquiry = String(row[20] || "").trim()
+
+    if (salesPerson) {
+      if (!bySalesPerson.has(salesPerson)) bySalesPerson.set(salesPerson, { name: salesPerson, leads: 0, converted: 0 })
+      const entry = bySalesPerson.get(salesPerson)
+      entry.leads++
+      if (trackerEnquiry === "Yes") entry.converted++
+    }
+
+    const category = getCallDateCategory(row[22])
+    if (category === "today") todayCalls++
+    if (category === "today" || category === "tomorrow" || category === "week") upcomingLeads++
+  })
+
+  const leaderboard = Array.from(bySalesPerson.values())
+    .sort((a, b) => b.converted - a.converted || b.leads - a.leads)
+    .slice(0, 5)
+
+  return { todayCalls, upcomingLeads, leaderboard }
+}
+
 // Bucket a flat list of dates into the last N calendar months (oldest → newest, zero-filled).
 function bucketMonthly(allDates, monthsBack = 6) {
   const now = new Date()
@@ -454,5 +503,21 @@ export async function fetchDashboardOverview() {
   const allDates = modules.flatMap((m) => m.dates)
   const monthlyTrend = bucketMonthly(allDates, 6)
 
-  return { modules, totals, monthlyTrend, fetchedAt: new Date() }
+  const salesInsights = computeSalesInsights(fmsRows)
+  // "completed" on the CRR / NBD Enquiry modules already means "order received" /
+  // "Tracker Status = Yes" respectively — reuse rather than re-deriving.
+  const ordersReceived = (modules[1]?.completed || 0) + (modules[2]?.completed || 0)
+  const enquiriesReceived = (modules[1]?.total || 0) + (modules[2]?.total || 0)
+
+  return {
+    modules,
+    totals,
+    monthlyTrend,
+    fetchedAt: new Date(),
+    todayCalls: salesInsights.todayCalls,
+    upcomingLeads: salesInsights.upcomingLeads,
+    ordersReceived,
+    enquiriesReceived,
+    salesLeaderboard: salesInsights.leaderboard,
+  }
 }

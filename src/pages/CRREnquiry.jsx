@@ -6,11 +6,8 @@
     import axios from "axios"
     import { UsersIcon, TrendingUpIcon, ShareIcon, ShoppingCartIcon, AlertCircleIcon, RefreshCwIcon, HistoryIcon } from "../components/Icons"
     import { X, Send, Image as ImageIcon, ExternalLink, CheckCircle, Paperclip, Download } from "lucide-react"
-    import Pagination from "../components/ui/Pagination"
     import { exportToCsv } from "../utils/exportCsv"
     import { getCurrentTimestamp, reformatIfDate, formatTimestamp } from "../utils/dateTime"
-
-    const PAGE_SIZE = 10
 
     const findColIdx = (headers, names, fallback = -1) => {
         if (!headers || headers.length === 0) return fallback
@@ -43,7 +40,6 @@
         const [isSubmitting, setIsSubmitting] = useState(false)
         const [isTabSubmitting, setIsTabSubmitting] = useState(false)
         const [activeTab, setActiveTab] = useState("All Crm")
-        const [page, setPage] = useState(1)
         const [enquiries, setEnquiries] = useState([])
         const [sheetHeaders, setSheetHeaders] = useState([])
         const [isLoadingData, setIsLoadingData] = useState(false)
@@ -515,12 +511,7 @@
             return matchesSearch
         })
 
-        // Reset to page 1 whenever the active tab or search term changes
-        useEffect(() => {
-            setPage(1)
-        }, [activeTab, searchQuery])
-
-        const paginatedEnquiries = filteredEnquiries.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE)
+        const paginatedEnquiries = filteredEnquiries
 
         const handleExportEnquiries = () => {
             exportToCsv(`crr-enquiries-${activeTab.replace(/\s+/g, "-").toLowerCase()}`, [
@@ -624,9 +615,9 @@
         }
 
         return (
-            <div className="py-2 min-h-screen">
+            <div className="py-2 h-full flex flex-col">
                 {/* Tabs */}
-                <div className="flex flex-wrap gap-2 rounded-2xl bg-white p-1.5 mb-8 w-full justify-center border border-slate-200 shadow-sm">
+                <div className="shrink-0 flex flex-wrap gap-2 rounded-2xl bg-white p-1.5 mb-8 w-full justify-center border border-slate-200 shadow-sm">
                     {TABS.map((tab) => {
                         const count = getTabCount(tab)
                         const isActive = activeTab === tab
@@ -657,7 +648,7 @@
                 </div>
 
                 {/* Controls */}
-                <div className="bg-card rounded-2xl shadow-sm border border-slate-200/70 p-6 mb-6">
+                <div className="shrink-0 bg-card rounded-2xl shadow-sm border border-slate-200/70 p-6 mb-6">
                     <div className="flex flex-col md:flex-row gap-4 justify-between items-start md:items-center">
                         <div className="flex flex-col sm:flex-row gap-4 flex-1 w-full">
                             <input
@@ -856,8 +847,8 @@
                 )}
 
                 {/* Table */}
-                <div className="bg-white rounded-2xl shadow-md border border-slate-200/70 overflow-hidden">
-                    <div className="overflow-x-auto">
+                <div className="flex-1 min-h-0 flex flex-col bg-white rounded-2xl shadow-md border border-slate-200/70 overflow-hidden">
+                    <div className="flex-1 min-h-0 overflow-auto">
                         <table className="w-full border-collapse">
                             <thead className="bg-muted border-b border-border sticky top-0 z-10">
                                 <tr>
@@ -1001,7 +992,9 @@
                         </table>
                     </div>
                     {filteredEnquiries.length > 0 && (
-                        <Pagination page={page} pageSize={PAGE_SIZE} totalItems={filteredEnquiries.length} onPageChange={setPage} />
+                        <div className="px-5 py-2.5 bg-gray-50 border-t border-gray-200 text-xs text-gray-500 font-medium">
+                            {filteredEnquiries.length} {filteredEnquiries.length === 1 ? "record" : "records"}
+                        </div>
                     )}
                 </div>
 

@@ -5,11 +5,8 @@ import { useNavigate } from "react-router-dom"
 import { PlusIcon, XIcon, PhoneCallIcon } from "../components/Icons"
 import axios from "axios"
 import { Download } from "lucide-react"
-import Pagination from "../components/ui/Pagination"
 import { exportToCsv } from "../utils/exportCsv"
 import { getCurrentTimestamp, formatTimestamp, reformatIfDate } from "../utils/dateTime"
-
-const PAGE_SIZE = 10
 
 // LocalStorage key for leads
 const LEADS_STORAGE_KEY = "nbd_outgoing_leads"
@@ -98,7 +95,6 @@ function Leads() {
   const [notification, setNotification] = useState(null)
   const [isLoading, setIsLoading] = useState(true)
   const [activeTab, setActiveTab] = useState("updateStatus")
-  const [page, setPage] = useState(1)
   const [callDateFilter, setCallDateFilter] = useState("all") // "all" | "overdue" | "today" | "tomorrow" | "week"
 
   const [masterFirmOptions, setMasterFirmOptions] = useState([])
@@ -496,12 +492,7 @@ function Leads() {
     )
   })
 
-  // Reset to page 1 whenever the active tab, search, or call-date filter changes
-  useEffect(() => {
-    setPage(1)
-  }, [activeTab, searchTerm, callDateFilter])
-
-  const paginatedLeads = filteredLeads.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE)
+  const paginatedLeads = filteredLeads
 
   const handleExportLeads = () => {
     exportToCsv(`nbd-leads-${activeTab}`, [
@@ -780,7 +771,7 @@ function Leads() {
   }
 
   return (
-    <div className="py-2">
+    <div className="py-2 h-full flex flex-col">
       {/* update status modal */}
       {isUpdateModalOpen && (
         <div className="fixed inset-0 z-50 overflow-y-auto backdrop-blur-sm bg-black/40">
@@ -1090,7 +1081,7 @@ function Leads() {
       }
       
       {/* Tabs */}
-      <div className="flex flex-wrap gap-2 rounded-2xl bg-white p-1.5 mb-8 w-full justify-center border border-slate-200 shadow-sm">
+      <div className="shrink-0 flex flex-wrap gap-2 rounded-2xl bg-white p-1.5 mb-8 w-full justify-center border border-slate-200 shadow-sm">
         <button
           onClick={() => { setActiveTab("updateStatus"); setCallDateFilter("all") }}
           className={`flex min-w-0 flex-col items-center justify-center gap-1 rounded-lg px-1 py-2 text-center text-xs font-medium leading-4 transition-all duration-200 [&>svg]:hidden sm:flex-row sm:gap-2 sm:px-4 sm:text-left sm:text-sm sm:leading-5 sm:whitespace-nowrap sm:[&>svg]:block ${activeTab === "updateStatus"
@@ -1127,7 +1118,7 @@ function Leads() {
       </div>
 
       {/* Controls */}
-      <div className="bg-card rounded-2xl shadow-sm border border-slate-200/70 p-6 mb-6">
+      <div className="shrink-0 bg-card rounded-2xl shadow-sm border border-slate-200/70 p-6 mb-6">
         <div className="flex flex-col md:flex-row gap-4 justify-between items-start md:items-center">
           <div className="flex flex-col sm:flex-row gap-4 flex-1">
             <input
@@ -1160,10 +1151,10 @@ function Leads() {
 
       {/* ===================== TAB 2: UPDATE STATUS ===================== */}
       {activeTab === "updateStatus" && (
-        <>
+        <div className="flex-1 min-h-0 flex flex-col">
           {/* Desktop Table */}
-          <div className="hidden md:block bg-card rounded-2xl shadow-md border border-slate-200/70 overflow-hidden">
-            <div className="overflow-x-auto">
+          <div className="hidden md:flex md:flex-1 md:min-h-0 md:flex-col bg-card rounded-2xl shadow-md border border-slate-200/70 overflow-hidden">
+            <div className="flex-1 min-h-0 overflow-auto">
               {isLoading ? (
                 <div className="flex items-center justify-center h-full py-16">
                   <div className="text-center">
@@ -1229,12 +1220,14 @@ function Leads() {
               )}
             </div>
             {filteredLeads.length > 0 && (
-              <Pagination page={page} pageSize={PAGE_SIZE} totalItems={filteredLeads.length} onPageChange={setPage} />
+              <div className="shrink-0 px-5 py-2.5 bg-gray-50 border-t border-gray-200 text-xs text-gray-500 font-medium">
+                {filteredLeads.length} {filteredLeads.length === 1 ? "record" : "records"}
+              </div>
             )}
           </div>
 
           {/* Mobile Card View - Update Status */}
-          <div className="md:hidden space-y-3">
+          <div className="md:hidden flex-1 min-h-0 space-y-3 overflow-auto">
             {paginatedLeads.map((lead, index) => (
               <div key={lead.leadNumber || index} className="bg-card rounded-xl shadow-md border border-gray-100 p-4">
                 <div className="flex justify-between items-start mb-2">
@@ -1252,12 +1245,12 @@ function Leads() {
               </div>
             ))}
           </div>
-        </>
+        </div>
       )}
 
       {/* ===================== TAB 3: CALL TRACKING ===================== */}
       {activeTab === "callTracking" && (
-        <>
+        <div className="flex-1 min-h-0 flex flex-col">
           {/* Who do I need to call — Today / Tomorrow / This Week */}
           {(() => {
             const eligible = leads.filter(l => {
@@ -1286,7 +1279,7 @@ function Leads() {
             }
 
             return (
-              <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-5">
+              <div className="shrink-0 grid grid-cols-2 sm:grid-cols-4 gap-3 mb-5">
                 {cards.map(c => {
                   const isActive = callDateFilter === c.key
                   const cls = colorClasses[c.color]
@@ -1308,15 +1301,15 @@ function Leads() {
             )
           })()}
           {callDateFilter !== "all" && (
-            <div className="mb-4 flex items-center gap-2 text-sm text-gray-600">
+            <div className="shrink-0 mb-4 flex items-center gap-2 text-sm text-gray-600">
               Showing only leads to call for: <span className="font-semibold text-gray-800">{callDateFilter === "week" ? "This Week (incl. today & overdue)" : callDateFilter.charAt(0).toUpperCase() + callDateFilter.slice(1)}</span>
               <button onClick={() => setCallDateFilter("all")} className="text-sky-600 hover:text-sky-800 font-medium underline">Clear</button>
             </div>
           )}
 
           {/* Desktop Table */}
-          <div className="hidden md:block bg-card rounded-2xl shadow-md border border-slate-200/70 overflow-hidden">
-            <div className="overflow-x-auto">
+          <div className="hidden md:flex md:flex-1 md:min-h-0 md:flex-col bg-card rounded-2xl shadow-md border border-slate-200/70 overflow-hidden">
+            <div className="flex-1 min-h-0 overflow-auto">
               {isLoading ? (
                 <div className="flex items-center justify-center h-full py-16">
                   <div className="text-center">
@@ -1433,12 +1426,14 @@ function Leads() {
               )}
             </div>
             {filteredLeads.length > 0 && (
-              <Pagination page={page} pageSize={PAGE_SIZE} totalItems={filteredLeads.length} onPageChange={setPage} />
+              <div className="shrink-0 px-5 py-2.5 bg-gray-50 border-t border-gray-200 text-xs text-gray-500 font-medium">
+                {filteredLeads.length} {filteredLeads.length === 1 ? "record" : "records"}
+              </div>
             )}
           </div>
 
           {/* Mobile Card View - Call Tracking */}
-          <div className="md:hidden space-y-3">
+          <div className="md:hidden flex-1 min-h-0 space-y-3 overflow-auto">
             {paginatedLeads.map((lead, index) => (
               <div key={lead.leadNumber || index} className="bg-card rounded-xl shadow-md border border-gray-100 p-4">
                 <div className="flex justify-between items-start mb-2">
@@ -1469,16 +1464,16 @@ function Leads() {
               </div>
             ))}
           </div>
-        </>
+        </div>
       )}
 
       {/* ===================== TAB 4: ENQUIRY RECEIVED ===================== */}
       {/* ===================== TAB: HISTORY (merged Enquiry Received + Enquiry Not Received) ===================== */}
       {activeTab === "history" && (
-        <>
+        <div className="flex-1 min-h-0 flex flex-col">
           {/* Desktop Table */}
-          <div className="hidden md:block bg-card rounded-2xl shadow-md border border-slate-200/70 overflow-hidden">
-            <div className="overflow-x-auto">
+          <div className="hidden md:flex md:flex-1 md:min-h-0 md:flex-col bg-card rounded-2xl shadow-md border border-slate-200/70 overflow-hidden">
+            <div className="flex-1 min-h-0 overflow-auto">
               {isLoading ? (
                 <div className="flex items-center justify-center h-full py-16">
                   <div className="text-center">
@@ -1575,12 +1570,14 @@ function Leads() {
               )}
             </div>
             {filteredLeads.length > 0 && (
-              <Pagination page={page} pageSize={PAGE_SIZE} totalItems={filteredLeads.length} onPageChange={setPage} />
+              <div className="shrink-0 px-5 py-2.5 bg-gray-50 border-t border-gray-200 text-xs text-gray-500 font-medium">
+                {filteredLeads.length} {filteredLeads.length === 1 ? "record" : "records"}
+              </div>
             )}
           </div>
 
           {/* Mobile Card View - History */}
-          <div className="md:hidden space-y-3">
+          <div className="md:hidden flex-1 min-h-0 space-y-3 overflow-auto">
             {paginatedLeads.map((lead, index) => {
               const isReceived = String(lead.trackerEnquiry || "").trim() === "Yes"
               return (
@@ -1613,7 +1610,7 @@ function Leads() {
               )
             })}
           </div>
-        </>
+        </div>
       )}
 
       {/* New Lead Modal */}

@@ -15,11 +15,8 @@ import {
 import { AuthContext } from "../App"
 import axios from "axios"
 import { Download } from "lucide-react"
-import Pagination from "../components/ui/Pagination"
 import { exportToCsv } from "../utils/exportCsv"
 import { getCurrentTimestamp } from "../utils/dateTime"
-
-const PAGE_SIZE = 10
 
 const TABS = [
     { id: "All Enquiries", label: "All" },
@@ -34,59 +31,60 @@ const TABS = [
 const TAB_CONFIG = {
     "Get Rates & Attached Offer Letter": {
         filterNotEmpty: 6, // Planned 1
-        filterEmpty: 7,    // Actual1
-        timestampCol: 7,
+        filterEmpty: 8,    // Actual1
+        timestampCol: 8,
         inputColumns: [
             { key: 'offerNumber', label: 'Offer Number', headerName: 'Offer Number', storeCol: 5, type: 'text' },
-            { key: 'offerLetter', label: 'Upload Offer Letter', headerName: 'Offer Letter', storeCol: 9, type: 'file' }
+            { key: 'mgmtRate', label: 'Mgmt Rate', headerName: 'Mgmt Rate', storeCol: 6, type: 'text' },
+            { key: 'offerLetter', label: 'Upload Offer Letter', headerName: 'Offer Letter', storeCol: 10, type: 'file' }
         ],
         icon: <TrendingUpIcon className="h-4 w-4" />,
         colorClass: "bg-teal-50 text-teal-700 shadow-sm ring-1 ring-teal-200",
         badgeClass: "bg-teal-100 text-teal-700"
     },
     "Check The Offer Letter In Accounts": {
-        filterNotEmpty: 10, // Planned 3
-        filterEmpty: 11,    // Actual3
-        timestampCol: 11,
+        filterNotEmpty: 11, // Planned 3
+        filterEmpty: 12,    // Actual3
+        timestampCol: 12,
         inputColumns: [
-            { key: 'status', label: 'Status', storeCol: 13, type: 'select', options: ['Yes', 'No'] },
-            { key: 'remarks', label: 'Remarks', headerName: 'Remarks', storeCol: 14 }
+            { key: 'status', label: 'Status', headerName: 'Status', storeCol: 14, type: 'select', options: ['Yes', 'No'] },
+            { key: 'remarks', label: 'Remarks', headerName: 'Remarks', storeCol: 15 }
         ],
         icon: <AlertCircleIcon className="h-4 w-4" />,
         colorClass: "bg-amber-50 text-amber-700 shadow-sm ring-1 ring-amber-200",
         badgeClass: "bg-amber-100 text-amber-700"
     },
     "Check The Offer Letter In Sales Person": {
-        filterNotEmpty: 15, // Planned 4
-        filterEmpty: 16,    // Actual4
-        timestampCol: 16,
+        filterNotEmpty: 16, // Planned 4
+        filterEmpty: 17,    // Actual4
+        timestampCol: 17,
         inputColumns: [
-            { key: 'status2', label: 'Status', storeCol: 18, type: 'select', options: ['Yes', 'No'] },
-            { key: 'remarks2', label: 'Remarks', headerName: 'Remarks2', storeCol: 19 }
+            { key: 'status2', label: 'Status', headerName: 'Status2', storeCol: 19, type: 'select', options: ['Yes', 'No'] },
+            { key: 'remarks2', label: 'Remarks', headerName: 'Remarks2', storeCol: 20 }
         ],
         icon: <PhoneCallIcon className="h-4 w-4" />,
         colorClass: "bg-indigo-50 text-indigo-700 shadow-sm ring-1 ring-indigo-200",
         badgeClass: "bg-indigo-100 text-indigo-700"
     },
     "Technical Discussion When Accounts and Sales Approved Offer Letter": {
-        filterNotEmpty: 20, // Planned 5
-        filterEmpty: 21,    // Actual5
-        timestampCol: 21,
+        filterNotEmpty: 21, // Planned 5
+        filterEmpty: 22,    // Actual5
+        timestampCol: 22,
         inputColumns: [
-            { key: 'offerLetter', label: 'Upload Offer Letter', headerName: 'Offer Letter', storeCol: 9, type: 'file' },
-            { key: 'remarks3', label: 'Remarks', headerName: 'Remarks3', storeCol: 24 }
+            { key: 'offerLetter', label: 'Upload Offer Letter', headerName: 'Offer Letter', storeCol: 10, type: 'file' },
+            { key: 'remarks3', label: 'Remarks', headerName: 'Remarks3', storeCol: 25 }
         ],
         icon: <MessageSquareIcon className="h-4 w-4" />,
         colorClass: "bg-violet-50 text-violet-700 shadow-sm ring-1 ring-violet-200",
         badgeClass: "bg-violet-100 text-violet-700"
     },
     "Send Offer Letter": {
-        filterNotEmpty: 25, // Planned 2
-        filterEmpty: 26,    // Actual2
-        timestampCol: 26,
+        filterNotEmpty: 26, // Planned 2
+        filterEmpty: 27,    // Actual2
+        timestampCol: 27,
         inputColumns: [
-            { key: 'finalOfferLetter', label: 'Final Upload Offer Letter', headerName: 'Final Upload Offer Letter', storeCol: 28, type: 'file' },
-            { key: 'dataSheetAttachment', label: 'Data Sheet Attachment', headerName: 'Data Sheet Attachment', storeCol: 29, type: 'file' }
+            { key: 'finalOfferLetter', label: 'Final Upload Offer Letter', headerName: 'Final Upload Offer Letter', storeCol: 29, type: 'file' },
+            { key: 'dataSheetAttachment', label: 'Data Sheet Attachment', headerName: 'Data Sheet Attachment', storeCol: 30, type: 'file' }
         ],
         icon: <ShareIcon className="h-4 w-4" />,
         colorClass: "bg-primary/20 text-primary shadow-sm ring-1 ring-emerald-200",
@@ -124,8 +122,8 @@ const getPreviewImageUrl = (url) => {
 
 const getOfferLetterUrl = (row) => {
     if (!row) return ""
-    if (row.rawRow && row.rawRow[9]) {
-        const val = String(row.rawRow[9]).trim()
+    if (row.rawRow && row.rawRow[10]) {
+        const val = String(row.rawRow[10]).trim()
         if (val) return val
     }
     const keys = ["Upload Offer Letter", "Offer Letter", "Offer Image", "OfferLetter", "offerLetter"]
@@ -142,7 +140,6 @@ function Offer() {
     const [offerRows, setOfferRows] = useState([])
     const [offerHeaderRow, setOfferHeaderRow] = useState([])
     const [activeTab, setActiveTab] = useState("All Enquiries")
-    const [page, setPage] = useState(1)
 
     // Modal state
     const [isStageModalOpen, setIsStageModalOpen] = useState(false)
@@ -254,25 +251,25 @@ function Offer() {
 
     const isStageActive = (row, tabId) => {
         if (tabId === "Check The Offer Letter In Sales Person") {
-            const actual3 = row.rawRow?.[11] // Accounts Check Actual3
-            const planned4 = row.rawRow?.[15] // Sales Check Planned4
-            const actual4 = row.rawRow?.[16] // Sales Check Actual4
+            const actual3 = row.rawRow?.[12] // Accounts Check Actual3
+            const planned4 = row.rawRow?.[16] // Sales Check Planned4
+            const actual4 = row.rawRow?.[17] // Sales Check Actual4
             const isAccountsDone = (actual3 && String(actual3).trim() !== "") || (planned4 && String(planned4).trim() !== "")
             const isSalesPending = !actual4 || String(actual4).trim() === ""
             return isAccountsDone && isSalesPending
         }
         if (tabId === "Technical Discussion When Accounts and Sales Approved Offer Letter") {
-            const actual4 = row.rawRow?.[16] // Sales Check Actual4
-            const planned5 = row.rawRow?.[20] // Tech Discussion Planned5
-            const actual5 = row.rawRow?.[21] // Tech Discussion Actual5
+            const actual4 = row.rawRow?.[17] // Sales Check Actual4
+            const planned5 = row.rawRow?.[21] // Tech Discussion Planned5
+            const actual5 = row.rawRow?.[22] // Tech Discussion Actual5
             const isSalesDone = (actual4 && String(actual4).trim() !== "") || (planned5 && String(planned5).trim() !== "")
             const isTechPending = !actual5 || String(actual5).trim() === ""
             return isSalesDone && isTechPending
         }
         if (tabId === "Send Offer Letter") {
-            const actual5 = row.rawRow?.[21] // Tech Discussion Actual5
-            const planned2 = row.rawRow?.[25] // Send Offer Planned2
-            const actual2 = row.rawRow?.[26] // Send Offer Actual2
+            const actual5 = row.rawRow?.[22] // Tech Discussion Actual5
+            const planned2 = row.rawRow?.[26] // Send Offer Planned2
+            const actual2 = row.rawRow?.[27] // Send Offer Actual2
             const isTechDone = (actual5 && String(actual5).trim() !== "") || (planned2 && String(planned2).trim() !== "")
             const isSendPending = !actual2 || String(actual2).trim() === ""
             return isTechDone && isSendPending
@@ -313,12 +310,7 @@ function Offer() {
         return isStageActive(row, activeTab)
     })
 
-    // Reset to page 1 whenever the active tab or search term changes
-    useEffect(() => {
-        setPage(1)
-    }, [activeTab, searchTerm])
-
-    const paginatedRows = filteredRows.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE)
+    const paginatedRows = filteredRows
 
     const handleExport = () => {
         exportToCsv(`offers-${activeTab.replace(/\s+/g, "-").toLowerCase()}`, [
@@ -419,9 +411,9 @@ function Offer() {
     }
 
     return (
-        <div className="py-2 min-h-screen">
+        <div className="py-2 h-full flex flex-col">
             {/* Tabs */}
-            <div className="flex flex-wrap gap-2 rounded-2xl bg-white p-1.5 mb-8 w-full justify-center border border-slate-200 shadow-sm">
+            <div className="shrink-0 flex flex-wrap gap-2 rounded-2xl bg-white p-1.5 mb-8 w-full justify-center border border-slate-200 shadow-sm">
                 {TABS.map((tab) => {
                     const count = getTabCount(tab.id)
                     const isActive = activeTab === tab.id
@@ -457,7 +449,7 @@ function Offer() {
             </div>
 
             {/* Controls */}
-            <div className="bg-card rounded-2xl shadow-sm border border-slate-200/70 p-6 mb-6">
+            <div className="shrink-0 bg-card rounded-2xl shadow-sm border border-slate-200/70 p-6 mb-6">
                 <div className="flex flex-col md:flex-row gap-4 justify-between items-start md:items-center">
                     <div className="flex flex-col sm:flex-row gap-4 flex-1">
                         <input
@@ -490,8 +482,8 @@ function Offer() {
             </div>
 
             {/* Table */}
-            <div className="bg-white rounded-2xl shadow-md border border-slate-200/70 overflow-hidden">
-                <div className="overflow-x-auto">
+            <div className="flex-1 min-h-0 flex flex-col bg-white rounded-2xl shadow-md border border-slate-200/70 overflow-hidden">
+                <div className="flex-1 min-h-0 overflow-auto">
                     <table className="w-full text-left border-collapse">
                         <thead className="sticky top-0 z-10">
                             <tr className="bg-muted/80 border-b border-border">
@@ -678,7 +670,7 @@ function Offer() {
 
                                                 // Handle Accounts Status
                                                 if (col === "Accounts Status") {
-                                                    const accStatus = row.rawRow?.[13] ? String(row.rawRow[13]).trim() : ""
+                                                    const accStatus = row.rawRow?.[14] ? String(row.rawRow[14]).trim() : ""
                                                     if (accStatus === "Yes") {
                                                         displayContent = (
                                                             <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-bold bg-emerald-100 text-emerald-800">
@@ -702,7 +694,7 @@ function Offer() {
 
                                                 // Handle Accounts Remarks
                                                 if (col === "Accounts Remarks") {
-                                                    const accRemarks = row.rawRow?.[14] ? String(row.rawRow[14]).trim() : ""
+                                                    const accRemarks = row.rawRow?.[15] ? String(row.rawRow[15]).trim() : ""
                                                     displayContent = accRemarks ? (
                                                         <span className="text-xs font-medium text-slate-700 max-w-[200px] truncate block" title={accRemarks}>
                                                             {accRemarks}
@@ -712,7 +704,7 @@ function Offer() {
 
                                                 // Handle Sales Status
                                                 if (col === "Sales Status") {
-                                                    const salesStatus = row.rawRow?.[18] ? String(row.rawRow[18]).trim() : ""
+                                                    const salesStatus = row.rawRow?.[19] ? String(row.rawRow[19]).trim() : ""
                                                     if (salesStatus === "Yes") {
                                                         displayContent = (
                                                             <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-bold bg-emerald-100 text-emerald-800">
@@ -736,7 +728,7 @@ function Offer() {
 
                                                 // Handle Sales Remarks
                                                 if (col === "Sales Remarks") {
-                                                    const salesRemarks = row.rawRow?.[19] ? String(row.rawRow[19]).trim() : ""
+                                                    const salesRemarks = row.rawRow?.[20] ? String(row.rawRow[20]).trim() : ""
                                                     displayContent = salesRemarks ? (
                                                         <span className="text-xs font-medium text-slate-700 max-w-[200px] truncate block" title={salesRemarks}>
                                                             {salesRemarks}
@@ -759,7 +751,9 @@ function Offer() {
                 </div>
 
                 {!isLoading && (
-                    <Pagination page={page} pageSize={PAGE_SIZE} totalItems={filteredRows.length} onPageChange={setPage} />
+                    <div className="px-5 py-2.5 bg-gray-50 border-t border-gray-200 text-xs text-gray-500 font-medium">
+                        {filteredRows.length} {filteredRows.length === 1 ? "record" : "records"}
+                    </div>
                 )}
             </div>
 
@@ -842,8 +836,8 @@ function Offer() {
 
                                     {/* Accounts Status & Remarks for Sales Check / subsequent stages */}
                                     {(() => {
-                                        const accStatus = modalLead.rawRow?.[13] ? String(modalLead.rawRow[13]).trim() : ""
-                                        const accRemarks = modalLead.rawRow?.[14] ? String(modalLead.rawRow[14]).trim() : ""
+                                        const accStatus = modalLead.rawRow?.[14] ? String(modalLead.rawRow[14]).trim() : ""
+                                        const accRemarks = modalLead.rawRow?.[15] ? String(modalLead.rawRow[15]).trim() : ""
                                         if (!accStatus && !accRemarks) return null
 
                                         return (
@@ -869,8 +863,8 @@ function Offer() {
 
                                     {/* Sales Status & Remarks for Technical Discussion / subsequent stages */}
                                     {(() => {
-                                        const salesStatus = modalLead.rawRow?.[18] ? String(modalLead.rawRow[18]).trim() : ""
-                                        const salesRemarks = modalLead.rawRow?.[19] ? String(modalLead.rawRow[19]).trim() : ""
+                                        const salesStatus = modalLead.rawRow?.[19] ? String(modalLead.rawRow[19]).trim() : ""
+                                        const salesRemarks = modalLead.rawRow?.[20] ? String(modalLead.rawRow[20]).trim() : ""
                                         if (!salesStatus && !salesRemarks) return null
 
                                         return (
@@ -898,8 +892,8 @@ function Offer() {
 
                                 <form onSubmit={handleModalSubmit} className="space-y-4">
                                     {(() => {
-                                        const isAccYes = String(modalLead?.rawRow?.[13] || '').trim().toLowerCase() === 'yes'
-                                        const isSalesYes = String(modalLead?.rawRow?.[18] || '').trim().toLowerCase() === 'yes'
+                                        const isAccYes = String(modalLead?.rawRow?.[14] || '').trim().toLowerCase() === 'yes'
+                                        const isSalesYes = String(modalLead?.rawRow?.[19] || '').trim().toLowerCase() === 'yes'
                                         const isBothApproved = isAccYes && isSalesYes
                                         const isTechDiscussion = modalActiveTab === "Technical Discussion When Accounts and Sales Approved Offer Letter"
 

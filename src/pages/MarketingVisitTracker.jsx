@@ -5,13 +5,11 @@ import { useLocation, useNavigate } from "react-router-dom";
 import { AuthContext } from "../context/AuthContext";
 import axios from "axios";
 import { X, ClipboardList, Send, Plus, Search, FileText, PhoneCall, History, CheckCircle, XCircle, Image as ImageIcon, AlertTriangle, Download } from "lucide-react";
-import Pagination from "../components/ui/Pagination";
 import ConfirmDialog from "../components/ui/ConfirmDialog";
 import { exportToCsv } from "../utils/exportCsv";
 import { getCurrentTimestamp, formatDateOnly } from "../utils/dateTime";
 
 const STORAGE_KEY = "nbd_marketing_visit_tracker_data";
-const PAGE_SIZE = 10;
 
 const TABS = ["Assign Marketing", "History"];
 
@@ -128,7 +126,6 @@ export default function MarketingVisitTracker() {
   const [visits, setVisits] = useState([]);
   const [activeTab, setActiveTab] = useState("Assign Marketing");
   const [searchQuery, setSearchQuery] = useState("");
-  const [page, setPage] = useState(1);
   const [firmFilter, setFirmFilter] = useState("all");
   const [sheetHeaders, setSheetHeaders] = useState([]);
   // Client plant/party names come strictly from the live Master sheet — populated by fetchMasterFirms below
@@ -856,12 +853,7 @@ export default function MarketingVisitTracker() {
     });
   }, [visits, activeTab, searchQuery, firmFilter]);
 
-  // Reset to page 1 whenever the active tab, search, or firm filter changes
-  useEffect(() => {
-    setPage(1);
-  }, [activeTab, searchQuery, firmFilter]);
-
-  const paginatedVisits = filteredVisits.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE);
+  const paginatedVisits = filteredVisits;
 
   const handleExportVisits = () => {
     exportToCsv(`marketing-visits-${activeTab.replace(/\s+/g, "-").toLowerCase()}`, [
@@ -955,18 +947,18 @@ export default function MarketingVisitTracker() {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-b from-slate-50 to-slate-100">
-      <div className="py-2">
-        
+    <div className="h-full flex flex-col bg-gradient-to-b from-slate-50 to-slate-100">
+      <div className="h-full flex flex-col py-2">
+
         {/* Error banner */}
         {errorMsg && (
-          <div className="bg-red-50 text-red-700 p-4 rounded-lg mb-6 border border-red-200">
+          <div className="shrink-0 bg-red-50 text-red-700 p-4 rounded-lg mb-6 border border-red-200">
             {errorMsg}
           </div>
         )}
 
         {/* Tabs Bar */}
-        <div className="flex flex-wrap gap-2 rounded-2xl bg-white p-1.5 mb-8 w-full justify-center border border-slate-200 shadow-sm">
+        <div className="shrink-0 flex flex-wrap gap-2 rounded-2xl bg-white p-1.5 mb-8 w-full justify-center border border-slate-200 shadow-sm">
           {TABS.map((tab) => {
             const count = getTabCount(tab);
             const isActive = activeTab === tab;
@@ -1005,7 +997,7 @@ export default function MarketingVisitTracker() {
         </div>
 
         {/* Controls Bar */}
-        <div className="bg-card rounded-2xl shadow-sm border border-slate-200/70 p-6 mb-6">
+        <div className="shrink-0 bg-card rounded-2xl shadow-sm border border-slate-200/70 p-6 mb-6">
           <div className="flex flex-col md:flex-row gap-4 justify-between">
             <div className="flex flex-col sm:flex-row gap-4 flex-1">
               <div className="relative flex-1">
@@ -1052,8 +1044,8 @@ export default function MarketingVisitTracker() {
         </div>
 
         {/* Visits Table */}
-        <div className="bg-white rounded-2xl shadow-md border border-slate-200/70 overflow-hidden">
-          <div className="overflow-x-auto">
+        <div className="flex-1 min-h-0 flex flex-col bg-white rounded-2xl shadow-md border border-slate-200/70 overflow-hidden">
+          <div className="flex-1 min-h-0 overflow-auto">
             <table className="w-full">
               <thead className="bg-muted border-b sticky top-0 z-10">
                 <tr>
@@ -1250,7 +1242,9 @@ export default function MarketingVisitTracker() {
             )}
           </div>
           {filteredVisits.length > 0 && (
-            <Pagination page={page} pageSize={PAGE_SIZE} totalItems={filteredVisits.length} onPageChange={setPage} />
+            <div className="px-5 py-2.5 bg-gray-50 border-t border-gray-200 text-xs text-gray-500 font-medium">
+              {filteredVisits.length} {filteredVisits.length === 1 ? "record" : "records"}
+            </div>
           )}
         </div>
 

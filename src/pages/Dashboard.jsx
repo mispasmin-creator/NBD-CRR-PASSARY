@@ -5,6 +5,8 @@ import { motion, useReducedMotion } from "framer-motion";
 import { RefreshCwIcon } from "../components/Icons";
 import { fetchDashboardOverview } from "../services/dashboardStats";
 import HeroStats from "../components/dashboard/HeroStats";
+import SalesPulse from "../components/dashboard/SalesPulse";
+import TopPerformers from "../components/dashboard/TopPerformers";
 import ModuleStatCard from "../components/dashboard/ModuleStatCard";
 import StatusDonut from "../components/dashboard/StatusDonut";
 import MonthlyTrendChart from "../components/dashboard/MonthlyTrendChart";
@@ -51,6 +53,11 @@ function Dashboard() {
   const [modules, setModules] = useState([]);
   const [totals, setTotals] = useState(EMPTY_TOTALS);
   const [monthlyTrend, setMonthlyTrend] = useState([]);
+  const [todayCalls, setTodayCalls] = useState(0);
+  const [upcomingLeads, setUpcomingLeads] = useState(0);
+  const [ordersReceived, setOrdersReceived] = useState(0);
+  const [enquiriesReceived, setEnquiriesReceived] = useState(0);
+  const [salesLeaderboard, setSalesLeaderboard] = useState([]);
   const [fetchedAt, setFetchedAt] = useState(null);
   const [isLoading, setIsLoading] = useState(true);
   const [isRefreshing, setIsRefreshing] = useState(false);
@@ -76,6 +83,11 @@ function Dashboard() {
       setModules(overview?.modules ?? []);
       setTotals(overview?.totals ?? EMPTY_TOTALS);
       setMonthlyTrend(overview?.monthlyTrend ?? []);
+      setTodayCalls(overview?.todayCalls ?? 0);
+      setUpcomingLeads(overview?.upcomingLeads ?? 0);
+      setOrdersReceived(overview?.ordersReceived ?? 0);
+      setEnquiriesReceived(overview?.enquiriesReceived ?? 0);
+      setSalesLeaderboard(overview?.salesLeaderboard ?? []);
       setFetchedAt(overview?.fetchedAt ?? new Date());
       setError(null);
     } catch (err) {
@@ -168,6 +180,22 @@ function Dashboard() {
           <HeroStats totals={totals} isLoading={isLoading} />
         </motion.section>
 
+        {/* Sales pulse: today's calls, upcoming leads, orders & enquiries received */}
+        <motion.section variants={itemVariants}>
+          <div className="mb-3">
+            <h2 className="text-[13px] font-bold uppercase tracking-widest text-slate-500">
+              Sales Pulse
+            </h2>
+          </div>
+          <SalesPulse
+            todayCalls={todayCalls}
+            upcomingLeads={upcomingLeads}
+            ordersReceived={ordersReceived}
+            enquiriesReceived={enquiriesReceived}
+            isLoading={isLoading}
+          />
+        </motion.section>
+
         {/* Module status grid */}
         <motion.section variants={itemVariants}>
           <div className="mb-3 flex items-center justify-between">
@@ -216,6 +244,11 @@ function Dashboard() {
         <motion.section variants={itemVariants} className="grid grid-cols-1 gap-4 lg:grid-cols-2">
           <StatusBreakdownChart modules={modules} isLoading={isLoading} />
           <AttentionPanel modules={modules} isLoading={isLoading} />
+        </motion.section>
+
+        {/* Top sales performers */}
+        <motion.section variants={itemVariants}>
+          <TopPerformers leaderboard={salesLeaderboard} isLoading={isLoading} />
         </motion.section>
       </motion.div>
     </div>

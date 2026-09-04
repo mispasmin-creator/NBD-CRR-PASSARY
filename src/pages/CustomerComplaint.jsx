@@ -5,12 +5,10 @@ import { AuthContext } from "../App";
 import { MessageSquareIcon } from "../components/Icons";
 import axios from "axios";
 import { Download } from "lucide-react";
-import Pagination from "../components/ui/Pagination";
 import { exportToCsv } from "../utils/exportCsv";
 import { getCurrentTimestamp, formatDateOnly, formatTimestamp } from "../utils/dateTime";
 
 const STORAGE_KEY = "nbd_customer_complaints_tracker_data";
-const PAGE_SIZE = 10;
 
 export const COMPLAINT_STEPS = [
   "Call Tracker",
@@ -82,7 +80,6 @@ export default function CustomerComplaint() {
   const [complaints, setComplaints] = useState([]);
   const [activeTab, setActiveTab] = useState("All Complaints");
   const [searchQuery, setSearchQuery] = useState("");
-  const [page, setPage] = useState(1);
   const [firmFilter, setFirmFilter] = useState("all");
   const [sheetHeaders, setSheetHeaders] = useState(DEFAULT_HEADERS);
 
@@ -514,12 +511,7 @@ export default function CustomerComplaint() {
     });
   }, [complaints, activeTab, searchQuery, firmFilter]);
 
-  // Reset to page 1 whenever the active tab, search, or firm filter changes
-  useEffect(() => {
-    setPage(1);
-  }, [activeTab, searchQuery, firmFilter]);
-
-  const paginatedComplaints = filteredComplaints.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE);
+  const paginatedComplaints = filteredComplaints;
 
   const handleExportComplaints = () => {
     exportToCsv(`complaints-${activeTab.replace(/\s+/g, "-").toLowerCase()}`, [
@@ -960,12 +952,11 @@ export default function CustomerComplaint() {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-b from-slate-50 to-slate-100">
-      <div className="py-2">
-
+    <div className="h-full flex flex-col bg-gradient-to-b from-slate-50 to-slate-100">
+      <div className="h-full flex flex-col py-2">
 
         {/* Tabs Bar */}
-        <div className="flex flex-wrap gap-2 rounded-2xl bg-white p-1.5 mb-8 w-full justify-center border border-slate-200 shadow-sm">
+        <div className="shrink-0 flex flex-wrap gap-2 rounded-2xl bg-white p-1.5 mb-8 w-full justify-center border border-slate-200 shadow-sm">
           {TABS.map((tab) => {
             const count = getTabCount(tab);
             const isActive = activeTab === tab;
@@ -999,7 +990,7 @@ export default function CustomerComplaint() {
         </div>
 
         {/* Controls Bar */}
-        <div className="bg-card rounded-2xl shadow-sm border border-slate-200/70 p-6 mb-6">
+        <div className="shrink-0 bg-card rounded-2xl shadow-sm border border-slate-200/70 p-6 mb-6">
           <div className="flex flex-col md:flex-row gap-4 justify-between">
             <div className="flex flex-col sm:flex-row gap-4 flex-1">
               <input
@@ -1042,8 +1033,8 @@ export default function CustomerComplaint() {
         </div>
 
         {/* Complaints Table: Action first on workflow pages, proper columns */}
-        <div className="bg-white rounded-2xl shadow-md border border-slate-200/70 overflow-hidden">
-          <div className="overflow-x-auto">
+        <div className="flex-1 min-h-0 flex flex-col bg-white rounded-2xl shadow-md border border-slate-200/70 overflow-hidden">
+          <div className="flex-1 min-h-0 overflow-auto">
             <table className="w-full">
               <thead className="bg-muted border-b sticky top-0 z-10">
                 <tr>
@@ -1230,7 +1221,9 @@ export default function CustomerComplaint() {
             )}
           </div>
           {filteredComplaints.length > 0 && (
-            <Pagination page={page} pageSize={PAGE_SIZE} totalItems={filteredComplaints.length} onPageChange={setPage} />
+            <div className="px-5 py-2.5 bg-gray-50 border-t border-gray-200 text-xs text-gray-500 font-medium">
+              {filteredComplaints.length} {filteredComplaints.length === 1 ? "record" : "records"}
+            </div>
           )}
         </div>
 

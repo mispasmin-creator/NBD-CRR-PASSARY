@@ -86,6 +86,7 @@ function AnimatedRoutes() {
     <AnimatePresence mode="wait">
       <MotionDiv
         key={location.pathname}
+        className="h-full flex flex-col"
         initial={{ opacity: 0, y: 8 }}
         animate={{ opacity: 1, y: 0 }}
         exit={{ opacity: 0, y: -8 }}

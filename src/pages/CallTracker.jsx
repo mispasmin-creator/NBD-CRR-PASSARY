@@ -7,11 +7,8 @@ import { AuthContext } from "../App"
 import CallTrackerForm from "./Call-Tracker-Form"
 import axios from "axios"
 import { Download } from "lucide-react"
-import Pagination from "../components/ui/Pagination"
 import { exportToCsv } from "../utils/exportCsv"
 import { getCurrentTimestamp, reformatIfDate } from "../utils/dateTime"
-
-const PAGE_SIZE = 10
 
 // All columns to display in "View" modal
 const ALL_COLUMNS = [
@@ -101,7 +98,6 @@ function CallTracker() {
   const [searchTerm, setSearchTerm] = useState("")
   const [isLoading, setIsLoading] = useState(true)
   const [presetLeadNo, setPresetLeadNo] = useState(null)
-  const [page, setPage] = useState(1)
 
   // Enquiry data
   const [enquiryRows, setEnquiryRows] = useState([])
@@ -357,12 +353,7 @@ function CallTracker() {
     return Object.values(row).some(v => v && v.toString().toLowerCase().includes(term))
   })
 
-  // Reset to page 1 whenever the active tab or search term changes
-  useEffect(() => {
-    setPage(1)
-  }, [activeTab, searchTerm])
-
-  const paginatedRows = filteredRows.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE)
+  const paginatedRows = filteredRows
 
   const handleExportRows = () => {
     exportToCsv(`nbd-enquiry-${activeTab}`, [
@@ -1062,10 +1053,10 @@ function CallTracker() {
 
 
   return (
-    <div className="py-2">
+    <div className="py-2 h-full flex flex-col">
 
       {/* Tabs */}
-      <div className="flex flex-wrap gap-2 rounded-2xl bg-white p-1.5 mb-8 w-full justify-center border border-slate-200 shadow-sm">
+      <div className="shrink-0 flex flex-wrap gap-2 rounded-2xl bg-white p-1.5 mb-8 w-full justify-center border border-slate-200 shadow-sm">
         <button
           onClick={() => setActiveTab("all")}
           className={`flex items-center gap-2 rounded-lg px-4 py-2 text-sm font-medium leading-5 transition-all duration-200 whitespace-nowrap ${activeTab === "all"
@@ -1129,7 +1120,7 @@ function CallTracker() {
       </div>
 
       {/* Controls */}
-      <div className="bg-card rounded-2xl shadow-sm border border-slate-200/70 p-6 mb-6">
+      <div className="shrink-0 bg-card rounded-2xl shadow-sm border border-slate-200/70 p-6 mb-6">
         <div className="flex flex-col md:flex-row gap-4 justify-between items-start md:items-center">
           <div className="flex flex-col sm:flex-row gap-4 flex-1">
             <input
@@ -1581,9 +1572,9 @@ function CallTracker() {
       )}
 
       {/* ── Main Table ── */}
-      <div className="bg-card rounded-2xl shadow-md border border-slate-200/70 overflow-hidden">
+      <div className="flex-1 min-h-0 flex flex-col bg-card rounded-2xl shadow-md border border-slate-200/70 overflow-hidden">
         {/* Table Header Bar */}
-        <div className="px-6 py-4 border-b border-slate-100 flex items-center justify-between bg-muted/60">
+        <div className="shrink-0 px-6 py-4 border-b border-slate-100 flex items-center justify-between bg-muted/60">
           <div>
             <h2 className="text-[15px] font-bold text-foreground">
               {activeTab === "all" ? "All Enquiry"
@@ -1605,8 +1596,8 @@ function CallTracker() {
             <p className="text-[13px] font-medium">Loading from NBD ENQUIRY FMS...</p>
           </div>
         ) : (
-          <>
-            <div className="overflow-x-auto">
+          <div className="flex-1 min-h-0 flex flex-col">
+            <div className="flex-1 min-h-0 overflow-auto">
               <table className="min-w-full border-collapse">
                 <thead className="sticky top-0 z-10">
                   <tr className="bg-muted border-b border-border">
@@ -1799,10 +1790,12 @@ function CallTracker() {
               </tbody>
             </table>
             </div>
-          </>
+          </div>
         )}
         {!isLoading && filteredRows.length > 0 && (
-          <Pagination page={page} pageSize={PAGE_SIZE} totalItems={filteredRows.length} onPageChange={setPage} />
+          <div className="shrink-0 px-5 py-2.5 bg-gray-50 border-t border-gray-200 text-xs text-gray-500 font-medium">
+            {filteredRows.length} {filteredRows.length === 1 ? "record" : "records"}
+          </div>
         )}
       </div>
 

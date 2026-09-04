@@ -17,9 +17,11 @@ import {
   XCircleIcon,
   BuildingIcon,
 } from "./Icons";
+import { fetchDashboardOverview } from "../services/dashboardStats";
 
 const SIDEBAR_COLLAPSED_KEY = "sidebar_collapsed";
-const MotionSpan = motion.span;
+// Pending counts refresh — matches Dashboard's own auto-refresh cadence
+const COUNTS_REFRESH_MS = 5 * 60 * 1000;
 
 function Sidebar({ mobileMenuOpen, setMobileMenuOpen }) {
   const location = useLocation();
@@ -48,6 +50,41 @@ function Sidebar({ mobileMenuOpen, setMobileMenuOpen }) {
   // Mobile drawer always shows full sidebar
   const showLabels = !isCollapsed || mobileMenuOpen;
 
+  // Per-module pending counts — same live stats Dashboard shows, indexed to
+  // match fetchDashboardOverview()'s fixed module order (Leads, CRR, NBD
+  // Enquiry, Offer, Complaint, Marketing, Order Not Received).
+  const [moduleCounts, setModuleCounts] = useState([]);
+
+  useEffect(() => {
+    let isMounted = true;
+    const loadCounts = async () => {
+      try {
+        const overview = await fetchDashboardOverview();
+        // "pending" alone under-counts — several modules (Order Not Received, CRR
+        // Enquiry, Customer Complaint) bucket most of their active work as
+        // "inProgress" or "delayed" instead. Anything not yet completed still
+        // needs attention, so badge on total minus completed.
+        if (isMounted) {
+          setModuleCounts((overview?.modules ?? []).map((m) => Math.max(0, (m.total ?? 0) - (m.completed ?? 0))));
+        }
+      } catch {
+        /* silent — badges just stay hidden until next successful refresh */
+      }
+    };
+    // Delay the first fetch so it doesn't compete with the current page's own
+    // (much more urgent) data load for the same slow Apps Script backend —
+    // badges popping in a couple seconds late is fine; a slower page isn't.
+    const initialTimer = setTimeout(loadCounts, 2500);
+    const id = setInterval(() => {
+      if (document.visibilityState === "visible") loadCounts();
+    }, COUNTS_REFRESH_MS);
+    return () => {
+      isMounted = false;
+      clearTimeout(initialTimer);
+      clearInterval(id);
+    };
+  }, []);
+
   // Close drawer on route change
   useEffect(() => {
     setMobileMenuOpen(false);
@@ -69,24 +106,27 @@ function Sidebar({ mobileMenuOpen, setMobileMenuOpen }) {
   const mainRoutes = useMemo(
     () => [
       { to: "/", label: "Dashboard", icon: <HomeIcon className="h-5 w-5" /> },
-      { to: "/leads", label: "NBD Lead", icon: <UsersIcon className="h-5 w-5" /> },
-      { to: "/crr-enquiry", label: "CRR Enquiry", icon: <RetentionIcon className="h-5 w-5" /> },
-      { to: "/call-tracker", label: "NBD Enquiry", icon: <BarChartIcon className="h-5 w-5" /> },
-      { to: "/offer", label: "Offer", icon: <FileTextIcon className="h-5 w-5" /> },
+      { to: "/leads", label: "NBD Lead", icon: <UsersIcon className="h-5 w-5" />, moduleIndex: 0 },
+      { to: "/crr-enquiry", label: "CRR Enquiry", icon: <RetentionIcon className="h-5 w-5" />, moduleIndex: 1 },
+      { to: "/call-tracker", label: "NBD Enquiry", icon: <BarChartIcon className="h-5 w-5" />, moduleIndex: 2 },
+      { to: "/offer", label: "Offer", icon: <FileTextIcon className="h-5 w-5" />, moduleIndex: 3 },
       {
         to: "/customer-complaint",
         label: "Customer Complaint",
         icon: <MessageSquareIcon className="h-5 w-5" />,
+        moduleIndex: 4,
       },
       {
         to: "/marketing-visit-tracker",
         label: "Marketing Visit",
         icon: <MapPinIcon className="h-5 w-5" />,
+        moduleIndex: 5,
       },
       {
         to: "/order-not-received-fms",
         label: "Order Not Received",
         icon: <XCircleIcon className="h-5 w-5" />,
+        moduleIndex: 6,
       },
     ],
     []
@@ -134,7 +174,7 @@ function Sidebar({ mobileMenuOpen, setMobileMenuOpen }) {
           type="button"
           onClick={toggleCollapsed}
           aria-label={isCollapsed ? "Expand sidebar" : "Collapse sidebar"}
-          className="absolute -right-3 top-9 hidden h-6 w-6 items-center justify-center rounded-full border border-slate-200 bg-white text-slate-500 shadow-sm transition-colors hover:bg-slate-50 hover:text-slate-900 md:flex"
+          className="absolute -right-3 top-9 hidden h-6 w-6 items-center justify-center rounded-full border border-slate-200 bg-white text-slate-500 shadow-sm transition-all hover:scale-110 hover:border-indigo-200 hover:text-indigo-600 hover:shadow-md md:flex"
         >
           <svg
             viewBox="0 0 24 24"
@@ -165,10 +205,8 @@ function Sidebar({ mobileMenuOpen, setMobileMenuOpen }) {
                 transition={{ duration: 0.18 }}
                 className="min-w-0"
               >
-                <p className="truncate text-base font-semibold leading-tight text-slate-900">
+                <p className="truncate text-base font-bold leading-tight text-slate-900">
                   Passary Refractories
-                </p>
-                <p className="mt-0.5 truncate text-xs font-medium uppercase tracking-wider text-slate-400">
                 </p>
               </motion.div>
             )}
@@ -189,10 +227,14 @@ function Sidebar({ mobileMenuOpen, setMobileMenuOpen }) {
 
         {/* Navigation */}
         <nav className="flex-1 overflow-y-auto overflow-x-hidden px-3 py-4">
-          <ul className="space-y-0.5">
+          <ul className="space-y-1">
             {mainRoutes.map((route) => (
               <li key={route.to}>
-                <SidebarLink route={route} showLabel={showLabels} />
+                <SidebarLink
+                  route={route}
+                  showLabel={showLabels}
+                  pendingCount={route.moduleIndex != null ? moduleCounts[route.moduleIndex] : undefined}
+                />
               </li>
             ))}
           </ul>
@@ -200,7 +242,7 @@ function Sidebar({ mobileMenuOpen, setMobileMenuOpen }) {
           {showAdminSection && (
             <>
               <div className="my-4 border-t border-slate-100" />
-              <ul className="space-y-0.5">
+              <ul className="space-y-1">
                 {adminRoutes.map((route) => (
                   <li key={route.to}>
                     <SidebarLink route={route} showLabel={showLabels} />
@@ -234,39 +276,48 @@ function Sidebar({ mobileMenuOpen, setMobileMenuOpen }) {
 }
 
 /** A single sidebar nav link */
-function SidebarLink({ route, showLabel = true }) {
+function SidebarLink({ route, showLabel = true, pendingCount }) {
+  const hasCount = Number.isFinite(pendingCount) && pendingCount > 0;
+
   return (
     <NavLink
       to={route.to}
       end={route.to === "/"}
-      title={showLabel ? undefined : route.label}
+      title={showLabel ? undefined : hasCount ? `${route.label} (${pendingCount} pending)` : route.label}
       className={({ isActive }) =>
-        `group relative flex items-center gap-4 rounded-xl px-4 py-3 text-[15px] font-medium outline-none transition-colors duration-200 focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2 ${
+        `group relative flex items-center gap-4 rounded-xl px-4 py-3 text-[15px] font-medium outline-none transition-all duration-200 focus-visible:ring-2 focus-visible:ring-indigo-500 focus-visible:ring-offset-2 ${
           showLabel ? "" : "md:justify-center md:px-0"
         } ${
           isActive
-            ? "bg-blue-50 text-blue-700"
-            : "text-slate-600 hover:bg-slate-50 hover:text-slate-900"
+            ? "bg-indigo-600 text-white shadow-sm shadow-indigo-200"
+            : "text-slate-600 hover:bg-slate-100/80 hover:text-slate-900 hover:translate-x-0.5"
         }`
       }
     >
       {({ isActive }) => (
         <>
-          {isActive && (
-            <MotionSpan
-              layoutId="sidebar-active-indicator"
-              className="absolute left-0 top-1/2 h-7 w-1 -translate-y-1/2 rounded-r-full bg-blue-600"
-              transition={{ type: "spring", stiffness: 400, damping: 32 }}
-            />
-          )}
           <span
-            className={`shrink-0 transition-colors ${
-              isActive ? "text-blue-600" : "text-slate-400 group-hover:text-slate-600"
+            className={`relative shrink-0 transition-colors ${
+              isActive ? "text-white" : "text-slate-400 group-hover:text-slate-600"
             }`}
           >
             {route.icon}
+            {hasCount && !showLabel && (
+              <span className="absolute -right-1.5 -top-1.5 flex h-4 min-w-4 items-center justify-center rounded-full bg-amber-500 px-1 text-[9px] font-bold leading-none text-white ring-2 ring-white">
+                {pendingCount > 99 ? "99+" : pendingCount}
+              </span>
+            )}
           </span>
           {showLabel && <span className="truncate">{route.label}</span>}
+          {hasCount && showLabel && (
+            <span
+              className={`ml-auto shrink-0 rounded-full px-2 py-0.5 text-[11px] font-bold leading-none ${
+                isActive ? "bg-white/20 text-white" : "bg-amber-50 text-amber-700 ring-1 ring-amber-200"
+              }`}
+            >
+              {pendingCount > 99 ? "99+" : pendingCount}
+            </span>
+          )}
         </>
       )}
     </NavLink>
@@ -279,11 +330,11 @@ function UserCard({ user, userType, showLabel = true }) {
 
   return (
     <div
-      className={`flex items-center gap-3 rounded-xl bg-slate-50 px-3 py-3 ${
+      className={`flex items-center gap-3 rounded-xl border border-slate-100 bg-slate-50 px-3 py-3 ${
         showLabel ? "" : "md:justify-center md:px-0"
       }`}
     >
-      <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-slate-900 text-sm font-semibold text-white">
+      <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-indigo-500 to-indigo-700 text-sm font-bold text-white shadow-sm shadow-indigo-200">
         {initial}
       </div>
       {showLabel && (
