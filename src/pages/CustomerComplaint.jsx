@@ -5,6 +5,8 @@ import { AuthContext } from "../App";
 import { MessageSquareIcon } from "../components/Icons";
 import axios from "axios";
 import { Download } from "lucide-react";
+import PageHeader from "../components/ui/PageHeader";
+import StepTracker from "../components/ui/StepTracker";
 import { exportToCsv } from "../utils/exportCsv";
 import { getCurrentTimestamp, formatDateOnly, formatTimestamp } from "../utils/dateTime";
 
@@ -953,7 +955,14 @@ export default function CustomerComplaint() {
 
   return (
     <div className="h-full flex flex-col bg-gradient-to-b from-slate-50 to-slate-100">
-      <div className="h-full flex flex-col py-2">
+      <div className="h-full flex flex-col py-2 space-y-4">
+
+        <PageHeader
+          icon={<MessageSquareIcon className="h-4.5 w-4.5" />}
+          iconColorClass="bg-primary"
+          title="Customer Complaint"
+          subtitle={`${complaints.length} total complaint${complaints.length === 1 ? "" : "s"}`}
+        />
 
         {/* Tabs Bar */}
         <div className="shrink-0 flex flex-wrap gap-2 rounded-2xl bg-white p-1.5 mb-8 w-full justify-center border border-slate-200 shadow-sm">
@@ -1039,7 +1048,7 @@ export default function CustomerComplaint() {
               <thead className="bg-muted border-b sticky top-0 z-10">
                 <tr>
                   {activeTab !== "History" && (
-                    <th className="px-4 py-3 text-left text-xs font-semibold text-muted-foreground uppercase whitespace-nowrap">
+                    <th className="sticky left-0 z-20 bg-muted px-4 py-3 text-left text-xs font-semibold text-muted-foreground uppercase whitespace-nowrap shadow-xs">
                       Action
                     </th>
                   )}
@@ -1098,14 +1107,14 @@ export default function CustomerComplaint() {
               </thead>
               <tbody className="divide-y">
                 {paginatedComplaints.map((c) => (
-                  <tr key={c.id} className="hover:bg-muted">
+                  <tr key={c.id} className="group hover:bg-muted">
                     {activeTab !== "History" && (
-                      <td className="px-4 py-3 whitespace-nowrap">
+                      <td className="sticky left-0 z-10 bg-white group-hover:bg-muted px-4 py-3 whitespace-nowrap shadow-xs">
                         <div className="flex items-center gap-2">
                           {c.currentStep !== "History" && c.currentStep !== "Resolved" && (
                             <button
                               onClick={() => openProcessModal(c)}
-                              className="bg-sky-600 hover:bg-sky-700 text-white px-3 py-1.5 rounded text-xs font-medium shadow-sm transition"
+                              className="bg-primary hover:brightness-110 text-primary-foreground px-3 py-1.5 rounded-lg text-xs font-semibold shadow-sm transition"
                             >
                               Action
                             </button>
@@ -1125,7 +1134,7 @@ export default function CustomerComplaint() {
                       </td>
                     )}
                     <td className="px-4 py-3 whitespace-nowrap">
-                      <span className="inline-flex items-center px-2.5 py-1 rounded-md bg-sky-100 text-sky-700 text-sm font-semibold">
+                      <span className="inline-flex items-center px-2.5 py-1 rounded-md bg-sky-100 text-sky-700 text-sm font-mono font-bold">
                         {c.id}
                       </span>
                     </td>
@@ -1367,7 +1376,7 @@ export default function CustomerComplaint() {
         {/* ── Popup: Action / Process Workflow Step ───────────────────────────── */}
         {showProcessModal && selectedComplaint && (
           <div
-            className="fixed inset-0 bg-black/40 backdrop-blur-sm flex items-center justify-center z-50 p-4"
+            className="fixed inset-0 bg-slate-900/45 backdrop-blur-sm flex items-center justify-center z-50 p-4"
             onClick={() => setShowProcessModal(false)}
           >
             <div
@@ -1375,15 +1384,18 @@ export default function CustomerComplaint() {
               onClick={(e) => e.stopPropagation()}
             >
               <h2 className="text-xl font-extrabold text-slate-800 mb-1 pb-3 border-b border-slate-100 flex items-center gap-2">
-                <svg className="w-5 h-5 text-sky-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M13 10V3L4 14h7v7l9-11h-7z"></path></svg>
+                <svg className="w-5 h-5 text-primary" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M13 10V3L4 14h7v7l9-11h-7z"></path></svg>
                 Take Action — {selectedComplaint.currentStep}
               </h2>
-              <p className="text-xs text-muted-foreground my-3">
+              <p className="text-xs text-muted-foreground mt-1 mb-3">
                 <span className="font-semibold text-muted-foreground">Complaint No:</span>{" "}
-                {selectedComplaint.id} |{" "}
+                <span className="font-mono font-bold text-primary">{selectedComplaint.id}</span> |{" "}
                 <span className="font-semibold text-muted-foreground">Customer:</span>{" "}
                 {selectedComplaint.customerName}
               </p>
+              <div className="mb-4 pb-4 border-b border-slate-100">
+                <StepTracker steps={COMPLAINT_STEPS} currentStep={selectedComplaint.currentStep} />
+              </div>
 
               <form onSubmit={handleProcessSubmit} className="space-y-4 text-sm">
                 {selectedComplaint.currentStep === "Call Tracker" && (

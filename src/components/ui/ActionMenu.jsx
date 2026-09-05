@@ -27,20 +27,20 @@ function ActionMenu({ items }) {
       <button
         type="button"
         onClick={() => setOpen((prev) => !prev)}
-        className="flex h-8 w-8 items-center justify-center rounded-lg text-gray-400 transition-colors hover:bg-gray-100 hover:text-gray-600 cursor-pointer"
+        className="flex h-8 w-8 items-center justify-center rounded-lg text-slate-400 transition-colors hover:bg-slate-100 hover:text-slate-600 cursor-pointer"
         title="More actions"
       >
         <MoreVertical className="h-4 w-4" />
       </button>
       {open && (
-        <div className="absolute right-0 z-30 mt-1 w-44 overflow-hidden rounded-xl border border-gray-200 bg-white py-1 shadow-lg">
+        <div className="absolute right-0 z-30 mt-1 w-44 overflow-hidden rounded-xl border border-slate-200 bg-white py-1 shadow-lg animate-scale-in">
           {visibleItems.map((item, idx) => (
             <button
               key={idx}
               type="button"
               onClick={() => { setOpen(false); item.onClick() }}
               className={`flex w-full items-center gap-2.5 px-3.5 py-2 text-left text-sm font-medium transition-colors cursor-pointer ${
-                item.danger ? "text-rose-600 hover:bg-rose-50" : "text-gray-700 hover:bg-gray-50"
+                item.danger ? "text-rose-600 hover:bg-rose-50" : "text-slate-700 hover:bg-slate-50"
               }`}
             >
               {item.icon}
@@ -54,3 +54,4 @@ function ActionMenu({ items }) {
 }
 
 export default ActionMenu
+

@@ -68,10 +68,10 @@
     --color-popover: #FFFFFF;
     --color-popover-foreground: #0F172A;
 
-    --color-primary: #4F46E5;
+    --color-primary: #4338CA; /* indigo-700 — primary brand/action */
     --color-primary-foreground: #FFFFFF;
 
-    --color-secondary: #06B6D4;
+    --color-secondary: #0d9488; /* teal-600 — secondary workflow actions */
     --color-secondary-foreground: #FFFFFF;
 
     --color-muted: #F1F5F9;
@@ -85,7 +85,7 @@
 
     --color-border: #E2E8F0;
     --color-input: #E2E8F0;
-    --color-ring: #6366F1;
+    --color-ring: #4338CA; /* indigo-700 focus ring */
 }
 
 :root {
@@ -119,13 +119,7 @@ body {
     font-feature-settings: 'cv11', 'ss01';
 }
 
-@media (prefers-color-scheme: dark) {
-    html,
-    body {
-        color: var(--color-text-dark);
-        background-color: var(--color-bg-dark);
-    }
-}
+/* ── Light theme only — no dark mode override ── */
 
 /* ── Thin elegant scrollbars ── */
 * {
@@ -149,6 +143,16 @@ body {
 
 *::-webkit-scrollbar-thumb:hover {
     background: #cbd5e1;
+}
+
+/* ── Subtle shadow scale (shadow-2xs / shadow-xs) ──
+   Tailwind v4 ships these but they must be explicitly
+   referenced so purge doesn't strip them.             */
+.shadow-2xs {
+    box-shadow: 0 1px 2px 0 rgba(0,0,0,.04);
+}
+.shadow-xs {
+    box-shadow: 0 1px 3px 0 rgba(0,0,0,.06), 0 1px 2px -1px rgba(0,0,0,.04);
 }
 
 /* ── Smooth transitions on interactive elements ── */
@@ -256,44 +260,51 @@ textarea {
     font-family: inherit;
 }
 
-/* ── Data-dense SaaS table defaults ── */
-table {
-    border-collapse: collapse !important;
-    width: 100% !important;
-    background-color: #ffffff !important;
-}
+/* ── Data-dense SaaS table defaults ──
+   Scoped to @layer base (not !important, not unlayered) so any page's own
+   Tailwind utility classes on table/th/tr/td — sticky backgrounds, per-tab
+   theme colors, text alignment, font sizing — win as intended. Unlayered
+   !important rules here would silently beat every such utility class app-wide
+   (the same failure mode as the earlier global `* { font-size: inherit }` bug). */
+@layer base {
+    table {
+        border-collapse: collapse;
+        width: 100%;
+        background-color: #ffffff;
+    }
 
-thead th {
-    background-color: #f1f5f9 !important; /* slate-100 */
-    color: #334155 !important; /* slate-700 */
-    font-size: 11px !important;
-    font-weight: 600 !important;
-    text-transform: uppercase !important;
-    letter-spacing: 0.05em !important;
-    border-bottom: 1px solid #cbd5e1 !important; /* slate-300 */
-    padding: 12px 16px !important;
-    text-align: left !important;
-}
+    thead th {
+        background-color: #f8fafc; /* slate-50 */
+        color: #475569; /* slate-600 */
+        font-size: 11.5px;
+        font-weight: 600;
+        letter-spacing: 0.01em; /* subtle, not tracked-out */
+        border-bottom: 2px solid #e2e8f0; /* slate-200 */
+        padding: 10px 16px;
+        text-align: left;
+    }
 
-tbody tr {
-    border-bottom: 1px solid #f1f5f9 !important;
-    background-color: #ffffff !important;
-    transition: background-color 0.1s ease-in-out !important;
-}
+    tbody tr {
+        border-bottom: 1px solid #f1f5f9;
+        background-color: #ffffff;
+        transition: background-color 0.1s ease-in-out;
+    }
 
-tbody tr:nth-child(even) {
-    background-color: #ffffff !important;
-}
+    tbody tr:nth-child(even) {
+        background-color: #ffffff;
+    }
 
-tbody tr:hover {
-    background-color: rgba(248, 250, 252, 0.8) !important; /* slate-50/80 */
-}
+    tbody tr:hover {
+        background-color: rgba(248, 250, 252, 0.8); /* slate-50/80 */
+    }
 
-tbody td {
-    padding: 12px 16px !important;
-    color: #475569 !important; /* slate-600 */
-    font-size: 12px !important;
-    text-align: left !important;
+    tbody td {
+        padding: 11px 16px;
+        color: #475569; /* slate-600 */
+        font-size: 12.5px;
+        text-align: left;
+        vertical-align: middle;
+    }
 }
 
 /* ── Neat Input Form Control Overrides ── */
@@ -313,7 +324,37 @@ select,
 input[type="text"]:focus,
 input[type="search"]:focus,
 select:focus {
-    border-color: var(--color-ring) !important;
+    border-color: #4338ca !important; /* indigo-700 */
     outline: none !important;
-    box-shadow: 0 0 0 2px rgba(99, 102, 241, 0.15) !important;
+    box-shadow: 0 0 0 3px rgba(67, 56, 202, 0.12) !important;
 }
+
+/* ── Design system utility: btn-primary ── */
+.btn-primary {
+    background-color: #4338ca;
+    color: #ffffff;
+    border-radius: 8px;
+    padding: 8px 14px;
+    font-size: 13px;
+    font-weight: 600;
+    border: none;
+    cursor: pointer;
+    transition: background-color 0.15s ease, box-shadow 0.15s ease;
+}
+.btn-primary:hover { background-color: #3730a3; }
+.btn-primary:focus-visible { outline: 2px solid #4338ca; outline-offset: 2px; }
+
+/* ── Design system utility: btn-secondary ── */
+.btn-secondary {
+    background-color: #ffffff;
+    color: #334155;
+    border-radius: 8px;
+    padding: 8px 14px;
+    font-size: 13px;
+    font-weight: 600;
+    border: 1px solid #e2e8f0;
+    cursor: pointer;
+    transition: background-color 0.15s ease, border-color 0.15s ease;
+}
+.btn-secondary:hover { background-color: #f8fafc; border-color: #cbd5e1; }
+.btn-secondary:focus-visible { outline: 2px solid #4338ca; outline-offset: 2px; }

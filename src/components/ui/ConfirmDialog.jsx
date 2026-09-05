@@ -41,44 +41,46 @@ function ConfirmDialog({
       confirmBtn: "bg-emerald-600 hover:bg-emerald-700 focus:ring-emerald-500/30",
     },
     default: {
-      iconBg: "bg-sky-50 text-sky-600",
+      iconBg: "bg-indigo-50 text-indigo-600",
       Icon: AlertTriangle,
-      confirmBtn: "bg-sky-600 hover:bg-sky-700 focus:ring-sky-500/30",
+      confirmBtn: "bg-indigo-600 hover:bg-indigo-700 focus:ring-indigo-500/30",
     },
   }
   const { iconBg, Icon, confirmBtn } = toneStyles[tone] || toneStyles.default
 
   return (
     <div
-      className="fixed inset-0 z-[60] flex items-center justify-center bg-black/50 p-4"
+      className="fixed inset-0 z-[60] flex items-center justify-center bg-slate-900/45 p-4 backdrop-blur-[2px]"
       onClick={() => !isLoading && onCancel && onCancel()}
     >
       <div
-        className="w-full max-w-sm rounded-2xl bg-white shadow-2xl animate-in fade-in zoom-in-95 duration-150"
+        className="w-full max-w-sm rounded-2xl bg-white border border-slate-200 shadow-2xl animate-in fade-in zoom-in-95 duration-150"
         onClick={(e) => e.stopPropagation()}
       >
-        <div className="flex items-start gap-4 p-6">
+        {/* Header */}
+        <div className="flex items-start gap-4 p-6 border-b border-slate-100">
           <div className={`flex h-11 w-11 shrink-0 items-center justify-center rounded-full ${iconBg}`}>
             <Icon className="h-5 w-5" />
           </div>
           <div className="min-w-0 flex-1 pt-0.5">
-            <h3 className="text-base font-bold text-gray-900">{title}</h3>
-            {message && <p className="mt-1 text-sm text-gray-500">{message}</p>}
+            <h3 className="text-base font-bold text-slate-900">{title}</h3>
+            {message && <p className="mt-1 text-sm text-slate-500">{message}</p>}
           </div>
           <button
             type="button"
             onClick={() => !isLoading && onCancel && onCancel()}
-            className="shrink-0 rounded-lg p-1 text-gray-400 transition-colors hover:bg-gray-100 hover:text-gray-600 cursor-pointer"
+            className="shrink-0 rounded-lg p-1 text-slate-400 transition-colors hover:bg-slate-100 hover:text-slate-600 cursor-pointer"
           >
             <X className="h-4 w-4" />
           </button>
         </div>
-        <div className="flex justify-end gap-3 rounded-b-2xl bg-gray-50 px-6 py-4">
+        {/* Footer */}
+        <div className="flex justify-end gap-3 rounded-b-2xl bg-slate-50 px-6 py-4 border-t border-slate-100">
           <button
             type="button"
             onClick={onCancel}
             disabled={isLoading}
-            className="rounded-lg border border-gray-200 bg-white px-4 py-2 text-sm font-semibold text-gray-600 transition-colors hover:bg-gray-50 disabled:opacity-50 cursor-pointer"
+            className="rounded-lg border border-slate-200 bg-white px-4 py-2 text-sm font-semibold text-slate-600 transition-colors hover:bg-slate-50 disabled:opacity-50 cursor-pointer"
           >
             {cancelLabel}
           </button>
@@ -98,3 +100,4 @@ function ConfirmDialog({
 }
 
 export default ConfirmDialog
+

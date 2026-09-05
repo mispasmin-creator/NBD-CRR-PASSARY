@@ -385,7 +385,7 @@ function App() {
     <AuthContext.Provider value={authContextValue}>
       <DataContext.Provider value={dataContextValue}>
         <Router>
-          <div className="flex h-screen bg-slate-100 text-slate-900 overflow-hidden">
+          <div className="flex h-screen bg-slate-50 text-slate-900 overflow-hidden">
             {isAuthenticated && (
               <Sidebar
                 mobileMenuOpen={mobileMenuOpen}
@@ -411,8 +411,11 @@ function App() {
                 {isAuthenticated && <RouteTracker />}
                 <Suspense
                   fallback={
-                    <div className="flex h-full w-full items-center justify-center p-10 text-slate-400">
-                      Loading...
+                    <div className="flex h-full w-full items-center justify-center p-10">
+                      <div className="flex flex-col items-center gap-3">
+                        <div className="h-8 w-8 rounded-full border-[3px] border-indigo-600 border-t-transparent animate-spin" />
+                        <p className="text-xs font-semibold text-slate-400">Loading…</p>
+                      </div>
                     </div>
                   }
                 >

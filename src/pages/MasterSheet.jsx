@@ -6,6 +6,7 @@ import axios from "axios"
 import { BuildingIcon, SearchIcon, PlusIcon, XIcon } from "../components/Icons"
 import { Download } from "lucide-react"
 import { exportToCsv } from "../utils/exportCsv"
+import PageHeader from "../components/ui/PageHeader"
 
 // Order here must exactly match the Master sheet's header row (row 1) —
 // a new entry is submitted as a plain array in this same order.
@@ -123,7 +124,13 @@ function MasterSheet() {
 
   return (
     <div className="h-full flex flex-col bg-gradient-to-b from-slate-50 to-slate-100">
-      <div className="h-full flex flex-col py-2">
+      <div className="h-full flex flex-col py-2 space-y-4">
+        <PageHeader
+          icon={<BuildingIcon className="h-4.5 w-4.5" />}
+          iconColorClass="bg-primary"
+          title="Master Sheet"
+          subtitle={`${filteredRows.length} total ${filteredRows.length === 1 ? "entry" : "entries"}`}
+        />
         {/* Controls Bar */}
         <div className="shrink-0 bg-card rounded-2xl shadow-sm border border-slate-200/70 p-6 mb-6">
           <div className="flex flex-col md:flex-row gap-4 justify-between">
@@ -163,10 +170,12 @@ function MasterSheet() {
             <table className="w-full">
               <thead className="bg-muted border-b sticky top-0 z-10">
                 <tr>
-                  {FIELDS.map((f) => (
+                  {FIELDS.map((f, i) => (
                     <th
                       key={f.key}
-                      className="px-4 py-3 text-left text-xs font-semibold text-muted-foreground uppercase whitespace-nowrap"
+                      className={`px-4 py-3 text-left text-xs font-semibold text-muted-foreground uppercase whitespace-nowrap ${
+                        i === 0 ? "sticky left-0 z-20 bg-muted shadow-xs" : ""
+                      }`}
                     >
                       {f.label}
                     </th>
@@ -188,9 +197,16 @@ function MasterSheet() {
                   </tr>
                 ) : (
                   paginatedRows.map((row) => (
-                    <tr key={row._rowIndex} className="hover:bg-slate-50 transition-colors">
-                      {FIELDS.map((f) => (
-                        <td key={f.key} className="px-4 py-3 text-sm text-slate-700 whitespace-nowrap">
+                    <tr key={row._rowIndex} className="group hover:bg-slate-50 transition-colors">
+                      {FIELDS.map((f, i) => (
+                        <td
+                          key={f.key}
+                          className={`px-4 py-3 text-sm whitespace-nowrap ${
+                            i === 0
+                              ? "sticky left-0 z-10 bg-white group-hover:bg-slate-50 shadow-xs font-mono font-bold text-primary"
+                              : "text-slate-700"
+                          }`}
+                        >
                           {row[f.key] || "-"}
                         </td>
                       ))}
@@ -211,7 +227,7 @@ function MasterSheet() {
       {/* New Entry Modal */}
       {showNewModal && (
         <div
-          className="fixed inset-0 bg-black/40 backdrop-blur-sm flex items-center justify-center z-50 p-4"
+          className="fixed inset-0 bg-slate-900/45 backdrop-blur-sm flex items-center justify-center z-50 p-4"
           onClick={() => !isSubmitting && setShowNewModal(false)}
         >
           <div

@@ -2,11 +2,12 @@
 
 import { useState, useEffect, useContext } from "react"
 import { useLocation, useNavigate } from "react-router-dom"
-import { PlusIcon, SearchIcon, XIcon, RefreshCwIcon } from "../components/Icons"
+import { PlusIcon, SearchIcon, XIcon, RefreshCwIcon, BarChartIcon } from "../components/Icons"
 import { AuthContext } from "../App"
 import CallTrackerForm from "./Call-Tracker-Form"
 import axios from "axios"
 import { Download } from "lucide-react"
+import PageHeader from "../components/ui/PageHeader"
 import { exportToCsv } from "../utils/exportCsv"
 import { getCurrentTimestamp, reformatIfDate } from "../utils/dateTime"
 
@@ -1069,7 +1070,14 @@ function CallTracker() {
 
 
   return (
-    <div className="py-2 h-full flex flex-col">
+    <div className="py-2 h-full flex flex-col space-y-4">
+
+      <PageHeader
+        icon={<BarChartIcon className="h-4.5 w-4.5" />}
+        iconColorClass="bg-primary"
+        title="NBD Enquiry"
+        subtitle={`${enquiryRows.length} total enquir${enquiryRows.length === 1 ? "y" : "ies"}`}
+      />
 
       {/* Tabs */}
       <div className="shrink-0 flex flex-wrap gap-2 rounded-2xl bg-white p-1.5 mb-8 w-full justify-center border border-slate-200 shadow-sm">
@@ -1619,7 +1627,7 @@ function CallTracker() {
                   <tr className="bg-muted border-b border-border">
                   {/* Call button column — only on Call Tracker tab */}
                   {activeTab === "callTracker" && (
-                    <th className="px-5 py-3.5 text-left text-[11px] font-bold text-indigo-600 uppercase tracking-widest whitespace-nowrap w-24">
+                    <th className="sticky left-0 z-20 bg-muted px-5 py-3.5 text-left text-[11px] font-bold text-indigo-600 uppercase tracking-widest whitespace-nowrap w-24 shadow-xs">
                       Action
                     </th>
                   )}
@@ -1657,7 +1665,7 @@ function CallTracker() {
                   <tr key={index} className="hover:bg-blue-50/40 transition-colors group">
                     {/* Call button — first column, only on Call Tracker tab */}
                     {activeTab === "callTracker" && (
-                      <td className="px-5 py-3.5 whitespace-nowrap">
+                      <td className="sticky left-0 z-10 bg-white group-hover:bg-blue-50/40 px-5 py-3.5 whitespace-nowrap shadow-xs">
                         <button
                           onClick={() => handleOpenCallTracker(row)}
                           className="inline-flex items-center gap-1.5 px-3.5 py-1.5 text-[12px] font-semibold bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg shadow-sm shadow-indigo-200 transition-colors"
@@ -1683,7 +1691,7 @@ function CallTracker() {
                       return (
                         <td key={col} className="px-5 py-3.5 whitespace-nowrap" title={val}>
                           {col === "Enquiry No." ? (
-                            <span className="inline-flex items-center px-2.5 py-1 rounded-md bg-sky-100 text-sky-700 text-sm font-semibold">
+                            <span className="inline-flex items-center px-2.5 py-1 rounded-md bg-sky-100 text-sky-700 text-sm font-mono font-bold">
                               {val || "—"}
                             </span>
                           ) : col === "Source" ? (

@@ -2,7 +2,8 @@
 
 import { useState, useEffect } from "react"
 import { useNavigate } from "react-router-dom"
-import { PlusIcon, XIcon, PhoneCallIcon } from "../components/Icons"
+import { PlusIcon, XIcon, PhoneCallIcon, UsersIcon } from "../components/Icons"
+import PageHeader from "../components/ui/PageHeader"
 import axios from "axios"
 import { Download } from "lucide-react"
 import { exportToCsv } from "../utils/exportCsv"
@@ -12,11 +13,11 @@ import { getCurrentTimestamp, formatTimestamp, reformatIfDate } from "../utils/d
 const LEADS_STORAGE_KEY = "nbd_outgoing_leads"
 const LEADS_COUNTER_KEY = "nbd_outgoing_leads_counter"
 
-// Lead status colors
+// Lead status colors — indigo=Cold, amber=Warm, rose=Hot
 const statusColors = {
-  Cold: "bg-blue-100 text-blue-800",
-  Warm: "bg-yellow-100 text-yellow-800",
-  Hot: "bg-red-100 text-red-800"
+  Cold: "bg-indigo-50 text-indigo-700 border border-indigo-200",
+  Warm: "bg-amber-50 text-amber-700 border border-amber-200",
+  Hot: "bg-rose-50 text-rose-700 border border-rose-200"
 }
 
 // Lead status options
@@ -771,7 +772,14 @@ function Leads() {
   }
 
   return (
-    <div className="py-2 h-full flex flex-col">
+    <div className="py-2 h-full flex flex-col space-y-4">
+      <PageHeader
+        icon={<UsersIcon className="h-4.5 w-4.5" />}
+        iconColorClass="bg-primary"
+        title="NBD Lead"
+        subtitle={`${leads.length} total lead${leads.length === 1 ? "" : "s"}`}
+      />
+
       {/* update status modal */}
       {isUpdateModalOpen && (
         <div className="fixed inset-0 z-50 overflow-y-auto backdrop-blur-sm bg-black/40">
@@ -1166,7 +1174,7 @@ function Leads() {
                 <table className="w-full border-collapse">
                   <thead className="sticky top-0 z-10">
                     <tr className="bg-gradient-to-r from-teal-50 to-emerald-50 border-b border-gray-200">
-                      <th className="px-5 py-3.5 text-left text-xs font-bold text-teal-700 uppercase tracking-wider whitespace-nowrap">Action</th>
+                      <th className="sticky left-0 z-20 bg-teal-50 px-5 py-3.5 text-left text-xs font-bold text-teal-700 uppercase tracking-wider whitespace-nowrap shadow-xs">Action</th>
                       <th className="px-5 py-3.5 text-left text-xs font-bold text-teal-700 uppercase tracking-wider whitespace-nowrap">Lead No.</th>
                       <th className="px-5 py-3.5 text-left text-xs font-bold text-teal-700 uppercase tracking-wider whitespace-nowrap">Our Firm Name</th>
                       <th className="px-5 py-3.5 text-left text-xs font-bold text-teal-700 uppercase tracking-wider whitespace-nowrap">Lead Received From</th>
@@ -1192,8 +1200,8 @@ function Leads() {
                       </tr>
                     ) : (
                       paginatedLeads.map((lead, index) => (
-                        <tr key={lead.leadNumber || index} className="hover:bg-teal-50/30 transition-colors duration-150">
-                          <td className="px-5 py-3.5 whitespace-nowrap">
+                        <tr key={lead.leadNumber || index} className="group hover:bg-teal-50/30 transition-colors duration-150">
+                          <td className="sticky left-0 z-10 bg-white group-hover:bg-teal-50/30 px-5 py-3.5 whitespace-nowrap shadow-xs">
                             <button
                               onClick={() => handleUpdateClick(lead)}
                               className="px-3 py-1.5 bg-teal-100 text-teal-700 rounded-md text-xs font-semibold hover:bg-teal-200 transition-colors cursor-pointer"
@@ -1202,7 +1210,7 @@ function Leads() {
                             </button>
                           </td>
                           <td className="px-5 py-3.5 whitespace-nowrap">
-                            <span className="inline-flex items-center px-2.5 py-1 rounded-md bg-teal-100 text-teal-700 text-sm font-semibold">
+                            <span className="inline-flex items-center px-2.5 py-1 rounded-md bg-teal-100 text-teal-700 text-sm font-mono font-bold">
                               {lead.leadNumber || '-'}
                             </span>
                           </td>
@@ -1231,7 +1239,7 @@ function Leads() {
             {paginatedLeads.map((lead, index) => (
               <div key={lead.leadNumber || index} className="bg-card rounded-xl shadow-md border border-gray-100 p-4">
                 <div className="flex justify-between items-start mb-2">
-                  <span className="inline-flex items-center px-2.5 py-1 rounded-md bg-teal-100 text-teal-700 text-sm font-semibold">{lead.leadNumber || '-'}</span>
+                  <span className="inline-flex items-center px-2.5 py-1 rounded-md bg-teal-100 text-teal-700 text-sm font-mono font-bold">{lead.leadNumber || '-'}</span>
                   <button onClick={() => handleUpdateClick(lead)} className="px-3 py-1.5 bg-teal-100 text-teal-700 rounded-lg text-xs font-semibold hover:bg-teal-200 transition-colors cursor-pointer">Update</button>
                 </div>
                 <h3 className="text-base font-bold text-gray-900 mb-2 truncate" title={lead.companyName}>{lead.companyName}</h3>
@@ -1321,7 +1329,7 @@ function Leads() {
                 <table className="w-full border-collapse">
                   <thead className="sticky top-0 z-10">
                     <tr className="bg-gradient-to-r from-indigo-50 to-purple-50 border-b border-gray-200">
-                      <th className="px-5 py-3.5 text-left text-xs font-bold text-indigo-700 uppercase tracking-wider whitespace-nowrap">Action</th>
+                      <th className="sticky left-0 z-20 bg-indigo-50 px-5 py-3.5 text-left text-xs font-bold text-indigo-700 uppercase tracking-wider whitespace-nowrap shadow-xs">Action</th>
                       <th className="px-5 py-3.5 text-left text-xs font-bold text-indigo-700 uppercase tracking-wider whitespace-nowrap">Lead No.</th>
                       <th className="px-5 py-3.5 text-left text-xs font-bold text-indigo-700 uppercase tracking-wider whitespace-nowrap">Company</th>
                       <th className="px-5 py-3.5 text-left text-xs font-bold text-indigo-700 uppercase tracking-wider whitespace-nowrap">Location</th>
@@ -1353,8 +1361,8 @@ function Leads() {
                       </tr>
                     ) : (
                       paginatedLeads.map((lead, index) => (
-                        <tr key={lead.leadNumber || index} className="hover:bg-indigo-50/30 transition-colors duration-150">
-                          <td className="px-5 py-3.5 whitespace-nowrap">
+                        <tr key={lead.leadNumber || index} className="group hover:bg-indigo-50/30 transition-colors duration-150">
+                          <td className="sticky left-0 z-10 bg-white group-hover:bg-indigo-50/30 px-5 py-3.5 whitespace-nowrap shadow-xs">
                             <button
                               onClick={() => handleCallTrackerClick(lead)}
                               className="px-3 py-1.5 bg-indigo-100 text-indigo-700 rounded-md text-xs font-semibold hover:bg-indigo-200 transition-colors flex items-center gap-1 cursor-pointer"
@@ -1364,7 +1372,7 @@ function Leads() {
                             </button>
                           </td>
                           <td className="px-5 py-3.5 whitespace-nowrap">
-                            <span className="inline-flex items-center px-2.5 py-1 rounded-md bg-indigo-100 text-indigo-700 text-sm font-semibold">
+                            <span className="inline-flex items-center px-2.5 py-1 rounded-md bg-indigo-100 text-indigo-700 text-sm font-mono font-bold">
                               {lead.leadNumber || '-'}
                             </span>
                           </td>
@@ -1437,7 +1445,7 @@ function Leads() {
             {paginatedLeads.map((lead, index) => (
               <div key={lead.leadNumber || index} className="bg-card rounded-xl shadow-md border border-gray-100 p-4">
                 <div className="flex justify-between items-start mb-2">
-                  <span className="inline-flex items-center px-2.5 py-1 rounded-md bg-indigo-100 text-indigo-700 text-sm font-semibold">{lead.leadNumber || '-'}</span>
+                  <span className="inline-flex items-center px-2.5 py-1 rounded-md bg-indigo-100 text-indigo-700 text-sm font-mono font-bold">{lead.leadNumber || '-'}</span>
                   <button
                     onClick={() => handleCallTrackerClick(lead)}
                     className="px-3 py-1.5 bg-indigo-100 text-indigo-700 rounded-lg text-xs font-semibold hover:bg-indigo-200 transition-colors flex items-center gap-1 cursor-pointer"
@@ -1485,7 +1493,7 @@ function Leads() {
                 <table className="w-full border-collapse">
                   <thead className="sticky top-0 z-10">
                     <tr className="bg-gradient-to-r from-slate-50 to-gray-50 border-b border-gray-200">
-                      <th className="px-5 py-3.5 text-left text-xs font-bold text-slate-700 uppercase tracking-wider whitespace-nowrap">Action</th>
+                      <th className="sticky left-0 z-20 bg-slate-50 px-5 py-3.5 text-left text-xs font-bold text-slate-700 uppercase tracking-wider whitespace-nowrap shadow-xs">Action</th>
                       <th className="px-5 py-3.5 text-left text-xs font-bold text-slate-700 uppercase tracking-wider whitespace-nowrap">Lead No.</th>
                       <th className="px-5 py-3.5 text-left text-xs font-bold text-slate-700 uppercase tracking-wider whitespace-nowrap">Company</th>
                       <th className="px-5 py-3.5 text-left text-xs font-bold text-slate-700 uppercase tracking-wider whitespace-nowrap">Location</th>
@@ -1520,8 +1528,8 @@ function Leads() {
                       paginatedLeads.map((lead, index) => {
                         const isReceived = String(lead.trackerEnquiry || "").trim() === "Yes"
                         return (
-                          <tr key={lead.leadNumber || index} className="hover:bg-slate-50/60 transition-colors duration-150">
-                            <td className="px-5 py-3.5 whitespace-nowrap">
+                          <tr key={lead.leadNumber || index} className="group hover:bg-slate-50/60 transition-colors duration-150">
+                            <td className="sticky left-0 z-10 bg-white group-hover:bg-slate-50/60 px-5 py-3.5 whitespace-nowrap shadow-xs">
                               <button
                                 onClick={() => handleCallTrackerClick(lead)}
                                 className="px-3 py-1.5 bg-slate-100 text-slate-700 rounded-md text-xs font-semibold hover:bg-slate-200 transition-colors flex items-center gap-1 cursor-pointer"
@@ -1531,7 +1539,7 @@ function Leads() {
                               </button>
                             </td>
                             <td className="px-5 py-3.5 whitespace-nowrap">
-                              <span className="inline-flex items-center px-2.5 py-1 rounded-md bg-slate-100 text-slate-700 text-sm font-semibold">
+                              <span className="inline-flex items-center px-2.5 py-1 rounded-md bg-slate-100 text-slate-700 text-sm font-mono font-bold">
                                 {lead.leadNumber || '-'}
                               </span>
                             </td>
@@ -1583,7 +1591,7 @@ function Leads() {
               return (
                 <div key={lead.leadNumber || index} className="bg-card rounded-xl shadow-md border border-gray-100 p-4">
                   <div className="flex justify-between items-start mb-2">
-                    <span className="inline-flex items-center px-2.5 py-1 rounded-md bg-slate-100 text-slate-700 text-sm font-semibold">{lead.leadNumber || '-'}</span>
+                    <span className="inline-flex items-center px-2.5 py-1 rounded-md bg-slate-100 text-slate-700 text-sm font-mono font-bold">{lead.leadNumber || '-'}</span>
                     <button
                       onClick={() => handleCallTrackerClick(lead)}
                       className="px-3 py-1.5 bg-slate-100 text-slate-700 rounded-lg text-xs font-semibold hover:bg-slate-200 transition-colors flex items-center gap-1 cursor-pointer"

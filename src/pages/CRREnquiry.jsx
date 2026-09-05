@@ -4,8 +4,9 @@
     import { useLocation, useNavigate } from "react-router-dom"
     import { AuthContext } from "../App"
     import axios from "axios"
-    import { UsersIcon, TrendingUpIcon, ShareIcon, ShoppingCartIcon, AlertCircleIcon, RefreshCwIcon, HistoryIcon } from "../components/Icons"
+    import { UsersIcon, TrendingUpIcon, ShareIcon, ShoppingCartIcon, AlertCircleIcon, RefreshCwIcon, HistoryIcon, RetentionIcon } from "../components/Icons"
     import { X, Send, Image as ImageIcon, ExternalLink, CheckCircle, Paperclip, Download } from "lucide-react"
+    import PageHeader from "../components/ui/PageHeader"
     import { exportToCsv } from "../utils/exportCsv"
     import { getCurrentTimestamp, reformatIfDate, formatTimestamp } from "../utils/dateTime"
 
@@ -615,7 +616,14 @@
         }
 
         return (
-            <div className="py-2 h-full flex flex-col">
+            <div className="py-2 h-full flex flex-col space-y-4">
+                <PageHeader
+                    icon={<RetentionIcon className="h-4.5 w-4.5" />}
+                    iconColorClass="bg-primary"
+                    title="CRR Enquiry"
+                    subtitle={`${enquiries.length} total enquir${enquiries.length === 1 ? "y" : "ies"}`}
+                />
+
                 {/* Tabs */}
                 <div className="shrink-0 flex flex-wrap gap-2 rounded-2xl bg-white p-1.5 mb-8 w-full justify-center border border-slate-200 shadow-sm">
                     {TABS.map((tab) => {
@@ -852,7 +860,7 @@
                         <table className="w-full border-collapse">
                             <thead className="bg-muted border-b border-border sticky top-0 z-10">
                                 <tr>
-                                    <th className="px-6 py-3.5 text-center text-xs font-bold text-slate-700 uppercase tracking-wider whitespace-nowrap">
+                                    <th className="sticky left-0 z-20 bg-muted px-6 py-3.5 text-center text-xs font-bold text-slate-700 uppercase tracking-wider whitespace-nowrap shadow-xs">
                                         Action / Status
                                     </th>
                                     <th className="px-6 py-3.5 text-left text-xs font-bold text-slate-700 uppercase tracking-wider whitespace-nowrap">
@@ -908,8 +916,8 @@
                                     paginatedEnquiries.map((enquiry) => {
                                         const currentStage = getEnquiryStage(enquiry)
                                         return (
-                                            <tr key={enquiry.id} className="hover:bg-muted/70 transition-colors duration-150">
-                                                <td className="px-6 py-4 whitespace-nowrap text-center">
+                                            <tr key={enquiry.id} className="group hover:bg-muted/70 transition-colors duration-150">
+                                                <td className="sticky left-0 z-10 bg-white group-hover:bg-muted/70 px-6 py-4 whitespace-nowrap text-center shadow-xs">
                                                     {activeTab === "All Crm" ? (
                                                         (() => {
                                                             const stage = currentStage
@@ -954,7 +962,7 @@
                                                     )}
                                                 </td>
                                                 <td className="px-6 py-4 whitespace-nowrap">
-                                                    <span className="inline-flex items-center px-2.5 py-1 rounded-md bg-sky-100 text-sky-700 text-sm font-semibold">
+                                                    <span className="inline-flex items-center px-2.5 py-1 rounded-md bg-sky-100 text-sky-700 text-sm font-mono font-bold">
                                                         {enquiry.enquiryNo || '-'}
                                                     </span>
                                                 </td>

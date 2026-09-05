@@ -190,7 +190,7 @@ function Sidebar({ mobileMenuOpen, setMobileMenuOpen }) {
         </button>
 
         {/* Brand */}
-        <div className={`flex items-center gap-3 border-b border-slate-100 px-5 py-6 ${showLabels ? "" : "md:justify-center md:px-0"}`}>
+        <div className={`flex items-center gap-3 border-b border-slate-100 px-4 py-5 ${showLabels ? "" : "md:justify-center md:px-0"}`}>
           <img
             src="/logo.png"
             alt="Passary Refractories"
@@ -262,12 +262,12 @@ function Sidebar({ mobileMenuOpen, setMobileMenuOpen }) {
             type="button"
             onClick={logout}
             title={showLabels ? undefined : "Logout"}
-            className={`mt-2 flex w-full items-center gap-3 rounded-xl px-4 py-3 text-[15px] font-medium text-slate-600 transition-colors hover:bg-red-50 hover:text-red-600 ${
+            className={`mt-1 flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-[13.5px] font-medium text-slate-500 transition-colors hover:bg-rose-50 hover:text-rose-600 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-rose-400 focus-visible:ring-offset-1 ${
               showLabels ? "" : "md:justify-center md:px-0"
             }`}
           >
-            <LogoutIcon className="h-5 w-5 shrink-0" />
-            {showLabels && <span>Logout</span>}
+            <LogoutIcon className="h-4 w-4 shrink-0" />
+            {showLabels && <span>Log out</span>}
           </button>
         </div>
       </motion.aside>
@@ -285,20 +285,24 @@ function SidebarLink({ route, showLabel = true, pendingCount }) {
       end={route.to === "/"}
       title={showLabel ? undefined : hasCount ? `${route.label} (${pendingCount} pending)` : route.label}
       className={({ isActive }) =>
-        `group relative flex items-center gap-4 rounded-xl px-4 py-3 text-[15px] font-medium outline-none transition-all duration-200 focus-visible:ring-2 focus-visible:ring-indigo-500 focus-visible:ring-offset-2 ${
+        `group relative flex items-center gap-3 rounded-lg px-3 py-2.5 text-[13.5px] font-medium outline-none transition-all duration-150 focus-visible:ring-2 focus-visible:ring-indigo-500 focus-visible:ring-offset-1 ${
           showLabel ? "" : "md:justify-center md:px-0"
         } ${
           isActive
-            ? "bg-indigo-600 text-white shadow-sm shadow-indigo-200"
-            : "text-slate-600 hover:bg-slate-100/80 hover:text-slate-900 hover:translate-x-0.5"
+            ? "bg-indigo-50 text-indigo-700"
+            : "text-slate-600 hover:bg-slate-50 hover:text-slate-900"
         }`
       }
     >
       {({ isActive }) => (
         <>
+          {/* Left accent bar for active state */}
+          {isActive && (
+            <span className="absolute left-0 top-1 bottom-1 w-[3px] rounded-full bg-indigo-700" aria-hidden="true" />
+          )}
           <span
             className={`relative shrink-0 transition-colors ${
-              isActive ? "text-white" : "text-slate-400 group-hover:text-slate-600"
+              isActive ? "text-indigo-700" : "text-slate-400 group-hover:text-slate-600"
             }`}
           >
             {route.icon}
@@ -311,8 +315,8 @@ function SidebarLink({ route, showLabel = true, pendingCount }) {
           {showLabel && <span className="truncate">{route.label}</span>}
           {hasCount && showLabel && (
             <span
-              className={`ml-auto shrink-0 rounded-full px-2 py-0.5 text-[11px] font-bold leading-none ${
-                isActive ? "bg-white/20 text-white" : "bg-amber-50 text-amber-700 ring-1 ring-amber-200"
+              className={`ml-auto shrink-0 rounded-md px-1.5 py-0.5 text-[10px] font-bold leading-none ${
+                isActive ? "bg-indigo-100 text-indigo-700" : "bg-amber-50 text-amber-700 border border-amber-200"
               }`}
             >
               {pendingCount > 99 ? "99+" : pendingCount}
@@ -330,17 +334,17 @@ function UserCard({ user, userType, showLabel = true }) {
 
   return (
     <div
-      className={`flex items-center gap-3 rounded-xl border border-slate-100 bg-slate-50 px-3 py-3 ${
+      className={`flex items-center gap-3 rounded-lg border border-slate-100 bg-slate-50 px-3 py-2.5 ${
         showLabel ? "" : "md:justify-center md:px-0"
       }`}
     >
-      <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-indigo-500 to-indigo-700 text-sm font-bold text-white shadow-sm shadow-indigo-200">
+      <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-indigo-700 text-[12px] font-bold text-white shadow-sm">
         {initial}
       </div>
       {showLabel && (
         <div className="min-w-0">
-          <p className="truncate text-sm font-semibold text-slate-900">{user.username}</p>
-          <p className="truncate text-xs capitalize text-slate-500">{userType || "Admin"}</p>
+          <p className="truncate text-[13px] font-semibold text-slate-900">{user.username}</p>
+          <p className="truncate text-[11px] capitalize text-slate-400">{userType || "Admin"}</p>
         </div>
       )}
     </div>

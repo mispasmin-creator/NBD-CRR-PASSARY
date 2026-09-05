@@ -101,90 +101,89 @@ function Login() {
   );
 
   return (
-    <div className="min-h-screen w-full flex bg-slate-50">
-      {/* Left branding panel — desktop only */}
-      <div className="hidden lg:flex lg:w-[48%] relative flex-col overflow-hidden bg-gradient-to-br from-primary via-primary to-indigo-800 p-16">
-        <div className="pointer-events-none absolute -top-24 -left-24 h-96 w-96 rounded-full bg-white/10 blur-3xl" />
-        <div className="pointer-events-none absolute bottom-0 right-0 h-80 w-80 rounded-full bg-white/10 blur-3xl" />
-        <div
-          className="pointer-events-none absolute inset-0 opacity-[0.06]"
-          style={{
-            backgroundImage:
-              "linear-gradient(to right, #fff 1px, transparent 1px), linear-gradient(to bottom, #fff 1px, transparent 1px)",
-            backgroundSize: "44px 44px",
-          }}
-        />
+    <div className="min-h-screen w-full flex items-center justify-center bg-slate-50 px-4 py-8">
+      <div className="w-full max-w-5xl overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-2xl shadow-slate-300/40 lg:grid lg:grid-cols-2">
+        {/* Left branding panel — desktop only */}
+        <div className="hidden lg:flex relative flex-col overflow-hidden bg-gradient-to-br from-slate-900 via-slate-900 to-slate-950 p-10 xl:p-12">
+          <div className="pointer-events-none absolute -top-24 -left-24 h-96 w-96 rounded-full bg-indigo-600/25 blur-3xl" />
+          <div className="pointer-events-none absolute bottom-0 right-0 h-80 w-80 rounded-full bg-indigo-500/15 blur-3xl" />
+          <div
+            className="pointer-events-none absolute inset-0 opacity-[0.06]"
+            style={{
+              backgroundImage:
+                "linear-gradient(to right, #fff 1px, transparent 1px), linear-gradient(to bottom, #fff 1px, transparent 1px)",
+              backgroundSize: "44px 44px",
+            }}
+          />
 
-        <MotionDiv
-          initial={{ opacity: 0, y: -12 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.5, ease: [0.16, 1, 0.3, 1] }}
-          className="relative z-10 flex items-center gap-3"
-        >
-          <div className="flex h-14 w-14 items-center justify-center rounded-xl bg-white/95 shadow-lg">
-            <img src="/logo.png" alt="Passary Refractories logo" className="h-10 w-10 object-contain" />
-          </div>
-          <div>
-            <p className="text-lg font-bold tracking-tight text-white">Passary Refractories</p>
-            <p className="text-xs font-semibold uppercase tracking-widest text-white/60">NBD OF CRR</p>
-          </div>
-        </MotionDiv>
-
-        <div className="relative z-10 flex flex-1 flex-col justify-center">
           <MotionDiv
-            initial={{ opacity: 0, y: 16 }}
+            initial={{ opacity: 0, y: -12 }}
             animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.5, delay: 0.1, ease: [0.16, 1, 0.3, 1] }}
+            transition={{ duration: 0.5, ease: [0.16, 1, 0.3, 1] }}
+            className="relative z-10 flex items-center gap-3"
           >
-            <h2 className="text-[54px] font-extrabold leading-[1.12] tracking-tight text-white">
-              Sales &amp; enquiry
-              <br />
-              operations, unified.
-            </h2>
-            <p className="mt-5 max-w-lg text-lg font-medium text-white/70">
-              Every lead, enquiry, offer and complaint — tracked end to end, in one place.
-            </p>
-
-            <div className="mt-12 space-y-6">
-              {FEATURES.map(({ icon: Icon, label, desc }) => (
-                <div key={label} className="flex items-start gap-4">
-                  <span className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl border border-white/20 bg-white/10 text-white">
-                    <Icon className="h-5.5 w-5.5" />
-                  </span>
-                  <div>
-                    <p className="text-base font-bold text-white">{label}</p>
-                    <p className="text-sm font-medium text-white/60">{desc}</p>
-                  </div>
-                </div>
-              ))}
+            <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-white/95 shadow-lg ring-1 ring-indigo-400/30">
+              <img src="/logo.png" alt="Passary Refractories logo" className="h-8 w-8 object-contain" />
+            </div>
+            <div>
+              <p className="text-base font-bold tracking-tight text-white">Passary Refractories</p>
+              <p className="text-xs font-semibold text-white/60">NBD OF CRR</p>
             </div>
           </MotionDiv>
+
+          <div className="relative z-10 flex flex-1 flex-col justify-center py-10">
+            <MotionDiv
+              initial={{ opacity: 0, y: 16 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.5, delay: 0.1, ease: [0.16, 1, 0.3, 1] }}
+            >
+              <h2 className="text-[30px] font-extrabold leading-[1.2] tracking-tight text-white">
+                Sales &amp; enquiry
+                <br />
+                operations, unified.
+              </h2>
+              <p className="mt-3 max-w-sm text-sm font-medium text-white/70">
+                Every lead, enquiry, offer and complaint — tracked end to end, in one place.
+              </p>
+
+              <div className="mt-8 space-y-4">
+                {FEATURES.map(({ icon: Icon, label, desc }) => (
+                  <div key={label} className="flex items-start gap-3">
+                    <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg border border-indigo-400/25 bg-indigo-500/15 text-indigo-300">
+                      <Icon className="h-4 w-4" />
+                    </span>
+                    <div>
+                      <p className="text-sm font-bold text-white">{label}</p>
+                      <p className="text-xs font-medium text-white/60">{desc}</p>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </MotionDiv>
+          </div>
         </div>
-      </div>
 
-      {/* Right — login form */}
-      <div className="flex w-full lg:w-[55%] items-center justify-center px-4 py-10 sm:px-10">
-        <MotionDiv
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.45, ease: [0.16, 1, 0.3, 1] }}
-          className="w-full max-w-[460px]"
-        >
-          {/* Brand — mobile only */}
-          <div className="mb-8 flex flex-col items-center text-center lg:hidden">
-            <img src="/logo.png" alt="Passary Refractories logo" className="mb-4 h-14 w-14 object-contain" />
-            <h1 className="text-xl font-extrabold tracking-tight text-[#1A2E35]">NBD OF CRR</h1>
-            <p className="mt-1 text-sm font-medium text-slate-500">Sign in to continue to your dashboard</p>
-          </div>
+        {/* Right — login form */}
+        <div className="flex items-center justify-center px-6 py-10 sm:px-10 lg:px-12">
+          <MotionDiv
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.45, ease: [0.16, 1, 0.3, 1] }}
+            className="w-full max-w-[380px]"
+          >
+            {/* Brand — mobile only */}
+            <div className="mb-8 flex flex-col items-center text-center lg:hidden">
+              <img src="/logo.png" alt="Passary Refractories logo" className="mb-4 h-14 w-14 object-contain" />
+              <h1 className="text-xl font-extrabold tracking-tight text-slate-900">NBD OF CRR</h1>
+              <p className="mt-1 text-sm font-medium text-slate-500">Sign in to continue to your dashboard</p>
+            </div>
 
-          <div className="hidden lg:block mb-10">
-            <span className="mb-4 inline-block h-1.5 w-12 rounded-full bg-primary" />
-            <h1 className="text-[34px] font-extrabold tracking-tight text-[#1A2E35]">Welcome back</h1>
-            <p className="mt-2 text-base font-medium text-slate-500">Sign in to continue to your dashboard</p>
-          </div>
+            <div className="hidden lg:block mb-8">
+              <span className="mb-4 inline-block h-1.5 w-12 rounded-full bg-primary" />
+              <h1 className="text-[28px] font-extrabold tracking-tight text-slate-900">Welcome back</h1>
+              <p className="mt-2 text-sm font-medium text-slate-500">Sign in to continue to your dashboard</p>
+            </div>
 
-          {/* Card */}
-          <div className="rounded-2xl border border-slate-200 bg-white p-9 shadow-xl shadow-slate-200/60 transition-shadow duration-300 hover:shadow-2xl hover:shadow-slate-200/70">
             {/* Error */}
             <AnimatePresence initial={false}>
               {error && (
@@ -197,9 +196,9 @@ function Login() {
                   className="overflow-hidden"
                   role="alert"
                 >
-                  <div className="flex items-start gap-3 rounded-xl border border-red-200 bg-red-50 p-3.5">
-                    <AlertCircle className="mt-0.5 h-[18px] w-[18px] shrink-0 text-red-500" aria-hidden="true" />
-                    <p className="text-sm font-medium text-red-700">{error}</p>
+                  <div className="flex items-start gap-3 rounded-xl border border-rose-200 bg-rose-50 p-3.5">
+                    <AlertCircle className="mt-0.5 h-[18px] w-[18px] shrink-0 text-rose-500" aria-hidden="true" />
+                    <p className="text-sm font-medium text-rose-700">{error}</p>
                   </div>
                 </MotionDiv>
               )}
@@ -314,7 +313,7 @@ function Login() {
                 className={`group/btn mt-2 flex h-[52px] w-full items-center justify-center gap-2 rounded-xl text-[15px] font-bold transition-all duration-200 ${
                   isLoading || !isFormValid
                     ? "cursor-not-allowed bg-slate-200 text-slate-400"
-                    : "bg-primary text-primary-foreground shadow-md shadow-primary/25 hover:brightness-110 active:brightness-95"
+                    : "bg-primary text-primary-foreground shadow-md shadow-primary/25 hover:bg-indigo-800 active:brightness-95"
                 }`}
               >
                 {isLoading ? (
@@ -330,8 +329,8 @@ function Login() {
                 )}
               </MotionButton>
             </form>
-          </div>
-        </MotionDiv>
+          </MotionDiv>
+        </div>
       </div>
     </div>
   );

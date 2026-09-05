@@ -6,6 +6,7 @@ import { AuthContext } from "../context/AuthContext";
 import axios from "axios";
 import { X, ClipboardList, Send, Plus, Search, FileText, PhoneCall, History, CheckCircle, XCircle, Image as ImageIcon, AlertTriangle, Download } from "lucide-react";
 import ConfirmDialog from "../components/ui/ConfirmDialog";
+import PageHeader from "../components/ui/PageHeader";
 import { exportToCsv } from "../utils/exportCsv";
 import { getCurrentTimestamp, formatDateOnly } from "../utils/dateTime";
 
@@ -948,7 +949,14 @@ export default function MarketingVisitTracker() {
 
   return (
     <div className="h-full flex flex-col bg-gradient-to-b from-slate-50 to-slate-100">
-      <div className="h-full flex flex-col py-2">
+      <div className="h-full flex flex-col py-2 space-y-4">
+
+        <PageHeader
+          icon={<Send className="h-4.5 w-4.5" />}
+          iconColorClass="bg-primary"
+          title="Marketing Visit"
+          subtitle={`${filteredVisits.length} total ${filteredVisits.length === 1 ? "record" : "records"}`}
+        />
 
         {/* Error banner */}
         {errorMsg && (
@@ -1050,7 +1058,7 @@ export default function MarketingVisitTracker() {
               <thead className="bg-muted border-b sticky top-0 z-10">
                 <tr>
                   {activeTab === "Assign Marketing" && (
-                    <th className="px-4 py-3 text-center text-xs font-semibold text-muted-foreground uppercase whitespace-nowrap">
+                    <th className="sticky left-0 z-20 bg-muted px-4 py-3 text-center text-xs font-semibold text-muted-foreground uppercase whitespace-nowrap shadow-xs">
                       Action
                     </th>
                   )}
@@ -1106,9 +1114,9 @@ export default function MarketingVisitTracker() {
               </thead>
               <tbody className="divide-y">
                 {paginatedVisits.map((v) => (
-                  <tr key={v.id} className="hover:bg-muted">
+                  <tr key={v.id} className="group hover:bg-muted">
                     {activeTab === "Assign Marketing" && (
-                      <td className="px-4 py-3 whitespace-nowrap text-sm text-center">
+                      <td className="sticky left-0 z-10 bg-white group-hover:bg-muted px-4 py-3 whitespace-nowrap text-sm text-center shadow-xs">
                         <button
                           type="button"
                           onClick={() => openStatusModal(v, "Assign Marketing")}
@@ -1120,7 +1128,7 @@ export default function MarketingVisitTracker() {
                       </td>
                     )}
                     <td className="px-4 py-3 whitespace-nowrap">
-                      <span className="inline-flex items-center px-2.5 py-1 rounded-md bg-sky-100 text-sky-700 text-sm font-semibold">
+                      <span className="inline-flex items-center px-2.5 py-1 rounded-md bg-sky-100 text-sky-700 text-sm font-mono font-bold">
                         {v.id}
                       </span>
                     </td>

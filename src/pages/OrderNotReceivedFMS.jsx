@@ -16,6 +16,7 @@ import {
 import { X, Send, CheckCircle2, Download } from "lucide-react"
 import { exportToCsv } from "../utils/exportCsv"
 import { getCurrentTimestamp, reformatIfDate } from "../utils/dateTime"
+import PageHeader from "../components/ui/PageHeader"
 
 // Helper to format ISO date to display format
 const displayDate = (dateVal) => {
@@ -1009,7 +1010,13 @@ function OrderNotReceivedFMS() {
   }
 
   return (
-    <div className="h-full flex flex-col">
+    <div className="py-2 h-full flex flex-col space-y-4">
+      <PageHeader
+        icon={<ShoppingCartIcon className="h-4.5 w-4.5" />}
+        iconColorClass="bg-primary"
+        title="Order Not Received"
+        subtitle={`${filteredRecords.length} total ${filteredRecords.length === 1 ? "record" : "records"}`}
+      />
       {/* Main Workflow Tabs */}
       <div className="shrink-0 flex flex-wrap gap-2 rounded-2xl bg-white p-1.5 mb-8 w-full justify-center border border-slate-200 shadow-sm">
         {MAIN_TABS.map((tab) => {
@@ -1141,7 +1148,7 @@ function OrderNotReceivedFMS() {
                   <table className="w-full">
                     <thead className="sticky top-0 z-10">
                       <tr className="bg-gradient-to-r from-rose-50 to-red-50 border-b border-gray-200">
-                        <th className="px-4 py-3 text-center text-xs font-bold text-rose-700 uppercase tracking-wider whitespace-nowrap">
+                        <th className="sticky left-0 z-20 bg-rose-50 px-4 py-3 text-center text-xs font-bold text-rose-700 uppercase tracking-wider whitespace-nowrap shadow-xs">
                           Action
                         </th>
                         <th className="px-4 py-3 text-left text-xs font-bold text-rose-700 uppercase tracking-wider whitespace-nowrap">
@@ -1236,8 +1243,8 @@ function OrderNotReceivedFMS() {
                         </tr>
                       ) : (
                         paginatedRecords.map((r) => (
-                          <tr key={r.key} className="hover:bg-rose-50/30 transition-all duration-150">
-                            <td className="px-4 py-3 whitespace-nowrap text-sm text-center">
+                          <tr key={r.key} className="group hover:bg-rose-50/30 transition-all duration-150">
+                            <td className="sticky left-0 z-10 bg-white group-hover:bg-rose-50/30 px-4 py-3 whitespace-nowrap text-sm text-center shadow-xs">
                               {activeMainTab === "takeAction" ? (
                                 r.actual3 && r.actual3 !== "-" ? (
                                   <span className="inline-flex items-center gap-1 px-2.5 py-1 bg-emerald-50 text-emerald-700 border border-emerald-200 text-xs font-semibold rounded-lg">
@@ -1316,7 +1323,7 @@ function OrderNotReceivedFMS() {
                               )}
                             </td>
                             <td className="px-4 py-3 whitespace-nowrap">
-                              <span className="inline-flex items-center px-2.5 py-1 rounded-md bg-slate-100 text-slate-800 text-xs font-semibold">
+                              <span className="inline-flex items-center px-2.5 py-1 rounded-md bg-slate-100 text-slate-800 text-xs font-mono font-bold">
                                 {r.enquiryNo || r.id || "-"}
                               </span>
                             </td>
