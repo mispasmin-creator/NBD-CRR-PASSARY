@@ -30,7 +30,7 @@ const TABS = [
 
 const TAB_CONFIG = {
     "Get Rates & Attached Offer Letter": {
-        filterNotEmpty: 6, // Planned 1
+        filterNotEmpty: 7, // Planned 1
         filterEmpty: 8,    // Actual1
         timestampCol: 8,
         inputColumns: [

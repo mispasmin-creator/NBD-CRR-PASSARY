@@ -536,16 +536,16 @@ function CallTracker() {
         }
       }
 
-      // Full row: normalize existing cells so ISO date strings survive the round-trip
-      const existingFmsRow = (fmsData[fmsTargetIdx] || []).map(reformatIfDate)
-      while (existingFmsRow.length <= fmsCurrentStageCol) existingFmsRow.push("")
-      existingFmsRow[fmsCurrentStageCol] = newStage
-
+      // Single-cell write — a full-row "update" reads the row via getValues() (which
+      // returns formula cells' computed values, not the formulas) and writes it all
+      // back via setValues(), permanently destroying any formulas in that row
+      // (e.g. "Planned 1" / "Delay"). updateCell only ever touches this one cell.
       const fmsPayload = new URLSearchParams()
-      fmsPayload.append("action", "update")
+      fmsPayload.append("action", "updateCell")
       fmsPayload.append("sheetName", fmsSheetName)
       fmsPayload.append("rowIndex", (fmsTargetIdx + 1).toString())
-      fmsPayload.append("rowData", JSON.stringify(existingFmsRow))
+      fmsPayload.append("columnIndex", (fmsCurrentStageCol + 1).toString())
+      fmsPayload.append("value", newStage)
       await axios.post(scriptUrl, fmsPayload)
 
       // ── B. Update NBD CALL TRACKER sheet ────────────────────────────────────
@@ -799,29 +799,36 @@ function CallTracker() {
       const formattedTs = getCurrentTimestamp()
 
       if (fmsTargetIdx !== -1 && fmsTargetIdx < fmsData.length && fmsData[fmsTargetIdx]) {
-        // Full row: normalize existing cells so ISO date strings survive the round-trip
-        const existingFmsRow = (fmsData[fmsTargetIdx] || []).map(reformatIfDate)
-        const maxFmsCol = Math.max(
-          fmsCurrentStageCol, fmsTrackerStatusCol, fmsActual1Col, fmsStatusCol, fmsWhatCustomerSayCol, fmsFreqCol
-        )
-        while (existingFmsRow.length <= maxFmsCol) existingFmsRow.push("")
-
-        if (fmsCurrentStageCol !== -1) existingFmsRow[fmsCurrentStageCol] = callTrackerForm.currentStage
-        if (fmsTrackerStatusCol !== -1) existingFmsRow[fmsTrackerStatusCol] = callTrackerForm.orderReceived
-        if (fmsActual1Col !== -1) existingFmsRow[fmsActual1Col] = formattedTs
-        if (fmsStatusCol !== -1) existingFmsRow[fmsStatusCol] = callTrackerForm.status
-        if (fmsWhatCustomerSayCol !== -1) existingFmsRow[fmsWhatCustomerSayCol] = callTrackerForm.customerSay
-        if (fmsFreqCol !== -1 && callTrackerForm.nextCallDate) {
-          const prevFmsFreq = parseInt(existingFmsRow[fmsFreqCol] || 0, 10) || 0
-          existingFmsRow[fmsFreqCol] = prevFmsFreq + 1
+        // Write each changed cell individually — a full-row "update" reads the row via
+        // getValues() (which returns formula cells' computed values, not the formula
+        // itself) and writes it all back via setValues(), permanently destroying any
+        // formulas in that row (e.g. "Planned 1" / "Delay"). updateCell only ever
+        // touches the specific cell it's given, so formula columns are never touched.
+        const fmsTargetRow = fmsData[fmsTargetIdx] || []
+        const fmsRowIndex1Based = fmsTargetIdx + 1
+        const cellWrites = []
+        const queueCell = (colIdx, value) => {
+          if (colIdx === -1) return
+          const payload = new URLSearchParams()
+          payload.append("action", "updateCell")
+          payload.append("sheetName", fmsSheetName)
+          payload.append("rowIndex", fmsRowIndex1Based.toString())
+          payload.append("columnIndex", (colIdx + 1).toString())
+          payload.append("value", value)
+          cellWrites.push(axios.post(scriptUrl, payload))
         }
 
-        const fmsPayload = new URLSearchParams()
-        fmsPayload.append("action", "update")
-        fmsPayload.append("sheetName", fmsSheetName)
-        fmsPayload.append("rowIndex", (fmsTargetIdx + 1).toString())
-        fmsPayload.append("rowData", JSON.stringify(existingFmsRow))
-        await axios.post(scriptUrl, fmsPayload)
+        queueCell(fmsCurrentStageCol, callTrackerForm.currentStage)
+        queueCell(fmsTrackerStatusCol, callTrackerForm.orderReceived)
+        queueCell(fmsActual1Col, formattedTs)
+        queueCell(fmsStatusCol, callTrackerForm.status)
+        queueCell(fmsWhatCustomerSayCol, callTrackerForm.customerSay)
+        if (fmsFreqCol !== -1 && callTrackerForm.nextCallDate) {
+          const prevFmsFreq = parseInt(fmsTargetRow[fmsFreqCol] || 0, 10) || 0
+          queueCell(fmsFreqCol, prevFmsFreq + 1)
+        }
+
+        await Promise.all(cellWrites)
       } else {
         // Insert new row in NBD ENQUIRY FMS for this FMS Lead
         const newFmsRow = new Array(Math.max(fmsHeaders.length, 25)).fill("")
@@ -918,23 +925,32 @@ function CallTracker() {
                 // Row already exists for this enquiry — refresh Firm/Party/Stage/Offer Number
                 // so later edits to the enquiry (e.g. Party Name or Offer No. filled in after
                 // the first offer trigger) aren't left stale in the Offer sheet.
-                // Use a sparse null array so formula columns (Planned 1..5, Delays) are never overwritten.
-                const existingLength = (offerData[existingRowIdx] || []).length
-                const maxCol = Math.max(oFirmCol, oPartyCol, oStageCol, oOfferNoCol, existingLength, 28)
-                const offerUpdateRow = new Array(maxCol).fill(null)
+                // Write each cell individually via updateCell — a full-row "update" reads
+                // the row with getValues() (computed values, not formulas) and writes it
+                // all back with setValues(), destroying any formulas in that row (Planned
+                // 1..5, Delays). A previous "sparse null array" attempt here assumed the
+                // backend would skip null cells, but it merges `rowData[i] !== '' &&
+                // rowData[i] !== undefined`, which is true for null — so null was actually
+                // being written into the formula cells, wiping them the same way.
+                const offerRowIndex1Based = existingRowIdx + 1
+                const offerCellWrites = []
+                const queueOfferCell = (colIdx, value) => {
+                    if (colIdx === -1) return
+                    const payload = new URLSearchParams()
+                    payload.append("action", "updateCell")
+                    payload.append("sheetName", offerSheetName)
+                    payload.append("rowIndex", offerRowIndex1Based.toString())
+                    payload.append("columnIndex", (colIdx + 1).toString())
+                    payload.append("value", value)
+                    offerCellWrites.push(axios.post(scriptUrl, payload))
+                }
 
-                if (oFirmCol !== -1) offerUpdateRow[oFirmCol] = latestFirmName
-                if (oPartyCol !== -1) offerUpdateRow[oPartyCol] = latestPartyName
-                if (oStageCol !== -1) offerUpdateRow[oStageCol] = latestStage
-                if (oOfferNoCol !== -1) offerUpdateRow[oOfferNoCol] = latestOfferNo
+                queueOfferCell(oFirmCol, latestFirmName)
+                queueOfferCell(oPartyCol, latestPartyName)
+                queueOfferCell(oStageCol, latestStage)
+                queueOfferCell(oOfferNoCol, latestOfferNo)
 
-                const offerPayload = new URLSearchParams()
-                offerPayload.append("action", "update")
-                offerPayload.append("sheetName", offerSheetName)
-                offerPayload.append("rowIndex", (existingRowIdx + 1).toString())
-                offerPayload.append("rowData", JSON.stringify(offerUpdateRow))
-
-                await axios.post(scriptUrl, offerPayload)
+                await Promise.all(offerCellWrites)
             }
           } else {
             offerHandoffFailed = true
