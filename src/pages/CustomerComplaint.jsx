@@ -4,11 +4,32 @@ import { useState, useEffect, useContext, useMemo, useCallback } from "react";
 import { AuthContext } from "../App";
 import { MessageSquareIcon } from "../components/Icons";
 import axios from "axios";
-import { Download } from "lucide-react";
+import { Download, ArrowUp, ArrowDown, ArrowUpDown } from "lucide-react";
 import PageHeader from "../components/ui/PageHeader";
 import StepTracker from "../components/ui/StepTracker";
 import { exportToCsv } from "../utils/exportCsv";
 import { getCurrentTimestamp, formatDateOnly, formatTimestamp } from "../utils/dateTime";
+import { sortRows, nextSortDirection } from "../utils/sortRows";
+
+// Small clickable header cell used to make a table column sortable —
+// keeps the page's own className string (color/sticky) untouched.
+function SortableTh({ column, label, sortConfig, onSort, className }) {
+  const isActive = sortConfig.key === column;
+  return (
+    <th onClick={() => onSort(column)} className={`${className} cursor-pointer select-none`}>
+      <span className="inline-flex items-center gap-1">
+        {label}
+        {isActive && sortConfig.direction === "asc" ? (
+          <ArrowUp className="h-3 w-3" />
+        ) : isActive && sortConfig.direction === "desc" ? (
+          <ArrowDown className="h-3 w-3" />
+        ) : (
+          <ArrowUpDown className="h-3 w-3 opacity-30" />
+        )}
+      </span>
+    </th>
+  );
+}
 
 const STORAGE_KEY = "nbd_customer_complaints_tracker_data";
 
@@ -83,6 +104,14 @@ export default function CustomerComplaint() {
   const [activeTab, setActiveTab] = useState("All Complaints");
   const [searchQuery, setSearchQuery] = useState("");
   const [firmFilter, setFirmFilter] = useState("all");
+  const [receivedByFilter, setReceivedByFilter] = useState("");
+  const [sortConfig, setSortConfig] = useState({ key: null, direction: null });
+  const handleSort = (key) => {
+    setSortConfig((prev) => {
+      const direction = nextSortDirection(prev, key);
+      return { key: direction ? key : null, direction };
+    });
+  };
   const [sheetHeaders, setSheetHeaders] = useState(DEFAULT_HEADERS);
 
   const [firmNamesList, setFirmNamesList] = useState([
@@ -504,16 +533,43 @@ export default function CustomerComplaint() {
         (c.id && c.id.toLowerCase().includes(searchQuery.toLowerCase())) ||
         (c.firmName && c.firmName.toLowerCase().includes(searchQuery.toLowerCase())) ||
         (c.personName && c.personName.toLowerCase().includes(searchQuery.toLowerCase())) ||
-        (c.problem && c.problem.toLowerCase().includes(searchQuery.toLowerCase()));
+        (c.problem && c.problem.toLowerCase().includes(searchQuery.toLowerCase())) ||
+        (c.receivedBy && c.receivedBy.toLowerCase().includes(searchQuery.toLowerCase()));
       const matchesFirm =
         firmFilter === "all" ||
         (c.firmName && c.firmName.toLowerCase() === firmFilter.toLowerCase());
+      const matchesReceivedBy =
+        !receivedByFilter ||
+        (c.receivedBy && c.receivedBy.trim() === receivedByFilter);
 
-      return matchesTab && matchesSearch && matchesFirm;
+      return matchesTab && matchesSearch && matchesFirm && matchesReceivedBy;
     });
-  }, [complaints, activeTab, searchQuery, firmFilter]);
+  }, [complaints, activeTab, searchQuery, firmFilter, receivedByFilter]);
 
-  const paginatedComplaints = filteredComplaints;
+  const receivedByFilterOptions = useMemo(
+    () => Array.from(new Set(complaints.map((c) => String(c.receivedBy || "").trim()).filter(Boolean))).sort(),
+    [complaints]
+  );
+
+  const COMPLAINT_SORT_ACCESSORS = {
+    dueDate: (c) => c.dueDate,
+    id: (c) => c.id,
+    date: (c) => c.date,
+    firmName: (c) => c.firmName,
+    customerName: (c) => c.customerName,
+    personName: (c) => c.personName,
+    problem: (c) => c.problem,
+    receivedBy: (c) => c.receivedBy,
+    callStatus: (c) => c.callStatus,
+    statusOfSolved: (c) => c.statusOfSolved,
+    siteReport: (c) => c.siteReport,
+    freq: (c) => c.freq,
+    currentStep: (c) => c.currentStep,
+  };
+
+  const paginatedComplaints = (sortConfig.key && COMPLAINT_SORT_ACCESSORS[sortConfig.key])
+    ? sortRows(filteredComplaints, sortConfig.direction, COMPLAINT_SORT_ACCESSORS[sortConfig.key])
+    : filteredComplaints;
 
   const handleExportComplaints = () => {
     exportToCsv(`complaints-${activeTab.replace(/\s+/g, "-").toLowerCase()}`, [
@@ -999,20 +1055,20 @@ export default function CustomerComplaint() {
         </div>
 
         {/* Controls Bar */}
-        <div className="shrink-0 bg-card rounded-2xl shadow-sm border border-slate-200/70 p-6 mb-6">
-          <div className="flex flex-col md:flex-row gap-4 justify-between">
-            <div className="flex flex-col sm:flex-row gap-4 flex-1">
+        <div className="shrink-0 bg-card rounded-xl shadow-sm border border-slate-200/70 p-3 mb-3">
+          <div className="flex flex-col md:flex-row gap-2 justify-between">
+            <div className="flex flex-1 flex-wrap items-center gap-2">
               <input
                 type="text"
                 placeholder="Search complaints..."
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                className="px-4 py-2 border rounded-md flex-1 focus:ring-2 focus:ring-sky-500 border-gray-300 text-sm"
+                className="px-3 py-1.5 text-sm border rounded-md focus:ring-2 focus:ring-sky-500 border-gray-300 min-w-[180px]"
               />
               <select
                 value={firmFilter}
                 onChange={(e) => setFirmFilter(e.target.value)}
-                className="px-4 py-2 border rounded-md border-gray-300 bg-card text-sm max-w-xs truncate"
+                className="px-2.5 py-1.5 border rounded-md border-gray-300 bg-card text-sm max-w-[150px] cursor-pointer"
               >
                 <option value="all">All Firms</option>
                 {firmNamesList.map((f) => (
@@ -1021,19 +1077,38 @@ export default function CustomerComplaint() {
                   </option>
                 ))}
               </select>
+              <select
+                value={receivedByFilter}
+                onChange={(e) => setReceivedByFilter(e.target.value)}
+                className="px-2.5 py-1.5 border rounded-md border-gray-300 bg-card text-sm max-w-[150px] cursor-pointer"
+              >
+                <option value="">All received by</option>
+                {receivedByFilterOptions.map((r) => (
+                  <option key={r} value={r}>{r}</option>
+                ))}
+              </select>
+              {(firmFilter !== "all" || receivedByFilter) && (
+                <button
+                  type="button"
+                  onClick={() => { setFirmFilter("all"); setReceivedByFilter("") }}
+                  className="px-2 py-1.5 text-sm font-medium text-sky-600 hover:text-sky-800 underline whitespace-nowrap"
+                >
+                  Clear filters
+                </button>
+              )}
             </div>
-            <div className="flex gap-2">
+            <div className="flex gap-2 shrink-0">
               <button
                 onClick={handleExportComplaints}
                 disabled={filteredComplaints.length === 0}
-                className="flex items-center justify-center gap-2 bg-card border border-border text-muted-foreground hover:text-foreground hover:bg-muted font-medium py-2 px-4 rounded-md whitespace-nowrap text-sm shadow-sm cursor-pointer disabled:opacity-50"
+                className="flex items-center justify-center gap-2 bg-card border border-border text-muted-foreground hover:text-foreground hover:bg-muted font-medium py-1.5 px-3 text-sm rounded-md whitespace-nowrap shadow-sm cursor-pointer disabled:opacity-50"
               >
                 <Download className="h-4 w-4" />
                 Export
               </button>
               <button
                 onClick={() => setShowNewModal(true)}
-                className="bg-sky-600 hover:bg-sky-700 text-white font-medium py-2 px-4 rounded-md whitespace-nowrap text-sm shadow-sm cursor-pointer"
+                className="bg-sky-600 hover:bg-sky-700 text-white font-medium py-1.5 px-3 text-sm rounded-md whitespace-nowrap shadow-sm cursor-pointer"
               >
                 + Register new Complaint
               </button>
@@ -1044,64 +1119,38 @@ export default function CustomerComplaint() {
         {/* Complaints Table: Action first on workflow pages, proper columns */}
         <div className="flex-1 min-h-0 flex flex-col bg-white rounded-2xl shadow-md border border-slate-200/70 overflow-hidden">
           <div className="flex-1 min-h-0 overflow-auto">
-            <table className="w-full">
+            <table className="w-full border-separate border-spacing-0">
               <thead className="bg-muted border-b sticky top-0 z-10">
                 <tr>
                   {activeTab !== "History" && (
-                    <th className="sticky left-0 z-20 bg-muted px-4 py-3 text-left text-xs font-semibold text-muted-foreground uppercase whitespace-nowrap shadow-xs">
+                    <th className="sticky left-0 z-20 bg-muted px-5 py-3.5 text-left text-xs font-bold text-muted-foreground uppercase tracking-wider whitespace-nowrap shadow-xs">
                       Action
                     </th>
                   )}
                   {activeTab !== "Call Tracker" && activeTab !== "History" && (
-                    <th className="px-4 py-3 text-left text-xs font-bold text-amber-700 uppercase whitespace-nowrap">
-                      Due Date
-                    </th>
+                    <SortableTh column="dueDate" label="Due Date" sortConfig={sortConfig} onSort={handleSort} className="px-5 py-3.5 text-left text-xs font-bold text-amber-700 uppercase tracking-wider whitespace-nowrap" />
                   )}
-                  <th className="px-4 py-3 text-left text-xs font-semibold text-muted-foreground uppercase whitespace-nowrap">
-                    Complaint No.
-                  </th>
-                  <th className="px-4 py-3 text-left text-xs font-semibold text-muted-foreground uppercase whitespace-nowrap">
-                    Date
-                  </th>
-                  <th className="px-4 py-3 text-left text-xs font-semibold text-muted-foreground uppercase">
-                    Firm Name
-                  </th>
-                  <th className="px-4 py-3 text-left text-xs font-semibold text-muted-foreground uppercase">
-                    Customer Name
-                  </th>
-                  <th className="px-4 py-3 text-left text-xs font-semibold text-muted-foreground uppercase">
-                    Person Name
-                  </th>
-                  <th className="px-4 py-3 text-left text-xs font-semibold text-muted-foreground uppercase">
-                    Problem
-                  </th>
-                  <th className="px-4 py-3 text-left text-xs font-semibold text-muted-foreground uppercase">
-                    Received By
-                  </th>
+                  <SortableTh column="id" label="Complaint No." sortConfig={sortConfig} onSort={handleSort} className="px-5 py-3.5 text-left text-xs font-bold text-muted-foreground uppercase tracking-wider whitespace-nowrap" />
+                  <SortableTh column="date" label="Date" sortConfig={sortConfig} onSort={handleSort} className="px-5 py-3.5 text-left text-xs font-bold text-muted-foreground uppercase tracking-wider whitespace-nowrap" />
+                  <SortableTh column="firmName" label="Firm Name" sortConfig={sortConfig} onSort={handleSort} className="px-5 py-3.5 text-left text-xs font-bold text-muted-foreground uppercase tracking-wider" />
+                  <SortableTh column="customerName" label="Customer Name" sortConfig={sortConfig} onSort={handleSort} className="px-5 py-3.5 text-left text-xs font-bold text-muted-foreground uppercase tracking-wider" />
+                  <SortableTh column="personName" label="Person Name" sortConfig={sortConfig} onSort={handleSort} className="px-5 py-3.5 text-left text-xs font-bold text-muted-foreground uppercase tracking-wider" />
+                  <SortableTh column="problem" label="Problem" sortConfig={sortConfig} onSort={handleSort} className="px-5 py-3.5 text-left text-xs font-bold text-muted-foreground uppercase tracking-wider" />
+                  <SortableTh column="receivedBy" label="Received By" sortConfig={sortConfig} onSort={handleSort} className="px-5 py-3.5 text-left text-xs font-bold text-muted-foreground uppercase tracking-wider" />
                   {activeTab === "Call Tracker" && (
-                    <th className="px-4 py-3 text-left text-xs font-semibold text-muted-foreground uppercase whitespace-nowrap">
-                      Call Status
-                    </th>
+                    <SortableTh column="callStatus" label="Call Status" sortConfig={sortConfig} onSort={handleSort} className="px-5 py-3.5 text-left text-xs font-bold text-muted-foreground uppercase tracking-wider whitespace-nowrap" />
                   )}
                   {(activeTab === "Site Report" || activeTab === "Problem Not Solve Next Action" || activeTab === "History") && (
-                    <th className="px-4 py-3 text-left text-xs font-semibold text-muted-foreground uppercase whitespace-nowrap">
-                      Status Of Solved
-                    </th>
+                    <SortableTh column="statusOfSolved" label="Status Of Solved" sortConfig={sortConfig} onSort={handleSort} className="px-5 py-3.5 text-left text-xs font-bold text-muted-foreground uppercase tracking-wider whitespace-nowrap" />
                   )}
                   {(activeTab === "Site Report" || activeTab === "Problem Not Solve Next Action" || activeTab === "History") && (
-                    <th className="px-4 py-3 text-left text-xs font-semibold text-muted-foreground uppercase whitespace-nowrap">
-                      Site Report
-                    </th>
+                    <SortableTh column="siteReport" label="Site Report" sortConfig={sortConfig} onSort={handleSort} className="px-5 py-3.5 text-left text-xs font-bold text-muted-foreground uppercase tracking-wider whitespace-nowrap" />
                   )}
                   {(activeTab === "Problem Not Solve Next Action" || activeTab === "History") && (
-                    <th className="px-4 py-3 text-left text-xs font-semibold text-muted-foreground uppercase whitespace-nowrap">
-                      Freq
-                    </th>
+                    <SortableTh column="freq" label="Freq" sortConfig={sortConfig} onSort={handleSort} className="px-5 py-3.5 text-left text-xs font-bold text-muted-foreground uppercase tracking-wider whitespace-nowrap" />
                   )}
                   {activeTab === "All Complaints" && (
-                    <th className="px-4 py-3 text-left text-xs font-semibold text-muted-foreground uppercase whitespace-nowrap">
-                      Current Stage
-                    </th>
+                    <SortableTh column="currentStep" label="Current Stage" sortConfig={sortConfig} onSort={handleSort} className="px-5 py-3.5 text-left text-xs font-bold text-muted-foreground uppercase tracking-wider whitespace-nowrap" />
                   )}
                 </tr>
               </thead>
@@ -1109,7 +1158,7 @@ export default function CustomerComplaint() {
                 {paginatedComplaints.map((c) => (
                   <tr key={c.id} className="group hover:bg-muted">
                     {activeTab !== "History" && (
-                      <td className="sticky left-0 z-10 bg-white group-hover:bg-muted px-4 py-3 whitespace-nowrap shadow-xs">
+                      <td className="sticky left-0 z-10 bg-white group-hover:bg-muted px-5 py-3.5 whitespace-nowrap shadow-xs">
                         <div className="flex items-center gap-2">
                           {c.currentStep !== "History" && c.currentStep !== "Resolved" && (
                             <button
@@ -1123,7 +1172,7 @@ export default function CustomerComplaint() {
                       </td>
                     )}
                     {activeTab !== "Call Tracker" && activeTab !== "History" && (
-                      <td className="px-4 py-3 whitespace-nowrap">
+                      <td className="px-5 py-3.5 whitespace-nowrap">
                         {c.dueDate ? (
                           <span className="inline-flex items-center px-2.5 py-1 rounded-md bg-amber-50 text-amber-800 ring-1 ring-amber-200 text-xs font-bold">
                             {formatTimestamp(c.dueDate)}
@@ -1133,31 +1182,31 @@ export default function CustomerComplaint() {
                         )}
                       </td>
                     )}
-                    <td className="px-4 py-3 whitespace-nowrap">
+                    <td className="px-5 py-3.5 whitespace-nowrap">
                       <span className="inline-flex items-center px-2.5 py-1 rounded-md bg-sky-100 text-sky-700 text-sm font-mono font-bold">
                         {c.id}
                       </span>
                     </td>
-                    <td className="px-4 py-3 whitespace-nowrap text-sm text-muted-foreground">
+                    <td className="px-5 py-3.5 whitespace-nowrap text-sm text-muted-foreground">
                       {formatDateOnly(c.date)}
                     </td>
-                    <td className="px-4 py-3 text-sm font-bold text-foreground max-w-[140px] break-words">
+                    <td className="px-5 py-3.5 text-sm font-bold text-foreground max-w-[140px] break-words">
                       {c.firmName}
                     </td>
-                    <td className="px-4 py-3 text-sm text-muted-foreground max-w-[140px] break-words">
+                    <td className="px-5 py-3.5 text-sm text-muted-foreground max-w-[140px] break-words">
                       {c.customerName}
                     </td>
-                    <td className="px-4 py-3 text-sm font-medium text-muted-foreground max-w-[140px] break-words">
+                    <td className="px-5 py-3.5 text-sm font-medium text-muted-foreground max-w-[140px] break-words">
                       {c.personName}
                     </td>
-                    <td className="px-4 py-3 text-sm text-muted-foreground max-w-[180px] break-words" title={c.problem}>
+                    <td className="px-5 py-3.5 text-sm text-muted-foreground max-w-[180px] break-words" title={c.problem}>
                       {c.problem}
                     </td>
-                    <td className="px-4 py-3 text-sm text-muted-foreground max-w-[110px] break-words">
+                    <td className="px-5 py-3.5 text-sm text-muted-foreground max-w-[110px] break-words">
                       {c.receivedBy}
                     </td>
                     {activeTab === "Call Tracker" && (
-                      <td className="px-4 py-3 whitespace-nowrap">
+                      <td className="px-5 py-3.5 whitespace-nowrap">
                         {c.callStatus ? (
                           <span
                             className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold ${
@@ -1176,7 +1225,7 @@ export default function CustomerComplaint() {
                       </td>
                     )}
                     {(activeTab === "Site Report" || activeTab === "Problem Not Solve Next Action" || activeTab === "History") && (
-                      <td className="px-4 py-3 whitespace-nowrap">
+                      <td className="px-5 py-3.5 whitespace-nowrap">
                         {c.statusOfSolved ? (
                           <span
                             className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold ${
@@ -1195,19 +1244,19 @@ export default function CustomerComplaint() {
                       </td>
                     )}
                     {(activeTab === "Site Report" || activeTab === "Problem Not Solve Next Action" || activeTab === "History") && (
-                      <td className="px-4 py-3 text-sm text-muted-foreground max-w-xs truncate" title={c.siteReport}>
+                      <td className="px-5 py-3.5 text-sm text-muted-foreground max-w-xs truncate" title={c.siteReport}>
                         {c.siteReport || <span className="text-slate-300 text-xs">—</span>}
                       </td>
                     )}
                     {(activeTab === "Problem Not Solve Next Action" || activeTab === "History") && (
-                      <td className="px-4 py-3 whitespace-nowrap">
+                      <td className="px-5 py-3.5 whitespace-nowrap">
                         <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-bold bg-amber-50 text-amber-700 border border-amber-200">
                           {c.freq || "0"}
                         </span>
                       </td>
                     )}
                     {activeTab === "All Complaints" && (
-                      <td className="px-4 py-3 whitespace-nowrap">
+                      <td className="px-5 py-3.5 whitespace-nowrap">
                         <span
                           className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-semibold ${
                             c.currentStep === "History" || c.currentStep === "Resolved"

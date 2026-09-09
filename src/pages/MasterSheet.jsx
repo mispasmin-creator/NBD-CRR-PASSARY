@@ -4,9 +4,30 @@ import { useState, useEffect, useContext, useCallback } from "react"
 import { AuthContext } from "../App"
 import axios from "axios"
 import { BuildingIcon, SearchIcon, PlusIcon, XIcon } from "../components/Icons"
-import { Download } from "lucide-react"
+import { Download, ArrowUp, ArrowDown, ArrowUpDown } from "lucide-react"
 import { exportToCsv } from "../utils/exportCsv"
 import PageHeader from "../components/ui/PageHeader"
+import { sortRows, nextSortDirection } from "../utils/sortRows"
+
+// Small clickable header cell used to make a table column sortable —
+// keeps the page's own className string (color/sticky) untouched.
+function SortableTh({ column, label, sortConfig, onSort, className }) {
+  const isActive = sortConfig.key === column
+  return (
+    <th onClick={() => onSort(column)} className={`${className} cursor-pointer select-none`}>
+      <span className="inline-flex items-center gap-1">
+        {label}
+        {isActive && sortConfig.direction === "asc" ? (
+          <ArrowUp className="h-3 w-3" />
+        ) : isActive && sortConfig.direction === "desc" ? (
+          <ArrowDown className="h-3 w-3" />
+        ) : (
+          <ArrowUpDown className="h-3 w-3 opacity-30" />
+        )}
+      </span>
+    </th>
+  )
+}
 
 // Order here must exactly match the Master sheet's header row (row 1) —
 // a new entry is submitted as a plain array in this same order.
@@ -33,6 +54,15 @@ function MasterSheet() {
   const [rows, setRows] = useState([])
   const [isLoading, setIsLoading] = useState(true)
   const [searchTerm, setSearchTerm] = useState("")
+  const [salesPersonFilter, setSalesPersonFilter] = useState("")
+  const [enquiryStatusFilter, setEnquiryStatusFilter] = useState("")
+  const [sortConfig, setSortConfig] = useState({ key: null, direction: null })
+  const handleSort = (key) => {
+    setSortConfig((prev) => {
+      const direction = nextSortDirection(prev, key)
+      return { key: direction ? key : null, direction }
+    })
+  }
   const [showNewModal, setShowNewModal] = useState(false)
   const [form, setForm] = useState(emptyForm)
   const [isSubmitting, setIsSubmitting] = useState(false)
@@ -79,12 +109,19 @@ function MasterSheet() {
   }, [fetchMasterData])
 
   const filteredRows = rows.filter((row) => {
+    if (salesPersonFilter && row.salesPerson.trim() !== salesPersonFilter) return false
+    if (enquiryStatusFilter && row.enquiryStatus.trim() !== enquiryStatusFilter) return false
     if (!searchTerm) return true
     const term = searchTerm.toLowerCase()
     return FIELDS.some((f) => row[f.key]?.toLowerCase().includes(term))
   })
 
-  const paginatedRows = filteredRows
+  const salesPersonFilterOptions = Array.from(new Set(rows.map((r) => r.salesPerson.trim()).filter(Boolean))).sort()
+  const enquiryStatusFilterOptions = Array.from(new Set(rows.map((r) => r.enquiryStatus.trim()).filter(Boolean))).sort()
+
+  const paginatedRows = (sortConfig.key)
+    ? sortRows(filteredRows, sortConfig.direction, (r) => r[sortConfig.key])
+    : filteredRows
 
   const handleExport = () => {
     exportToCsv(
@@ -132,30 +169,61 @@ function MasterSheet() {
           subtitle={`${filteredRows.length} total ${filteredRows.length === 1 ? "entry" : "entries"}`}
         />
         {/* Controls Bar */}
-        <div className="shrink-0 bg-card rounded-2xl shadow-sm border border-slate-200/70 p-6 mb-6">
-          <div className="flex flex-col md:flex-row gap-4 justify-between">
-            <div className="relative flex-1 max-w-md">
-              <SearchIcon className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
-              <input
-                type="text"
-                placeholder="Search Master sheet..."
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-                className="w-full !pl-10 !pr-4 py-2 border rounded-md border-gray-300 text-sm focus:ring-2 focus:ring-sky-500"
-              />
+        <div className="shrink-0 bg-card rounded-xl shadow-sm border border-slate-200/70 p-3 mb-3">
+          <div className="flex flex-col md:flex-row gap-2 justify-between">
+            <div className="flex flex-1 flex-wrap items-center gap-2">
+              <div className="relative">
+                <SearchIcon className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
+                <input
+                  type="text"
+                  placeholder="Search Master sheet..."
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                  className="!pl-10 !pr-3 py-1.5 min-w-[220px] border rounded-md border-gray-300 text-sm focus:ring-2 focus:ring-sky-500"
+                />
+              </div>
+              <select
+                value={salesPersonFilter}
+                onChange={(e) => setSalesPersonFilter(e.target.value)}
+                className="px-2.5 py-1.5 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-sky-500 text-sm text-gray-700 bg-white cursor-pointer max-w-[150px]"
+              >
+                <option value="">All sales persons</option>
+                {salesPersonFilterOptions.map((sp) => (
+                  <option key={sp} value={sp}>{sp}</option>
+                ))}
+              </select>
+              <select
+                value={enquiryStatusFilter}
+                onChange={(e) => setEnquiryStatusFilter(e.target.value)}
+                className="px-2.5 py-1.5 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-sky-500 text-sm text-gray-700 bg-white cursor-pointer max-w-[150px]"
+              >
+                <option value="">All statuses</option>
+                {enquiryStatusFilterOptions.map((s) => (
+                  <option key={s} value={s}>{s}</option>
+                ))}
+              </select>
+              {(salesPersonFilter || enquiryStatusFilter) && (
+                <button
+                  type="button"
+                  onClick={() => { setSalesPersonFilter(""); setEnquiryStatusFilter("") }}
+                  className="px-2 py-1.5 text-sm font-medium text-sky-600 hover:text-sky-800 underline whitespace-nowrap"
+                >
+                  Clear filters
+                </button>
+              )}
             </div>
-            <div className="flex gap-2">
+            <div className="flex gap-2 shrink-0">
               <button
                 onClick={handleExport}
                 disabled={filteredRows.length === 0}
-                className="flex items-center justify-center gap-2 bg-card border border-border text-muted-foreground hover:text-foreground hover:bg-muted font-medium py-2 px-4 rounded-md whitespace-nowrap text-sm shadow-sm cursor-pointer disabled:opacity-50"
+                className="flex items-center justify-center gap-2 bg-card border border-border text-muted-foreground hover:text-foreground hover:bg-muted font-medium py-1.5 px-3 text-sm rounded-md whitespace-nowrap shadow-sm cursor-pointer disabled:opacity-50"
               >
                 <Download className="h-4 w-4" />
                 Export
               </button>
               <button
                 onClick={() => setShowNewModal(true)}
-                className="flex items-center gap-2 bg-sky-600 hover:bg-sky-700 text-white font-medium py-2 px-4 rounded-md whitespace-nowrap text-sm shadow-sm cursor-pointer"
+                className="flex items-center gap-2 bg-sky-600 hover:bg-sky-700 text-white font-medium py-1.5 px-3 text-sm rounded-md whitespace-nowrap shadow-sm cursor-pointer"
               >
                 <PlusIcon className="h-4 w-4" />
                 New Entry
@@ -167,31 +235,33 @@ function MasterSheet() {
         {/* Table */}
         <div className="flex-1 min-h-0 flex flex-col bg-white rounded-2xl shadow-md border border-slate-200/70 overflow-hidden">
           <div className="flex-1 min-h-0 overflow-auto">
-            <table className="w-full">
+            <table className="w-full border-separate border-spacing-0">
               <thead className="bg-muted border-b sticky top-0 z-10">
                 <tr>
                   {FIELDS.map((f, i) => (
-                    <th
+                    <SortableTh
                       key={f.key}
-                      className={`px-4 py-3 text-left text-xs font-semibold text-muted-foreground uppercase whitespace-nowrap ${
+                      column={f.key}
+                      label={f.label}
+                      sortConfig={sortConfig}
+                      onSort={handleSort}
+                      className={`px-5 py-3.5 text-left text-xs font-bold text-muted-foreground uppercase tracking-wider whitespace-nowrap ${
                         i === 0 ? "sticky left-0 z-20 bg-muted shadow-xs" : ""
                       }`}
-                    >
-                      {f.label}
-                    </th>
+                    />
                   ))}
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100">
                 {isLoading ? (
                   <tr>
-                    <td colSpan={FIELDS.length} className="px-4 py-10 text-center text-sm text-muted-foreground">
+                    <td colSpan={FIELDS.length} className="px-5 py-10 text-center text-sm text-muted-foreground">
                       Loading...
                     </td>
                   </tr>
                 ) : paginatedRows.length === 0 ? (
                   <tr>
-                    <td colSpan={FIELDS.length} className="px-4 py-10 text-center text-sm text-muted-foreground">
+                    <td colSpan={FIELDS.length} className="px-5 py-10 text-center text-sm text-muted-foreground">
                       No Master entries found.
                     </td>
                   </tr>
@@ -201,7 +271,7 @@ function MasterSheet() {
                       {FIELDS.map((f, i) => (
                         <td
                           key={f.key}
-                          className={`px-4 py-3 text-sm whitespace-nowrap ${
+                          className={`px-5 py-3.5 text-sm whitespace-nowrap ${
                             i === 0
                               ? "sticky left-0 z-10 bg-white group-hover:bg-slate-50 shadow-xs font-mono font-bold text-primary"
                               : "text-slate-700"

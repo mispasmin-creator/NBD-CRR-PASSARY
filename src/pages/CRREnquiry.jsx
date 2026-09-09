@@ -5,10 +5,31 @@
     import { AuthContext } from "../App"
     import axios from "axios"
     import { UsersIcon, TrendingUpIcon, ShareIcon, ShoppingCartIcon, AlertCircleIcon, RefreshCwIcon, HistoryIcon, RetentionIcon } from "../components/Icons"
-    import { X, Send, Image as ImageIcon, ExternalLink, CheckCircle, Paperclip, Download } from "lucide-react"
+    import { X, Send, Image as ImageIcon, ExternalLink, CheckCircle, Paperclip, Download, ArrowUp, ArrowDown, ArrowUpDown } from "lucide-react"
     import PageHeader from "../components/ui/PageHeader"
     import { exportToCsv } from "../utils/exportCsv"
     import { getCurrentTimestamp, reformatIfDate, formatTimestamp } from "../utils/dateTime"
+    import { sortRows, nextSortDirection } from "../utils/sortRows"
+
+    // Small clickable header cell used to make a table column sortable —
+    // keeps the page's own className string (color/sticky) untouched.
+    function SortableTh({ column, label, sortConfig, onSort, className }) {
+        const isActive = sortConfig.key === column
+        return (
+            <th onClick={() => onSort(column)} className={`${className} cursor-pointer select-none`}>
+                <span className="inline-flex items-center gap-1">
+                    {label}
+                    {isActive && sortConfig.direction === "asc" ? (
+                        <ArrowUp className="h-3 w-3" />
+                    ) : isActive && sortConfig.direction === "desc" ? (
+                        <ArrowDown className="h-3 w-3" />
+                    ) : (
+                        <ArrowUpDown className="h-3 w-3 opacity-30" />
+                    )}
+                </span>
+            </th>
+        )
+    }
 
     const findColIdx = (headers, names, fallback = -1) => {
         if (!headers || headers.length === 0) return fallback
@@ -37,6 +58,15 @@
         const location = useLocation()
         const navigate = useNavigate()
         const [searchQuery, setSearchQuery] = useState("")
+        const [salesPersonFilter, setSalesPersonFilter] = useState("")
+        const [statusFilter, setStatusFilter] = useState("")
+        const [sortConfig, setSortConfig] = useState({ key: null, direction: null })
+        const handleSort = (key) => {
+            setSortConfig((prev) => {
+                const direction = nextSortDirection(prev, key)
+                return { key: direction ? key : null, direction }
+            })
+        }
         const [showForm, setShowForm] = useState(false)
         const [isSubmitting, setIsSubmitting] = useState(false)
         const [isTabSubmitting, setIsTabSubmitting] = useState(false)
@@ -503,16 +533,37 @@
                 e.enquiryNo?.toLowerCase().includes(searchQuery.toLowerCase()) ||
                 e.partyName?.toLowerCase().includes(searchQuery.toLowerCase()) ||
                 e.productName?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-                e.salesPerson?.toLowerCase().includes(searchQuery.toLowerCase())
+                e.salesPerson?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+                String(e.qty || "").toLowerCase().includes(searchQuery.toLowerCase()) ||
+                e.status?.toLowerCase().includes(searchQuery.toLowerCase())
+
+            if (!matchesSearch) return false
+            if (salesPersonFilter && String(e.salesPerson || "").trim() !== salesPersonFilter) return false
+            if (statusFilter && String(e.status || "").trim() !== statusFilter) return false
 
             if (activeTab !== "All Crm") {
-                return matchesSearch && isEnquiryInTab(e, activeTab)
+                return isEnquiryInTab(e, activeTab)
             }
 
-            return matchesSearch
+            return true
         })
 
-        const paginatedEnquiries = filteredEnquiries
+        const salesPersonFilterOptions = Array.from(new Set(enquiries.map(e => String(e.salesPerson || "").trim()).filter(Boolean))).sort()
+        const statusFilterOptions = Array.from(new Set(enquiries.map(e => String(e.status || "").trim()).filter(Boolean))).sort()
+
+        const CRR_SORT_ACCESSORS = {
+            enquiryNo: (e) => e.enquiryNo,
+            firmName: (e) => e.firmName,
+            partyName: (e) => e.partyName,
+            productName: (e) => e.productName,
+            qty: (e) => e.qty,
+            salesPerson: (e) => e.salesPerson,
+            status: (e) => e.status,
+        }
+
+        const paginatedEnquiries = (sortConfig.key && CRR_SORT_ACCESSORS[sortConfig.key])
+            ? sortRows(filteredEnquiries, sortConfig.direction, CRR_SORT_ACCESSORS[sortConfig.key])
+            : filteredEnquiries
 
         const handleExportEnquiries = () => {
             exportToCsv(`crr-enquiries-${activeTab.replace(/\s+/g, "-").toLowerCase()}`, [
@@ -656,22 +707,51 @@
                 </div>
 
                 {/* Controls */}
-                <div className="shrink-0 bg-card rounded-2xl shadow-sm border border-slate-200/70 p-6 mb-6">
-                    <div className="flex flex-col md:flex-row gap-4 justify-between items-start md:items-center">
-                        <div className="flex flex-col sm:flex-row gap-4 flex-1 w-full">
+                <div className="shrink-0 bg-card rounded-xl shadow-sm border border-slate-200/70 p-3 mb-3">
+                    <div className="flex flex-col md:flex-row gap-2 justify-between items-start md:items-center">
+                        <div className="flex flex-1 flex-wrap items-center gap-2">
                             <input
                                 type="text"
                                 placeholder="Search by Enquiry No, Firm, Party, Product, Sales Person..."
                                 value={searchQuery}
                                 onChange={(e) => setSearchQuery(e.target.value)}
-                                className="px-4 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-sky-500 flex-1 max-w-md"
+                                className="px-3 py-1.5 text-sm border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-sky-500 min-w-[220px]"
                             />
+                            <select
+                                value={salesPersonFilter}
+                                onChange={(e) => setSalesPersonFilter(e.target.value)}
+                                className="px-2.5 py-1.5 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-sky-500 text-sm text-gray-700 bg-white cursor-pointer max-w-[150px]"
+                            >
+                                <option value="">All sales persons</option>
+                                {salesPersonFilterOptions.map((sp) => (
+                                    <option key={sp} value={sp}>{sp}</option>
+                                ))}
+                            </select>
+                            <select
+                                value={statusFilter}
+                                onChange={(e) => setStatusFilter(e.target.value)}
+                                className="px-2.5 py-1.5 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-sky-500 text-sm text-gray-700 bg-white cursor-pointer max-w-[150px]"
+                            >
+                                <option value="">All statuses</option>
+                                {statusFilterOptions.map((s) => (
+                                    <option key={s} value={s}>{s}</option>
+                                ))}
+                            </select>
+                            {(salesPersonFilter || statusFilter) && (
+                                <button
+                                    type="button"
+                                    onClick={() => { setSalesPersonFilter(""); setStatusFilter("") }}
+                                    className="px-2 py-1.5 text-sm font-medium text-sky-600 hover:text-sky-800 underline whitespace-nowrap"
+                                >
+                                    Clear filters
+                                </button>
+                            )}
                         </div>
-                        <div className="flex gap-3 items-center">
+                        <div className="flex gap-2 items-center shrink-0">
                             <button
                                 onClick={handleExportEnquiries}
                                 disabled={filteredEnquiries.length === 0}
-                                className="inline-flex items-center gap-2 bg-card border border-border text-muted-foreground hover:text-foreground hover:bg-muted font-medium py-2 px-4 rounded-md transition-colors cursor-pointer disabled:opacity-50"
+                                className="inline-flex items-center gap-2 bg-card border border-border text-muted-foreground hover:text-foreground hover:bg-muted font-medium py-1.5 px-3 text-sm rounded-md transition-colors cursor-pointer disabled:opacity-50"
                             >
                                 <Download className="h-4 w-4" />
                                 Export
@@ -679,7 +759,7 @@
                             <button
                                 onClick={fetchAllData}
                                 disabled={isLoadingData}
-                                className="inline-flex items-center gap-2 bg-card border border-border text-muted-foreground hover:text-foreground hover:bg-muted font-medium py-2 px-4 rounded-md transition-colors cursor-pointer"
+                                className="inline-flex items-center gap-2 bg-card border border-border text-muted-foreground hover:text-foreground hover:bg-muted font-medium py-1.5 px-3 text-sm rounded-md transition-colors cursor-pointer"
                             >
                                 <RefreshCwIcon className={`h-4 w-4 ${isLoadingData ? 'animate-spin' : ''}`} />
                                 Refresh
@@ -687,7 +767,7 @@
                             {activeTab === "All Crm" && (
                                 <button
                                     onClick={() => setShowForm(true)}
-                                    className="inline-flex items-center gap-2 bg-sky-600 hover:bg-sky-700 text-white font-medium py-2 px-4 rounded-md transition-colors cursor-pointer"
+                                    className="inline-flex items-center gap-2 bg-sky-600 hover:bg-sky-700 text-white font-medium py-1.5 px-3 text-sm rounded-md transition-colors cursor-pointer"
                                 >
                                     <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 4v16m8-8H4"></path>
@@ -857,34 +937,20 @@
                 {/* Table */}
                 <div className="flex-1 min-h-0 flex flex-col bg-white rounded-2xl shadow-md border border-slate-200/70 overflow-hidden">
                     <div className="flex-1 min-h-0 overflow-auto">
-                        <table className="w-full border-collapse">
+                        <table className="w-full border-separate border-spacing-0">
                             <thead className="bg-muted border-b border-border sticky top-0 z-10">
                                 <tr>
-                                    <th className="sticky left-0 z-20 bg-muted px-6 py-3.5 text-center text-xs font-bold text-slate-700 uppercase tracking-wider whitespace-nowrap shadow-xs">
+                                    <th className="sticky left-0 z-20 bg-muted px-5 py-3.5 text-center text-xs font-bold text-slate-700 uppercase tracking-wider whitespace-nowrap shadow-xs">
                                         Action / Status
                                     </th>
-                                    <th className="px-6 py-3.5 text-left text-xs font-bold text-slate-700 uppercase tracking-wider whitespace-nowrap">
-                                        Enquiry No
-                                    </th>
-                                    <th className="px-6 py-3.5 text-left text-xs font-bold text-slate-700 uppercase tracking-wider whitespace-nowrap">
-                                        Firm Name
-                                    </th>
-                                    <th className="px-6 py-3.5 text-left text-xs font-bold text-slate-700 uppercase tracking-wider whitespace-nowrap">
-                                        Party Name
-                                    </th>
-                                    <th className="px-6 py-3.5 text-left text-xs font-bold text-slate-700 uppercase tracking-wider whitespace-nowrap">
-                                        Product
-                                    </th>
-                                    <th className="px-6 py-3.5 text-left text-xs font-bold text-slate-700 uppercase tracking-wider whitespace-nowrap">
-                                        Qty
-                                    </th>
-                                    <th className="px-6 py-3.5 text-left text-xs font-bold text-slate-700 uppercase tracking-wider whitespace-nowrap">
-                                        Sales Person
-                                    </th>
-                                    <th className="px-6 py-3.5 text-left text-xs font-bold text-slate-700 uppercase tracking-wider whitespace-nowrap">
-                                        Status
-                                    </th>
-                                    <th className="px-6 py-3.5 text-center text-xs font-bold text-slate-700 uppercase tracking-wider whitespace-nowrap">
+                                    <SortableTh column="enquiryNo" label="Enquiry No" sortConfig={sortConfig} onSort={handleSort} className="px-5 py-3.5 text-left text-xs font-bold text-slate-700 uppercase tracking-wider whitespace-nowrap" />
+                                    <SortableTh column="firmName" label="Firm Name" sortConfig={sortConfig} onSort={handleSort} className="px-5 py-3.5 text-left text-xs font-bold text-slate-700 uppercase tracking-wider whitespace-nowrap" />
+                                    <SortableTh column="partyName" label="Party Name" sortConfig={sortConfig} onSort={handleSort} className="px-5 py-3.5 text-left text-xs font-bold text-slate-700 uppercase tracking-wider whitespace-nowrap" />
+                                    <SortableTh column="productName" label="Product" sortConfig={sortConfig} onSort={handleSort} className="px-5 py-3.5 text-left text-xs font-bold text-slate-700 uppercase tracking-wider whitespace-nowrap" />
+                                    <SortableTh column="qty" label="Qty" sortConfig={sortConfig} onSort={handleSort} className="px-5 py-3.5 text-left text-xs font-bold text-slate-700 uppercase tracking-wider whitespace-nowrap" />
+                                    <SortableTh column="salesPerson" label="Sales Person" sortConfig={sortConfig} onSort={handleSort} className="px-5 py-3.5 text-left text-xs font-bold text-slate-700 uppercase tracking-wider whitespace-nowrap" />
+                                    <SortableTh column="status" label="Status" sortConfig={sortConfig} onSort={handleSort} className="px-5 py-3.5 text-left text-xs font-bold text-slate-700 uppercase tracking-wider whitespace-nowrap" />
+                                    <th className="px-5 py-3.5 text-center text-xs font-bold text-slate-700 uppercase tracking-wider whitespace-nowrap">
                                         Offer Image
                                     </th>
                                 </tr>
@@ -917,7 +983,7 @@
                                         const currentStage = getEnquiryStage(enquiry)
                                         return (
                                             <tr key={enquiry.id} className="group hover:bg-muted/70 transition-colors duration-150">
-                                                <td className="sticky left-0 z-10 bg-white group-hover:bg-muted/70 px-6 py-4 whitespace-nowrap text-center shadow-xs">
+                                                <td className="sticky left-0 z-10 bg-white group-hover:bg-muted/70 px-5 py-3.5 whitespace-nowrap text-center shadow-xs">
                                                     {activeTab === "All Crm" ? (
                                                         (() => {
                                                             const stage = currentStage
@@ -961,22 +1027,22 @@
                                                         </button>
                                                     )}
                                                 </td>
-                                                <td className="px-6 py-4 whitespace-nowrap">
+                                                <td className="px-5 py-3.5 whitespace-nowrap">
                                                     <span className="inline-flex items-center px-2.5 py-1 rounded-md bg-sky-100 text-sky-700 text-sm font-mono font-bold">
                                                         {enquiry.enquiryNo || '-'}
                                                     </span>
                                                 </td>
-                                                <td className="px-6 py-4 text-foreground font-medium text-sm max-w-[180px] truncate" title={enquiry.firmName}>{enquiry.firmName || '-'}</td>
-                                                <td className="px-6 py-4 text-muted-foreground text-sm max-w-[180px] truncate" title={enquiry.partyName}>{enquiry.partyName || '-'}</td>
-                                                <td className="px-6 py-4 text-muted-foreground text-sm max-w-[160px] truncate" title={enquiry.productName}>{enquiry.productName || '-'}</td>
-                                                <td className="px-6 py-4 text-muted-foreground text-sm font-medium">{enquiry.qty || '-'}</td>
-                                                <td className="px-6 py-4 text-muted-foreground text-sm max-w-[140px] truncate" title={enquiry.salesPerson}>{enquiry.salesPerson || '-'}</td>
-                                                <td className="px-6 py-4 whitespace-nowrap">
+                                                <td className="px-5 py-3.5 text-foreground font-medium text-sm max-w-[180px] truncate" title={enquiry.firmName}>{enquiry.firmName || '-'}</td>
+                                                <td className="px-5 py-3.5 text-muted-foreground text-sm max-w-[180px] truncate" title={enquiry.partyName}>{enquiry.partyName || '-'}</td>
+                                                <td className="px-5 py-3.5 text-muted-foreground text-sm max-w-[160px] truncate" title={enquiry.productName}>{enquiry.productName || '-'}</td>
+                                                <td className="px-5 py-3.5 text-muted-foreground text-sm font-medium">{enquiry.qty || '-'}</td>
+                                                <td className="px-5 py-3.5 text-muted-foreground text-sm max-w-[140px] truncate" title={enquiry.salesPerson}>{enquiry.salesPerson || '-'}</td>
+                                                <td className="px-5 py-3.5 whitespace-nowrap">
                                                     <span className="inline-flex items-center px-2.5 py-1 rounded-full bg-gray-100 text-gray-600 text-xs font-semibold">
                                                         {enquiry.status || '-'}
                                                     </span>
                                                 </td>
-                                                <td className="px-6 py-4 whitespace-nowrap text-center">
+                                                <td className="px-5 py-3.5 whitespace-nowrap text-center">
                                                     {enquiry.offerImage ? (
                                                         <a
                                                             href={enquiry.offerImage}

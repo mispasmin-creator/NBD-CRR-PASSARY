@@ -13,10 +13,31 @@ import {
   AlertTriangleIcon,
   FileTextIcon,
 } from "../components/Icons"
-import { X, Send, CheckCircle2, Download } from "lucide-react"
+import { X, Send, CheckCircle2, Download, ArrowUp, ArrowDown, ArrowUpDown } from "lucide-react"
 import { exportToCsv } from "../utils/exportCsv"
 import { getCurrentTimestamp, reformatIfDate } from "../utils/dateTime"
 import PageHeader from "../components/ui/PageHeader"
+import { sortRows, nextSortDirection } from "../utils/sortRows"
+
+// Small clickable header cell used to make a table column sortable —
+// keeps the page's own className string (color/sticky) untouched.
+function SortableTh({ column, label, sortConfig, onSort, className }) {
+  const isActive = sortConfig.key === column
+  return (
+    <th onClick={() => onSort(column)} className={`${className} cursor-pointer select-none`}>
+      <span className="inline-flex items-center gap-1">
+        {label}
+        {isActive && sortConfig.direction === "asc" ? (
+          <ArrowUp className="h-3 w-3" />
+        ) : isActive && sortConfig.direction === "desc" ? (
+          <ArrowDown className="h-3 w-3" />
+        ) : (
+          <ArrowUpDown className="h-3 w-3 opacity-30" />
+        )}
+      </span>
+    </th>
+  )
+}
 
 // Helper to format ISO date to display format
 const displayDate = (dateVal) => {
@@ -74,6 +95,14 @@ function OrderNotReceivedFMS() {
   const [records, setRecords] = useState([])
   const [isLoading, setIsLoading] = useState(true)
   const [searchTerm, setSearchTerm] = useState("")
+  const [firmFilter, setFirmFilter] = useState("")
+  const [sortConfig, setSortConfig] = useState({ key: null, direction: null })
+  const handleSort = (key) => {
+    setSortConfig((prev) => {
+      const direction = nextSortDirection(prev, key)
+      return { key: direction ? key : null, direction }
+    })
+  }
   const [activeTab, setActiveTab] = useState("All")
   const [activeMainTab, setActiveMainTab] = useState("all")
 
@@ -527,6 +556,7 @@ function OrderNotReceivedFMS() {
   const filteredRecords = useMemo(() => {
     return activeMainTabRecords.filter((r) => {
       if (activeTab !== "All" && r.source !== activeTab) return false
+      if (firmFilter && String(r.firmName || r.companyName || "").trim() !== firmFilter) return false
       if (!searchTerm) return true
       const term = searchTerm.toLowerCase()
       return [
@@ -553,9 +583,18 @@ function OrderNotReceivedFMS() {
         r.actionRemarks,
       ].some((v) => v && v.toString().toLowerCase().includes(term))
     })
-  }, [activeMainTabRecords, activeTab, searchTerm])
+  }, [activeMainTabRecords, activeTab, searchTerm, firmFilter])
 
-  const paginatedRecords = filteredRecords
+  const firmFilterOptions = Array.from(new Set(activeMainTabRecords.map((r) => String(r.firmName || r.companyName || "").trim()).filter(Boolean))).sort()
+
+  const paginatedRecords = (sortConfig.key)
+    ? sortRows(filteredRecords, sortConfig.direction, (r) => r[sortConfig.key])
+    : filteredRecords
+
+  // Matches exactly which <th> cells render below, so the empty-state colSpan never over/undershoots
+  const visibleColumnCount = 15
+    + ((activeMainTab === "getSample" || activeMainTab === "testing" || activeMainTab === "takeAction" || activeMainTab === "all") ? 1 : 0)
+    + ((activeMainTab === "getSample" || activeMainTab === "testing" || activeMainTab === "takeAction" || activeMainTab === "history" || activeMainTab === "all") ? 5 : 0)
 
   const handleExportRecords = () => {
     exportToCsv(`order-not-received-${activeMainTab}`, [
@@ -1065,23 +1104,23 @@ function OrderNotReceivedFMS() {
       ) : (
         <div className="flex-1 min-h-0 flex flex-col">
           {/* Controls */}
-          <div className="shrink-0 bg-card rounded-2xl shadow-sm border border-slate-200/70 p-6 mb-6">
-            <div className="flex flex-col md:flex-row gap-4 justify-between items-start md:items-center">
-              <div className="flex flex-col sm:flex-row gap-4 flex-1 w-full">
-                <div className="relative flex-1 max-w-md w-full">
+          <div className="shrink-0 bg-card rounded-xl shadow-sm border border-slate-200/70 p-3 mb-3">
+            <div className="flex flex-col md:flex-row gap-2 justify-between items-start md:items-center">
+              <div className="flex flex-1 flex-wrap items-center gap-2">
+                <div className="relative">
                   <input
                     type="text"
                     placeholder="Search by ONR No, Enquiry No, Firm, Product, Reason..."
                     value={searchTerm}
                     onChange={(e) => setSearchTerm(e.target.value)}
-                    className="w-full !pl-10 !pr-4 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-rose-500"
+                    className="!pl-10 !pr-3 py-1.5 min-w-[220px] border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-rose-500"
                   />
-                  <SearchIcon className="absolute left-3 top-2.5 h-4.5 w-4.5 text-gray-400" />
+                  <SearchIcon className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
                 </div>
                 <select
                   value={activeTab}
                   onChange={(e) => setActiveTab(e.target.value)}
-                  className="px-4 py-2 border border-gray-300 rounded-md bg-card text-sm focus:outline-none focus:ring-2 focus:ring-rose-500"
+                  className="px-2.5 py-1.5 border border-gray-300 rounded-md bg-card text-sm focus:outline-none focus:ring-2 focus:ring-rose-500 cursor-pointer max-w-[170px]"
                 >
                   {SOURCE_TABS.map((tab) => (
                     <option key={tab} value={tab}>
@@ -1089,12 +1128,31 @@ function OrderNotReceivedFMS() {
                     </option>
                   ))}
                 </select>
+                <select
+                  value={firmFilter}
+                  onChange={(e) => setFirmFilter(e.target.value)}
+                  className="px-2.5 py-1.5 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-rose-500 text-sm text-gray-700 bg-white cursor-pointer max-w-[150px]"
+                >
+                  <option value="">All firms</option>
+                  {firmFilterOptions.map((f) => (
+                    <option key={f} value={f}>{f}</option>
+                  ))}
+                </select>
+                {firmFilter && (
+                  <button
+                    type="button"
+                    onClick={() => setFirmFilter("")}
+                    className="px-2 py-1.5 text-sm font-medium text-rose-600 hover:text-rose-800 underline whitespace-nowrap"
+                  >
+                    Clear filters
+                  </button>
+                )}
               </div>
-              <div className="flex gap-2">
+              <div className="flex gap-2 shrink-0">
                 <button
                   onClick={handleExportRecords}
                   disabled={isLoading || filteredRecords.length === 0}
-                  className="inline-flex items-center gap-2 bg-card border border-border text-muted-foreground hover:text-foreground hover:bg-muted font-medium py-2 px-4 rounded-md transition-colors cursor-pointer disabled:opacity-50"
+                  className="inline-flex items-center gap-2 bg-card border border-border text-muted-foreground hover:text-foreground hover:bg-muted font-medium py-1.5 px-3 text-sm rounded-md transition-colors cursor-pointer disabled:opacity-50"
                 >
                   <Download className="h-4 w-4" />
                   Export
@@ -1102,7 +1160,7 @@ function OrderNotReceivedFMS() {
                 <button
                   onClick={fetchAllData}
                   disabled={isLoading}
-                  className="inline-flex items-center gap-2 bg-rose-600 hover:bg-rose-700 disabled:opacity-50 text-white font-medium py-2 px-4 rounded-md transition-colors cursor-pointer"
+                  className="inline-flex items-center gap-2 bg-rose-600 hover:bg-rose-700 disabled:opacity-50 text-white font-medium py-1.5 px-3 text-sm rounded-md transition-colors cursor-pointer"
                 >
                   <RefreshCwIcon className={`h-4 w-4 ${isLoading ? "animate-spin" : ""}`} />
                   Refresh
@@ -1145,76 +1203,38 @@ function OrderNotReceivedFMS() {
               <div className="flex-1 min-h-0 flex flex-col">
                 {/* Desktop Table */}
                 <div className="hidden md:block flex-1 min-h-0 overflow-auto">
-                  <table className="w-full">
+                  <table className="w-full border-separate border-spacing-0">
                     <thead className="sticky top-0 z-10">
                       <tr className="bg-gradient-to-r from-rose-50 to-red-50 border-b border-gray-200">
-                        <th className="sticky left-0 z-20 bg-rose-50 px-4 py-3 text-center text-xs font-bold text-rose-700 uppercase tracking-wider whitespace-nowrap shadow-xs">
+                        <th className="sticky left-0 z-20 bg-rose-50 px-5 py-3.5 text-center text-xs font-bold text-rose-700 uppercase tracking-wider whitespace-nowrap shadow-xs">
                           Action
                         </th>
-                        <th className="px-4 py-3 text-left text-xs font-bold text-rose-700 uppercase tracking-wider whitespace-nowrap">
-                          Timestamp
-                        </th>
-                        <th className="px-4 py-3 text-left text-xs font-bold text-rose-700 uppercase tracking-wider whitespace-nowrap">
-                          ONR-00
-                        </th>
-                        <th className="px-4 py-3 text-left text-xs font-bold text-rose-700 uppercase tracking-wider whitespace-nowrap">
-                          Enquiry No Of FMS
-                        </th>
-                        <th className="px-4 py-3 text-left text-xs font-bold text-rose-700 uppercase tracking-wider whitespace-nowrap">
-                          Firm Name
-                        </th>
-                        <th className="px-4 py-3 text-left text-xs font-bold text-rose-700 uppercase tracking-wider whitespace-nowrap">
-                          Name Of Company
-                        </th>
-                        <th className="px-4 py-3 text-left text-xs font-bold text-rose-700 uppercase tracking-wider whitespace-nowrap">
-                          Product Name
-                        </th>
-                        <th className="px-4 py-3 text-left text-xs font-bold text-rose-700 uppercase tracking-wider whitespace-nowrap">
-                          Qty
-                        </th>
-                        <th className="px-4 py-3 text-left text-xs font-bold text-rose-700 uppercase tracking-wider whitespace-nowrap">
-                          Name Of FMS
-                        </th>
-                        <th className="px-4 py-3 text-left text-xs font-bold text-rose-700 uppercase tracking-wider whitespace-nowrap">
-                          Total Enquiry Value
-                        </th>
-                        <th className="px-4 py-3 text-left text-xs font-bold text-rose-700 uppercase tracking-wider whitespace-nowrap">
-                          Given To Whom
-                        </th>
-                        <th className="px-4 py-3 text-left text-xs font-bold text-rose-700 uppercase tracking-wider whitespace-nowrap">
-                          Rate
-                        </th>
-                        <th className="px-4 py-3 text-left text-xs font-bold text-rose-700 uppercase tracking-wider whitespace-nowrap">
-                          Why Us Not Received Order
-                        </th>
-                        <th className="px-4 py-3 text-left text-xs font-bold text-rose-700 uppercase tracking-wider whitespace-nowrap">
-                          Have To Take Sample ?
-                        </th>
-                        <th className="px-4 py-3 text-left text-xs font-bold text-rose-700 uppercase tracking-wider whitespace-nowrap">
-                          Status
-                        </th>
+                        <SortableTh column="timestamp" label="Timestamp" sortConfig={sortConfig} onSort={handleSort} className="px-5 py-3.5 text-left text-xs font-bold text-rose-700 uppercase tracking-wider whitespace-nowrap" />
+                        <SortableTh column="onrNo" label="ONR-00" sortConfig={sortConfig} onSort={handleSort} className="px-5 py-3.5 text-left text-xs font-bold text-rose-700 uppercase tracking-wider whitespace-nowrap" />
+                        <SortableTh column="enquiryNo" label="Enquiry No Of FMS" sortConfig={sortConfig} onSort={handleSort} className="px-5 py-3.5 text-left text-xs font-bold text-rose-700 uppercase tracking-wider whitespace-nowrap" />
+                        <SortableTh column="firmName" label="Firm Name" sortConfig={sortConfig} onSort={handleSort} className="px-5 py-3.5 text-left text-xs font-bold text-rose-700 uppercase tracking-wider whitespace-nowrap" />
+                        <SortableTh column="companyName" label="Name Of Company" sortConfig={sortConfig} onSort={handleSort} className="px-5 py-3.5 text-left text-xs font-bold text-rose-700 uppercase tracking-wider whitespace-nowrap" />
+                        <SortableTh column="productName" label="Product Name" sortConfig={sortConfig} onSort={handleSort} className="px-5 py-3.5 text-left text-xs font-bold text-rose-700 uppercase tracking-wider whitespace-nowrap" />
+                        <SortableTh column="qty" label="Qty" sortConfig={sortConfig} onSort={handleSort} className="px-5 py-3.5 text-left text-xs font-bold text-rose-700 uppercase tracking-wider whitespace-nowrap" />
+                        <SortableTh column="source" label="Name Of FMS" sortConfig={sortConfig} onSort={handleSort} className="px-5 py-3.5 text-left text-xs font-bold text-rose-700 uppercase tracking-wider whitespace-nowrap" />
+                        <SortableTh column="totalEnquiryValue" label="Total Enquiry Value" sortConfig={sortConfig} onSort={handleSort} className="px-5 py-3.5 text-left text-xs font-bold text-rose-700 uppercase tracking-wider whitespace-nowrap" />
+                        <SortableTh column="givenToWhom" label="Given To Whom" sortConfig={sortConfig} onSort={handleSort} className="px-5 py-3.5 text-left text-xs font-bold text-rose-700 uppercase tracking-wider whitespace-nowrap" />
+                        <SortableTh column="rate" label="Rate" sortConfig={sortConfig} onSort={handleSort} className="px-5 py-3.5 text-left text-xs font-bold text-rose-700 uppercase tracking-wider whitespace-nowrap" />
+                        <SortableTh column="whyNotReceived" label="Why Us Not Received Order" sortConfig={sortConfig} onSort={handleSort} className="px-5 py-3.5 text-left text-xs font-bold text-rose-700 uppercase tracking-wider whitespace-nowrap" />
+                        <SortableTh column="haveToTakeSample" label="Have To Take Sample ?" sortConfig={sortConfig} onSort={handleSort} className="px-5 py-3.5 text-left text-xs font-bold text-rose-700 uppercase tracking-wider whitespace-nowrap" />
+                        <SortableTh column="status" label="Status" sortConfig={sortConfig} onSort={handleSort} className="px-5 py-3.5 text-left text-xs font-bold text-rose-700 uppercase tracking-wider whitespace-nowrap" />
                         {(activeMainTab === "getSample" || activeMainTab === "testing" || activeMainTab === "takeAction" || activeMainTab === "all") && (
-                          <th className="px-4 py-3 text-left text-xs font-bold text-amber-700 uppercase tracking-wider whitespace-nowrap">
+                          <th className="px-5 py-3.5 text-left text-xs font-bold text-amber-700 uppercase tracking-wider whitespace-nowrap">
                             Due Date
                           </th>
                         )}
                         {(activeMainTab === "getSample" || activeMainTab === "testing" || activeMainTab === "takeAction" || activeMainTab === "history" || activeMainTab === "all") && (
                           <>
-                            <th className="px-4 py-3 text-left text-xs font-bold text-rose-700 uppercase tracking-wider whitespace-nowrap">
-                              Actual 1
-                            </th>
-                            <th className="px-4 py-3 text-left text-xs font-bold text-rose-700 uppercase tracking-wider whitespace-nowrap">
-                              Sample Status
-                            </th>
-                            <th className="px-4 py-3 text-left text-xs font-bold text-rose-700 uppercase tracking-wider whitespace-nowrap">
-                              Actual 2
-                            </th>
-                            <th className="px-4 py-3 text-left text-xs font-bold text-rose-700 uppercase tracking-wider whitespace-nowrap">
-                              Actual 3
-                            </th>
-                            <th className="px-4 py-3 text-left text-xs font-bold text-rose-700 uppercase tracking-wider whitespace-nowrap">
-                              Remarks
-                            </th>
+                            <SortableTh column="actual1" label="Actual 1" sortConfig={sortConfig} onSort={handleSort} className="px-5 py-3.5 text-left text-xs font-bold text-rose-700 uppercase tracking-wider whitespace-nowrap" />
+                            <SortableTh column="status1" label="Sample Status" sortConfig={sortConfig} onSort={handleSort} className="px-5 py-3.5 text-left text-xs font-bold text-rose-700 uppercase tracking-wider whitespace-nowrap" />
+                            <SortableTh column="actual2" label="Actual 2" sortConfig={sortConfig} onSort={handleSort} className="px-5 py-3.5 text-left text-xs font-bold text-rose-700 uppercase tracking-wider whitespace-nowrap" />
+                            <SortableTh column="actual3" label="Actual 3" sortConfig={sortConfig} onSort={handleSort} className="px-5 py-3.5 text-left text-xs font-bold text-rose-700 uppercase tracking-wider whitespace-nowrap" />
+                            <SortableTh column="actionRemarks" label="Remarks" sortConfig={sortConfig} onSort={handleSort} className="px-5 py-3.5 text-left text-xs font-bold text-rose-700 uppercase tracking-wider whitespace-nowrap" />
                           </>
                         )}
                       </tr>
@@ -1222,7 +1242,7 @@ function OrderNotReceivedFMS() {
                     <tbody className="divide-y divide-gray-100">
                       {filteredRecords.length === 0 ? (
                         <tr>
-                          <td colSpan={21} className="px-4 py-16 text-center">
+                          <td colSpan={visibleColumnCount} className="px-5 py-16 text-center">
                             <div className="flex flex-col items-center justify-center text-gray-400">
                               <XCircleIcon className="h-10 w-10 mb-3 text-gray-300" />
                               <p className="text-lg font-semibold text-gray-500">
@@ -1244,7 +1264,7 @@ function OrderNotReceivedFMS() {
                       ) : (
                         paginatedRecords.map((r) => (
                           <tr key={r.key} className="group hover:bg-rose-50/30 transition-all duration-150">
-                            <td className="sticky left-0 z-10 bg-white group-hover:bg-rose-50/30 px-4 py-3 whitespace-nowrap text-sm text-center shadow-xs">
+                            <td className="sticky left-0 z-10 bg-white group-hover:bg-rose-50/30 px-5 py-3.5 whitespace-nowrap text-sm text-center shadow-xs">
                               {activeMainTab === "takeAction" ? (
                                 r.actual3 && r.actual3 !== "-" ? (
                                   <span className="inline-flex items-center gap-1 px-2.5 py-1 bg-emerald-50 text-emerald-700 border border-emerald-200 text-xs font-semibold rounded-lg">
@@ -1310,10 +1330,10 @@ function OrderNotReceivedFMS() {
                                 </button>
                               )}
                             </td>
-                            <td className="px-4 py-3 whitespace-nowrap text-xs text-gray-500">
+                            <td className="px-5 py-3.5 whitespace-nowrap text-xs text-gray-500">
                               {r.timestamp || "-"}
                             </td>
-                            <td className="px-4 py-3 whitespace-nowrap">
+                            <td className="px-5 py-3.5 whitespace-nowrap">
                               {r.onrNo && r.onrNo !== "-" ? (
                                 <span className="inline-flex items-center px-2 py-0.5 rounded font-mono font-bold text-xs bg-rose-100 text-rose-800 border border-rose-200">
                                   {r.onrNo}
@@ -1322,24 +1342,24 @@ function OrderNotReceivedFMS() {
                                 <span className="text-xs text-gray-400">-</span>
                               )}
                             </td>
-                            <td className="px-4 py-3 whitespace-nowrap">
+                            <td className="px-5 py-3.5 whitespace-nowrap">
                               <span className="inline-flex items-center px-2.5 py-1 rounded-md bg-slate-100 text-slate-800 text-xs font-mono font-bold">
                                 {r.enquiryNo || r.id || "-"}
                               </span>
                             </td>
-                            <td className="px-4 py-3 whitespace-nowrap text-xs font-semibold text-gray-900">
+                            <td className="px-5 py-3.5 whitespace-nowrap text-xs font-semibold text-gray-900">
                               {r.firmName || "-"}
                             </td>
-                            <td className="px-4 py-3 whitespace-nowrap text-xs text-gray-600">
+                            <td className="px-5 py-3.5 whitespace-nowrap text-xs text-gray-600">
                               {r.companyName || r.firmName || "-"}
                             </td>
-                            <td className="px-4 py-3 whitespace-nowrap text-xs text-gray-600">
+                            <td className="px-5 py-3.5 whitespace-nowrap text-xs text-gray-600">
                               {r.productName || r.product || "-"}
                             </td>
-                            <td className="px-4 py-3 whitespace-nowrap text-xs text-gray-600 font-medium">
+                            <td className="px-5 py-3.5 whitespace-nowrap text-xs text-gray-600 font-medium">
                               {r.qty || "-"}
                             </td>
-                            <td className="px-4 py-3 whitespace-nowrap text-xs">
+                            <td className="px-5 py-3.5 whitespace-nowrap text-xs">
                               <span
                                 className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-bold ${
                                   SOURCE_BADGE_CLASSES[r.source] || "bg-gray-100 text-gray-700 border border-gray-200"
@@ -1348,19 +1368,19 @@ function OrderNotReceivedFMS() {
                                 {r.source}
                               </span>
                             </td>
-                            <td className="px-4 py-3 whitespace-nowrap text-xs text-gray-700 font-medium">
+                            <td className="px-5 py-3.5 whitespace-nowrap text-xs text-gray-700 font-medium">
                               {r.totalEnquiryValue || "-"}
                             </td>
-                            <td className="px-4 py-3 whitespace-nowrap text-xs text-gray-600">
+                            <td className="px-5 py-3.5 whitespace-nowrap text-xs text-gray-600">
                               {r.givenToWhom || "-"}
                             </td>
-                            <td className="px-4 py-3 whitespace-nowrap text-xs text-gray-600">
+                            <td className="px-5 py-3.5 whitespace-nowrap text-xs text-gray-600">
                               {r.rate || "-"}
                             </td>
-                            <td className="px-4 py-3 text-xs text-gray-600 max-w-xs truncate" title={r.whyNotReceived || r.remark}>
+                            <td className="px-5 py-3.5 text-xs text-gray-600 max-w-xs truncate" title={r.whyNotReceived || r.remark}>
                               {r.whyNotReceived || r.remark || "-"}
                             </td>
-                            <td className="px-4 py-3 whitespace-nowrap text-xs">
+                            <td className="px-5 py-3.5 whitespace-nowrap text-xs">
                               {r.haveToTakeSample === "Yes" ? (
                                 <span className="px-2 py-0.5 rounded text-[11px] font-bold bg-amber-100 text-amber-800">Yes</span>
                               ) : r.haveToTakeSample === "No" ? (
@@ -1369,13 +1389,13 @@ function OrderNotReceivedFMS() {
                                 "-"
                               )}
                             </td>
-                            <td className="px-4 py-3 whitespace-nowrap text-xs">
+                            <td className="px-5 py-3.5 whitespace-nowrap text-xs">
                               <span className="px-2.5 py-1 rounded-full text-xs font-semibold bg-red-100 text-red-800">
                                 {r.status || "-"}
                               </span>
                             </td>
                             {(activeMainTab === "getSample" || activeMainTab === "testing" || activeMainTab === "takeAction" || activeMainTab === "all") && (
-                              <td className="px-4 py-3 whitespace-nowrap">
+                              <td className="px-5 py-3.5 whitespace-nowrap">
                                 {getDueDateForRecord(r) ? (
                                   <span className="inline-flex items-center px-2.5 py-1 rounded-md bg-amber-50 text-amber-800 ring-1 ring-amber-200 text-xs font-bold">
                                     {getDueDateForRecord(r)}
@@ -1387,10 +1407,10 @@ function OrderNotReceivedFMS() {
                             )}
                             {(activeMainTab === "getSample" || activeMainTab === "testing" || activeMainTab === "takeAction" || activeMainTab === "history" || activeMainTab === "all") && (
                               <>
-                                <td className="px-4 py-3 whitespace-nowrap text-xs text-gray-500 font-mono">
+                                <td className="px-5 py-3.5 whitespace-nowrap text-xs text-gray-500 font-mono">
                                   {r.actual1 || "-"}
                                 </td>
-                                <td className="px-4 py-3 whitespace-nowrap text-xs">
+                                <td className="px-5 py-3.5 whitespace-nowrap text-xs">
                                   {r.status1 && r.status1 !== "-" ? (
                                     <span
                                       className={`px-2.5 py-0.5 rounded-full text-xs font-bold ${
@@ -1405,13 +1425,13 @@ function OrderNotReceivedFMS() {
                                     <span className="text-xs text-gray-400">-</span>
                                   )}
                                 </td>
-                                <td className="px-4 py-3 whitespace-nowrap text-xs text-gray-500 font-mono">
+                                <td className="px-5 py-3.5 whitespace-nowrap text-xs text-gray-500 font-mono">
                                   {r.actual2 || "-"}
                                 </td>
-                                <td className="px-4 py-3 whitespace-nowrap text-xs text-gray-500 font-mono">
+                                <td className="px-5 py-3.5 whitespace-nowrap text-xs text-gray-500 font-mono">
                                   {r.actual3 || "-"}
                                 </td>
-                                <td className="px-4 py-3 text-xs text-gray-600 max-w-xs truncate" title={r.actionRemarks}>
+                                <td className="px-5 py-3.5 text-xs text-gray-600 max-w-xs truncate" title={r.actionRemarks}>
                                   {r.actionRemarks || "-"}
                                 </td>
                               </>

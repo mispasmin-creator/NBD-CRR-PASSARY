@@ -14,11 +14,32 @@ import {
 } from "../components/Icons"
 import { AuthContext } from "../App"
 import axios from "axios"
-import { Download } from "lucide-react"
+import { Download, ArrowUp, ArrowDown, ArrowUpDown } from "lucide-react"
 import PageHeader from "../components/ui/PageHeader"
 import StepTracker from "../components/ui/StepTracker"
 import { exportToCsv } from "../utils/exportCsv"
 import { getCurrentTimestamp } from "../utils/dateTime"
+import { sortRows, nextSortDirection } from "../utils/sortRows"
+
+// Small clickable header cell used to make a table column sortable —
+// keeps the page's own className string (color/sticky) untouched.
+function SortableTh({ column, label, sortConfig, onSort, className }) {
+    const isActive = sortConfig.key === column
+    return (
+        <th onClick={() => onSort(column)} className={`${className} cursor-pointer select-none`}>
+            <span className="inline-flex items-center gap-1">
+                {label}
+                {isActive && sortConfig.direction === "asc" ? (
+                    <ArrowUp className="h-3 w-3" />
+                ) : isActive && sortConfig.direction === "desc" ? (
+                    <ArrowDown className="h-3 w-3" />
+                ) : (
+                    <ArrowUpDown className="h-3 w-3 opacity-30" />
+                )}
+            </span>
+        </th>
+    )
+}
 
 const TABS = [
     { id: "All Enquiries", label: "All" },
@@ -146,6 +167,15 @@ const getOfferLetterUrl = (row) => {
 function Offer() {
     const { showNotification } = useContext(AuthContext)
     const [searchTerm, setSearchTerm] = useState("")
+    const [firmFilter, setFirmFilter] = useState("")
+    const [partyFilter, setPartyFilter] = useState("")
+    const [sortConfig, setSortConfig] = useState({ key: null, direction: null })
+    const handleSort = (key) => {
+        setSortConfig((prev) => {
+            const direction = nextSortDirection(prev, key)
+            return { key: direction ? key : null, direction }
+        })
+    }
     const [isLoading, setIsLoading] = useState(true)
     const [offerRows, setOfferRows] = useState([])
     const [offerHeaderRow, setOfferHeaderRow] = useState([])
@@ -308,6 +338,9 @@ function Offer() {
         )
         if (!matchesSearch) return false
 
+        if (firmFilter && String(row["Firm Name"] || "").trim() !== firmFilter) return false
+        if (partyFilter && String(row["Party Name"] || "").trim() !== partyFilter) return false
+
         if (activeTab === "All Enquiries") {
             // Exclude rows that are in the History tab
             return !isHistoryRow(row)
@@ -320,7 +353,12 @@ function Offer() {
         return isStageActive(row, activeTab)
     })
 
-    const paginatedRows = filteredRows
+    const firmFilterOptions = Array.from(new Set(offerRows.map(r => String(r["Firm Name"] || "").trim()).filter(Boolean))).sort()
+    const partyFilterOptions = Array.from(new Set(offerRows.map(r => String(r["Party Name"] || "").trim()).filter(Boolean))).sort()
+
+    const paginatedRows = (sortConfig.key)
+        ? sortRows(filteredRows, sortConfig.direction, (r) => r[sortConfig.key])
+        : filteredRows
 
     const handleExport = () => {
         exportToCsv(`offers-${activeTab.replace(/\s+/g, "-").toLowerCase()}`, [
@@ -374,6 +412,11 @@ function Offer() {
             // 2. Update only the specific input columns (handle file upload if needed)
             for (const inputConfig of config.inputColumns) {
                 let valueToStore = modalFormData[inputConfig.key] || ""
+
+                // Mgmt Rate supports multiple values — join the non-empty rows into one cell
+                if (inputConfig.key === "mgmtRate" && modalFormData.mgmtRateList) {
+                    valueToStore = modalFormData.mgmtRateList.map(r => r.trim()).filter(Boolean).join(", ")
+                }
 
                 // If Account Check and status is Yes, remarks should be empty
                 if (modalActiveTab === "Check The Offer Letter In Accounts" && inputConfig.key === "remarks" && modalFormData.status === "Yes") {
@@ -466,22 +509,51 @@ function Offer() {
             </div>
 
             {/* Controls */}
-            <div className="shrink-0 bg-card rounded-2xl shadow-sm border border-slate-200/70 p-6 mb-6">
-                <div className="flex flex-col md:flex-row gap-4 justify-between items-start md:items-center">
-                    <div className="flex flex-col sm:flex-row gap-4 flex-1">
+            <div className="shrink-0 bg-card rounded-xl shadow-sm border border-slate-200/70 p-3 mb-3">
+                <div className="flex flex-col md:flex-row gap-2 justify-between items-start md:items-center">
+                    <div className="flex flex-1 flex-wrap items-center gap-2">
                         <input
                             type="text"
                             placeholder="Search enquiries by Firm, Party, Offer Number..."
                             value={searchTerm}
                             onChange={(e) => setSearchTerm(e.target.value)}
-                            className="px-4 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-sky-500 min-w-[250px] flex-1 max-w-md"
+                            className="px-3 py-1.5 text-sm border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-sky-500 min-w-[220px]"
                         />
+                        <select
+                            value={firmFilter}
+                            onChange={(e) => setFirmFilter(e.target.value)}
+                            className="px-2.5 py-1.5 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-sky-500 text-sm text-gray-700 bg-white cursor-pointer max-w-[150px]"
+                        >
+                            <option value="">All firms</option>
+                            {firmFilterOptions.map((f) => (
+                                <option key={f} value={f}>{f}</option>
+                            ))}
+                        </select>
+                        <select
+                            value={partyFilter}
+                            onChange={(e) => setPartyFilter(e.target.value)}
+                            className="px-2.5 py-1.5 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-sky-500 text-sm text-gray-700 bg-white cursor-pointer max-w-[150px]"
+                        >
+                            <option value="">All parties</option>
+                            {partyFilterOptions.map((p) => (
+                                <option key={p} value={p}>{p}</option>
+                            ))}
+                        </select>
+                        {(firmFilter || partyFilter) && (
+                            <button
+                                type="button"
+                                onClick={() => { setFirmFilter(""); setPartyFilter("") }}
+                                className="px-2 py-1.5 text-sm font-medium text-sky-600 hover:text-sky-800 underline whitespace-nowrap"
+                            >
+                                Clear filters
+                            </button>
+                        )}
                     </div>
-                    <div className="flex gap-3">
+                    <div className="flex gap-2 shrink-0">
                         <button
                             onClick={handleExport}
                             disabled={isLoading || filteredRows.length === 0}
-                            className="flex items-center justify-center gap-2 px-4 py-2 bg-card border border-border text-muted-foreground hover:text-foreground hover:bg-muted font-bold rounded-xl shadow-sm transition-all text-sm whitespace-nowrap cursor-pointer disabled:opacity-50"
+                            className="flex items-center justify-center gap-2 px-3 py-1.5 text-sm bg-card border border-border text-muted-foreground hover:text-foreground hover:bg-muted font-bold rounded-xl shadow-sm transition-all whitespace-nowrap cursor-pointer disabled:opacity-50"
                         >
                             <Download className="h-4 w-4" />
                             Export
@@ -489,7 +561,7 @@ function Offer() {
                         <button
                             onClick={fetchOfferData}
                             disabled={isLoading}
-                            className="flex items-center justify-center gap-2 px-4 py-2 bg-card border border-border text-muted-foreground hover:text-foreground hover:bg-muted font-bold rounded-xl shadow-sm transition-all text-sm whitespace-nowrap cursor-pointer disabled:opacity-50"
+                            className="flex items-center justify-center gap-2 px-3 py-1.5 text-sm bg-card border border-border text-muted-foreground hover:text-foreground hover:bg-muted font-bold rounded-xl shadow-sm transition-all whitespace-nowrap cursor-pointer disabled:opacity-50"
                         >
                             <RefreshCwIcon className={`h-4 w-4 ${isLoading ? 'animate-spin' : ''}`} />
                             Refresh
@@ -501,18 +573,29 @@ function Offer() {
             {/* Table */}
             <div className="flex-1 min-h-0 flex flex-col bg-white rounded-2xl shadow-md border border-slate-200/70 overflow-hidden">
                 <div className="flex-1 min-h-0 overflow-auto">
-                    <table className="w-full text-left border-collapse">
+                    <table className="w-full text-left border-separate border-spacing-0">
                         <thead className="sticky top-0 z-10">
                             <tr className="bg-muted/80 border-b border-border">
                                 {isActionTab && (
-                                    <th className="sticky left-0 z-20 bg-muted px-6 py-4 text-[11px] font-black text-muted-foreground uppercase tracking-widest text-center whitespace-nowrap shadow-xs">
+                                    <th className="sticky left-0 z-20 bg-muted px-5 py-3.5 text-xs font-bold text-muted-foreground uppercase tracking-wider text-center whitespace-nowrap shadow-xs">
                                         Action
                                     </th>
                                 )}
                                 {columnsToRender.map((col) => (
-                                    <th key={col} className="px-6 py-4 text-[11px] font-black text-muted-foreground uppercase tracking-widest whitespace-nowrap">
-                                        {col}
-                                    </th>
+                                    col === "Stage" || col === "Offer Letter" ? (
+                                        <th key={col} className="px-5 py-3.5 text-xs font-bold text-muted-foreground uppercase tracking-wider whitespace-nowrap">
+                                            {col}
+                                        </th>
+                                    ) : (
+                                        <SortableTh
+                                            key={col}
+                                            column={col}
+                                            label={col}
+                                            sortConfig={sortConfig}
+                                            onSort={handleSort}
+                                            className="px-5 py-3.5 text-xs font-bold text-muted-foreground uppercase tracking-wider whitespace-nowrap"
+                                        />
+                                    )
                                 ))}
                             </tr>
                         </thead>
@@ -545,7 +628,7 @@ function Offer() {
                                     return (
                                         <tr key={originalIdx} className="hover:bg-muted/50 transition-colors group">
                                             {isActionTab && (
-                                                <td className="sticky left-0 z-10 bg-white group-hover:bg-muted/50 px-6 py-4 whitespace-nowrap text-center shadow-xs">
+                                                <td className="sticky left-0 z-10 bg-white group-hover:bg-muted/50 px-5 py-3.5 whitespace-nowrap text-center shadow-xs">
                                                     <button
                                                         type="button"
                                                         onClick={() => {
@@ -559,6 +642,9 @@ function Offer() {
                                                                     const val = row.rawRow?.[resolveInputCol(col)]
                                                                     if (val && col.type !== 'file') {
                                                                         initialValues[col.key] = String(val).trim()
+                                                                        if (col.key === 'mgmtRate') {
+                                                                            initialValues.mgmtRateList = String(val).split(',').map(v => v.trim()).filter(Boolean)
+                                                                        }
                                                                     }
                                                                 })
                                                             }
@@ -754,7 +840,7 @@ function Offer() {
                                                 }
 
                                                 return (
-                                                    <td key={col} className="px-6 py-4 text-sm font-semibold text-muted-foreground whitespace-nowrap">
+                                                    <td key={col} className="px-5 py-3.5 text-sm font-semibold text-muted-foreground whitespace-nowrap">
                                                         {displayContent}
                                                     </td>
                                                 )
@@ -958,7 +1044,47 @@ function Offer() {
                                                             <label className="block text-xs font-semibold text-slate-700">
                                                                 {col.label} {col.required !== false && <span className="text-red-500">*</span>}
                                                             </label>
-                                                            {col.type === 'file' ? (
+                                                            {col.key === 'mgmtRate' ? (() => {
+                                                                const rateList = (modalFormData.mgmtRateList && modalFormData.mgmtRateList.length > 0)
+                                                                    ? modalFormData.mgmtRateList
+                                                                    : [""]
+                                                                return (
+                                                                    <div className="space-y-2">
+                                                                        {rateList.map((rate, idx) => (
+                                                                            <div key={idx} className="flex items-center gap-2">
+                                                                                <input
+                                                                                    type="text"
+                                                                                    value={rate}
+                                                                                    onChange={(e) => {
+                                                                                        const list = [...rateList]
+                                                                                        list[idx] = e.target.value
+                                                                                        setModalFormData({ ...modalFormData, mgmtRateList: list })
+                                                                                    }}
+                                                                                    className="flex-1 px-3 py-2 border-b border-slate-200 focus:border-sky-600 focus:outline-none text-sm text-slate-800 bg-transparent transition-colors"
+                                                                                    placeholder={`Enter Mgmt Rate ${idx + 1}...`}
+                                                                                    required={idx === 0}
+                                                                                />
+                                                                                {rateList.length > 1 && (
+                                                                                    <button
+                                                                                        type="button"
+                                                                                        onClick={() => setModalFormData({ ...modalFormData, mgmtRateList: rateList.filter((_, i) => i !== idx) })}
+                                                                                        className="shrink-0 text-rose-500 hover:text-rose-700 p-1 cursor-pointer"
+                                                                                    >
+                                                                                        <XIcon className="h-4 w-4" />
+                                                                                    </button>
+                                                                                )}
+                                                                            </div>
+                                                                        ))}
+                                                                        <button
+                                                                            type="button"
+                                                                            onClick={() => setModalFormData({ ...modalFormData, mgmtRateList: [...rateList, ""] })}
+                                                                            className="text-xs font-bold text-sky-600 hover:text-sky-700 cursor-pointer"
+                                                                        >
+                                                                            + Add another rate
+                                                                        </button>
+                                                                    </div>
+                                                                )
+                                                            })() : col.type === 'file' ? (
                                                                 <div className="relative">
                                                                     <input
                                                                         type="file"

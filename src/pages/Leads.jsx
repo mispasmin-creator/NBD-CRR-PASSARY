@@ -5,7 +5,8 @@ import { useNavigate } from "react-router-dom"
 import { PlusIcon, XIcon, PhoneCallIcon, UsersIcon } from "../components/Icons"
 import PageHeader from "../components/ui/PageHeader"
 import axios from "axios"
-import { Download } from "lucide-react"
+import { Download, ArrowUp, ArrowDown, ArrowUpDown } from "lucide-react"
+import { sortRows, nextSortDirection } from "../utils/sortRows"
 import { exportToCsv } from "../utils/exportCsv"
 import { getCurrentTimestamp, formatTimestamp, reformatIfDate } from "../utils/dateTime"
 
@@ -48,7 +49,8 @@ const initialFormData = {
   department: "",
   location: "",
   workType: "",
-  projectSize: ""
+  projectSize: "",
+  customProjectSize: ""
 }
 
 // Helper functions for localStorage
@@ -86,6 +88,26 @@ const getNextLeadNumber = () => {
   }
 }
 
+// Small clickable header cell used to make a table column sortable —
+// keeps each page's own className string (color/sticky) untouched.
+function SortableTh({ column, label, sortConfig, onSort, className }) {
+  const isActive = sortConfig.key === column
+  return (
+    <th onClick={() => onSort(column)} className={`${className} cursor-pointer select-none`}>
+      <span className="inline-flex items-center gap-1">
+        {label}
+        {isActive && sortConfig.direction === "asc" ? (
+          <ArrowUp className="h-3 w-3" />
+        ) : isActive && sortConfig.direction === "desc" ? (
+          <ArrowDown className="h-3 w-3" />
+        ) : (
+          <ArrowUpDown className="h-3 w-3 opacity-30" />
+        )}
+      </span>
+    </th>
+  )
+}
+
 function Leads() {
   const navigate = useNavigate()
   const [leads, setLeads] = useState([])
@@ -97,6 +119,18 @@ function Leads() {
   const [isLoading, setIsLoading] = useState(true)
   const [activeTab, setActiveTab] = useState("updateStatus")
   const [callDateFilter, setCallDateFilter] = useState("all") // "all" | "overdue" | "today" | "tomorrow" | "week"
+  const [companyFilter, setCompanyFilter] = useState("")
+  const [customerNameFilter, setCustomerNameFilter] = useState("")
+  const [salesPersonFilter, setSalesPersonFilter] = useState("")
+  const [enquiryReceivedFilter, setEnquiryReceivedFilter] = useState("")
+  const [sortConfig, setSortConfig] = useState({ key: null, direction: null })
+
+  const handleSort = (key) => {
+    setSortConfig((prev) => {
+      const direction = nextSortDirection(prev, key)
+      return { key: direction ? key : null, direction }
+    })
+  }
 
   const [masterFirmOptions, setMasterFirmOptions] = useState([])
   const [masterLeadReceivedFromOptions, setMasterLeadReceivedFromOptions] = useState([])
@@ -401,7 +435,7 @@ function Leads() {
         formData.department,        // Column G: Department
         formData.location,         // Column H: Location
         formData.workType,          // Column I: Work Type
-        formData.projectSize       // Column J: Project Size
+        formData.projectSize === "Custom" ? formData.customProjectSize : formData.projectSize // Column J: Project Size
       ]
 
       const formDataToSend = new URLSearchParams()
@@ -480,6 +514,11 @@ function Leads() {
       if (enquiryReceived !== "Yes" && enquiryReceived !== "Cancel") return false
     }
 
+    if (companyFilter && String(lead.companyName || "").trim() !== companyFilter) return false
+    if (customerNameFilter && String(lead.customerName || "").trim() !== customerNameFilter) return false
+    if (salesPersonFilter && String(lead.salesPerson || "").trim() !== salesPersonFilter) return false
+    if (enquiryReceivedFilter && String(lead.trackerEnquiry || "").trim() !== enquiryReceivedFilter) return false
+
     if (!searchTerm) return true
     const searchLower = searchTerm.toLowerCase()
     return (
@@ -493,7 +532,41 @@ function Leads() {
     )
   })
 
-  const paginatedLeads = filteredLeads
+  // Distinct values for the Company / Customer Name / Sales Person filter dropdowns
+  const companyFilterOptions = Array.from(new Set(leads.map(l => String(l.companyName || "").trim()).filter(Boolean))).sort()
+  const customerNameFilterOptions = Array.from(new Set(leads.map(l => String(l.customerName || "").trim()).filter(Boolean))).sort()
+  const salesPersonFilterOptions = Array.from(new Set(leads.map(l => String(l.salesPerson || "").trim()).filter(Boolean))).sort()
+  const ENQUIRY_RECEIVED_LABELS = { Yes: "Received", Cancel: "Not Received" }
+  const enquiryReceivedFilterOptions = Array.from(new Set(leads.map(l => String(l.trackerEnquiry || "").trim()).filter(Boolean)))
+    .sort((a, b) => (a === "Yes" ? -1 : b === "Yes" ? 1 : a === "Cancel" ? -1 : b === "Cancel" ? 1 : a.localeCompare(b)))
+
+  // Accessors for every sortable column across the 3 tabs (Update Status / Call Tracking / History)
+  const SORT_ACCESSORS = {
+    leadNumber: (l) => l.leadNumber,
+    ourFirmName: (l) => l.ourFirmName,
+    leadReceivedFrom: (l) => l.leadReceivedFrom,
+    salesPerson: (l) => l.salesPerson,
+    companyName: (l) => l.companyName,
+    department: (l) => l.department,
+    location: (l) => l.location,
+    productName: (l) => l.productName,
+    customerName: (l) => l.customerName,
+    contactNo: (l) => l.contactNo,
+    emailId: (l) => l.emailId,
+    remarks: (l) => l.remarks,
+    trackerLastCall: (l) => l.trackerLastCall,
+    trackerStatus: (l) => l.trackerStatus,
+    trackerNextAction: (l) => l.trackerNextAction,
+    trackerEnquiry: (l) => l.trackerEnquiry,
+    trackerRemarks: (l) => l.trackerRemarks,
+    trackerNextCall: (l) => l.trackerNextCall,
+    trackerFreq: (l) => l.trackerFreq,
+    callUpdate: (l) => (l.trackerStatus || l.remarks) ? "Updated" : "Pending",
+  }
+
+  const paginatedLeads = (sortConfig.key && SORT_ACCESSORS[sortConfig.key])
+    ? sortRows(filteredLeads, sortConfig.direction, SORT_ACCESSORS[sortConfig.key])
+    : filteredLeads
 
   const handleExportLeads = () => {
     exportToCsv(`nbd-leads-${activeTab}`, [
@@ -1126,29 +1199,78 @@ function Leads() {
       </div>
 
       {/* Controls */}
-      <div className="shrink-0 bg-card rounded-2xl shadow-sm border border-slate-200/70 p-6 mb-6">
-        <div className="flex flex-col md:flex-row gap-4 justify-between items-start md:items-center">
-          <div className="flex flex-col sm:flex-row gap-4 flex-1">
+      <div className="shrink-0 bg-card rounded-xl shadow-sm border border-slate-200/70 p-3 mb-3">
+        <div className="flex flex-col md:flex-row gap-2 justify-between items-start md:items-center">
+          <div className="flex flex-1 flex-wrap items-center gap-2">
             <input
               type="text"
               placeholder="Search leads..."
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
-              className="px-4 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-sky-500 min-w-[250px]"
+              className="px-3 py-1.5 text-sm border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-sky-500 min-w-[180px]"
             />
+            <select
+              value={companyFilter}
+              onChange={(e) => setCompanyFilter(e.target.value)}
+              className="px-2.5 py-1.5 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-sky-500 text-sm text-gray-700 bg-white cursor-pointer max-w-[150px]"
+            >
+              <option value="">All companies</option>
+              {companyFilterOptions.map((c) => (
+                <option key={c} value={c}>{c}</option>
+              ))}
+            </select>
+            <select
+              value={customerNameFilter}
+              onChange={(e) => setCustomerNameFilter(e.target.value)}
+              className="px-2.5 py-1.5 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-sky-500 text-sm text-gray-700 bg-white cursor-pointer max-w-[150px]"
+            >
+              <option value="">All customers</option>
+              {customerNameFilterOptions.map((c) => (
+                <option key={c} value={c}>{c}</option>
+              ))}
+            </select>
+            <select
+              value={salesPersonFilter}
+              onChange={(e) => setSalesPersonFilter(e.target.value)}
+              className="px-2.5 py-1.5 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-sky-500 text-sm text-gray-700 bg-white cursor-pointer max-w-[150px]"
+            >
+              <option value="">All sales persons</option>
+              {salesPersonFilterOptions.map((sp) => (
+                <option key={sp} value={sp}>{sp}</option>
+              ))}
+            </select>
+            <select
+              value={enquiryReceivedFilter}
+              onChange={(e) => setEnquiryReceivedFilter(e.target.value)}
+              className="px-2.5 py-1.5 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-sky-500 text-sm text-gray-700 bg-white cursor-pointer max-w-[150px]"
+            >
+              <option value="">All enquiry status</option>
+              {enquiryReceivedFilterOptions.map((val) => (
+                <option key={val} value={val}>{ENQUIRY_RECEIVED_LABELS[val] || val}</option>
+              ))}
+            </select>
+            {(companyFilter || customerNameFilter || salesPersonFilter || enquiryReceivedFilter) && (
+              <button
+                type="button"
+                onClick={() => { setCompanyFilter(""); setCustomerNameFilter(""); setSalesPersonFilter(""); setEnquiryReceivedFilter("") }}
+                className="px-2 py-1.5 text-sm font-medium text-sky-600 hover:text-sky-800 underline whitespace-nowrap"
+              >
+                Clear filters
+              </button>
+            )}
           </div>
-          <div className="flex gap-3">
+          <div className="flex gap-2 shrink-0">
             <button
               onClick={handleExportLeads}
               disabled={filteredLeads.length === 0}
-              className="bg-card border border-border text-muted-foreground hover:text-foreground hover:bg-muted font-medium py-2 px-4 rounded-md transition-colors flex items-center gap-2 cursor-pointer disabled:opacity-50"
+              className="bg-card border border-border text-muted-foreground hover:text-foreground hover:bg-muted font-medium py-1.5 px-3 text-sm rounded-md transition-colors flex items-center gap-2 cursor-pointer disabled:opacity-50"
             >
               <Download className="h-4 w-4" />
               Export
             </button>
             <button
               onClick={() => setIsModalOpen(true)}
-              className="bg-sky-600 hover:bg-sky-700 text-white font-medium py-2 px-4 rounded-md transition-colors flex items-center gap-2 cursor-pointer"
+              className="bg-sky-600 hover:bg-sky-700 text-white font-medium py-1.5 px-3 text-sm rounded-md transition-colors flex items-center gap-2 cursor-pointer"
             >
               <PlusIcon className="h-4 w-4" />
               New Lead
@@ -1171,17 +1293,17 @@ function Leads() {
                   </div>
                 </div>
               ) : (
-                <table className="w-full border-collapse">
+                <table className="w-full border-separate border-spacing-0">
                   <thead className="sticky top-0 z-10">
                     <tr className="bg-gradient-to-r from-teal-50 to-emerald-50 border-b border-gray-200">
                       <th className="sticky left-0 z-20 bg-teal-50 px-5 py-3.5 text-left text-xs font-bold text-teal-700 uppercase tracking-wider whitespace-nowrap shadow-xs">Action</th>
-                      <th className="px-5 py-3.5 text-left text-xs font-bold text-teal-700 uppercase tracking-wider whitespace-nowrap">Lead No.</th>
-                      <th className="px-5 py-3.5 text-left text-xs font-bold text-teal-700 uppercase tracking-wider whitespace-nowrap">Our Firm Name</th>
-                      <th className="px-5 py-3.5 text-left text-xs font-bold text-teal-700 uppercase tracking-wider whitespace-nowrap">Lead Received From</th>
-                      <th className="px-5 py-3.5 text-left text-xs font-bold text-teal-700 uppercase tracking-wider whitespace-nowrap">Sales Person</th>
-                      <th className="px-5 py-3.5 text-left text-xs font-bold text-teal-700 uppercase tracking-wider whitespace-nowrap">Company</th>
-                      <th className="px-5 py-3.5 text-left text-xs font-bold text-teal-700 uppercase tracking-wider whitespace-nowrap">Department</th>
-                      <th className="px-5 py-3.5 text-left text-xs font-bold text-teal-700 uppercase tracking-wider whitespace-nowrap">Location</th>
+                      <SortableTh column="leadNumber" label="Lead No." sortConfig={sortConfig} onSort={handleSort} className="px-5 py-3.5 text-left text-xs font-bold text-teal-700 uppercase tracking-wider whitespace-nowrap" />
+                      <SortableTh column="ourFirmName" label="Our Firm Name" sortConfig={sortConfig} onSort={handleSort} className="px-5 py-3.5 text-left text-xs font-bold text-teal-700 uppercase tracking-wider whitespace-nowrap" />
+                      <SortableTh column="leadReceivedFrom" label="Lead Received From" sortConfig={sortConfig} onSort={handleSort} className="px-5 py-3.5 text-left text-xs font-bold text-teal-700 uppercase tracking-wider whitespace-nowrap" />
+                      <SortableTh column="salesPerson" label="Sales Person" sortConfig={sortConfig} onSort={handleSort} className="px-5 py-3.5 text-left text-xs font-bold text-teal-700 uppercase tracking-wider whitespace-nowrap" />
+                      <SortableTh column="companyName" label="Company" sortConfig={sortConfig} onSort={handleSort} className="px-5 py-3.5 text-left text-xs font-bold text-teal-700 uppercase tracking-wider whitespace-nowrap" />
+                      <SortableTh column="department" label="Department" sortConfig={sortConfig} onSort={handleSort} className="px-5 py-3.5 text-left text-xs font-bold text-teal-700 uppercase tracking-wider whitespace-nowrap" />
+                      <SortableTh column="location" label="Location" sortConfig={sortConfig} onSort={handleSort} className="px-5 py-3.5 text-left text-xs font-bold text-teal-700 uppercase tracking-wider whitespace-nowrap" />
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-gray-100 bg-card">
@@ -1287,7 +1409,7 @@ function Leads() {
             }
 
             return (
-              <div className="shrink-0 grid grid-cols-2 sm:grid-cols-4 gap-3 mb-5">
+              <div className="shrink-0 grid grid-cols-2 sm:grid-cols-4 gap-2 mb-3">
                 {cards.map(c => {
                   const isActive = callDateFilter === c.key
                   const cls = colorClasses[c.color]
@@ -1295,7 +1417,7 @@ function Leads() {
                     <button
                       key={c.key}
                       onClick={() => setCallDateFilter(isActive ? "all" : c.key)}
-                      className={`flex items-center justify-between gap-2 rounded-xl border p-4 text-left transition-all hover:shadow-md ${isActive ? cls.active : cls.base
+                      className={`flex items-center justify-between gap-2 rounded-lg border p-2.5 text-left transition-all hover:shadow-md ${isActive ? cls.active : cls.base
                         }`}
                     >
                       <span className="text-sm font-semibold">{c.label}</span>
@@ -1326,31 +1448,33 @@ function Leads() {
                   </div>
                 </div>
               ) : (
-                <table className="w-full border-collapse">
+                <table className="w-full border-separate border-spacing-0">
                   <thead className="sticky top-0 z-10">
                     <tr className="bg-gradient-to-r from-indigo-50 to-purple-50 border-b border-gray-200">
                       <th className="sticky left-0 z-20 bg-indigo-50 px-5 py-3.5 text-left text-xs font-bold text-indigo-700 uppercase tracking-wider whitespace-nowrap shadow-xs">Action</th>
-                      <th className="px-5 py-3.5 text-left text-xs font-bold text-indigo-700 uppercase tracking-wider whitespace-nowrap">Lead No.</th>
-                      <th className="px-5 py-3.5 text-left text-xs font-bold text-indigo-700 uppercase tracking-wider whitespace-nowrap">Company</th>
-                      <th className="px-5 py-3.5 text-left text-xs font-bold text-indigo-700 uppercase tracking-wider whitespace-nowrap">Location</th>
-                      <th className="px-5 py-3.5 text-left text-xs font-bold text-indigo-700 uppercase tracking-wider whitespace-nowrap">Product</th>
-                      <th className="px-5 py-3.5 text-left text-xs font-bold text-indigo-700 uppercase tracking-wider whitespace-nowrap">Customer Name</th>
-                      <th className="px-5 py-3.5 text-left text-xs font-bold text-indigo-700 uppercase tracking-wider whitespace-nowrap">Contact No.</th>
-                      <th className="px-5 py-3.5 text-left text-xs font-bold text-indigo-700 uppercase tracking-wider whitespace-nowrap">Email</th>
-                      <th className="px-5 py-3.5 text-left text-xs font-bold text-indigo-700 uppercase tracking-wider whitespace-nowrap">Update Remarks</th>
-                      <th className="px-5 py-3.5 text-left text-xs font-bold text-indigo-700 uppercase tracking-wider whitespace-nowrap">Last Date Of Call</th>
-                      <th className="px-5 py-3.5 text-left text-xs font-bold text-indigo-700 uppercase tracking-wider whitespace-nowrap">Call Status</th>
-                      <th className="px-5 py-3.5 text-left text-xs font-bold text-indigo-700 uppercase tracking-wider whitespace-nowrap">Next Action</th>
-                      <th className="px-5 py-3.5 text-left text-xs font-bold text-indigo-700 uppercase tracking-wider whitespace-nowrap">Enquiry Received</th>
-                      <th className="px-5 py-3.5 text-left text-xs font-bold text-indigo-700 uppercase tracking-wider whitespace-nowrap">Cust. Remarks</th>
-                      <th className="px-5 py-3.5 text-left text-xs font-bold text-indigo-700 uppercase tracking-wider whitespace-nowrap">Next Call</th>
-                      <th className="px-5 py-3.5 text-left text-xs font-bold text-indigo-700 uppercase tracking-wider whitespace-nowrap">Freq</th>
+                      <SortableTh column="leadNumber" label="Lead No." sortConfig={sortConfig} onSort={handleSort} className="px-5 py-3.5 text-left text-xs font-bold text-indigo-700 uppercase tracking-wider whitespace-nowrap" />
+                      <SortableTh column="callUpdate" label="Call Update" sortConfig={sortConfig} onSort={handleSort} className="px-5 py-3.5 text-left text-xs font-bold text-indigo-700 uppercase tracking-wider whitespace-nowrap" />
+                      <SortableTh column="companyName" label="Company" sortConfig={sortConfig} onSort={handleSort} className="px-5 py-3.5 text-left text-xs font-bold text-indigo-700 uppercase tracking-wider whitespace-nowrap" />
+                      <SortableTh column="salesPerson" label="Name Of The Sales Person" sortConfig={sortConfig} onSort={handleSort} className="px-5 py-3.5 text-left text-xs font-bold text-indigo-700 uppercase tracking-wider whitespace-nowrap" />
+                      <SortableTh column="location" label="Location" sortConfig={sortConfig} onSort={handleSort} className="px-5 py-3.5 text-left text-xs font-bold text-indigo-700 uppercase tracking-wider whitespace-nowrap" />
+                      <SortableTh column="productName" label="Product" sortConfig={sortConfig} onSort={handleSort} className="px-5 py-3.5 text-left text-xs font-bold text-indigo-700 uppercase tracking-wider whitespace-nowrap" />
+                      <SortableTh column="customerName" label="Customer Name" sortConfig={sortConfig} onSort={handleSort} className="px-5 py-3.5 text-left text-xs font-bold text-indigo-700 uppercase tracking-wider whitespace-nowrap" />
+                      <SortableTh column="contactNo" label="Contact No." sortConfig={sortConfig} onSort={handleSort} className="px-5 py-3.5 text-left text-xs font-bold text-indigo-700 uppercase tracking-wider whitespace-nowrap" />
+                      <SortableTh column="emailId" label="Email" sortConfig={sortConfig} onSort={handleSort} className="px-5 py-3.5 text-left text-xs font-bold text-indigo-700 uppercase tracking-wider whitespace-nowrap" />
+                      <SortableTh column="remarks" label="Update Remarks" sortConfig={sortConfig} onSort={handleSort} className="px-5 py-3.5 text-left text-xs font-bold text-indigo-700 uppercase tracking-wider whitespace-nowrap" />
+                      <SortableTh column="trackerLastCall" label="Last Date Of Call" sortConfig={sortConfig} onSort={handleSort} className="px-5 py-3.5 text-left text-xs font-bold text-indigo-700 uppercase tracking-wider whitespace-nowrap" />
+                      <SortableTh column="trackerStatus" label="Call Status" sortConfig={sortConfig} onSort={handleSort} className="px-5 py-3.5 text-left text-xs font-bold text-indigo-700 uppercase tracking-wider whitespace-nowrap" />
+                      <SortableTh column="trackerNextAction" label="Next Action" sortConfig={sortConfig} onSort={handleSort} className="px-5 py-3.5 text-left text-xs font-bold text-indigo-700 uppercase tracking-wider whitespace-nowrap" />
+                      <SortableTh column="trackerEnquiry" label="Enquiry Received" sortConfig={sortConfig} onSort={handleSort} className="px-5 py-3.5 text-left text-xs font-bold text-indigo-700 uppercase tracking-wider whitespace-nowrap" />
+                      <SortableTh column="trackerRemarks" label="Cust. Remarks" sortConfig={sortConfig} onSort={handleSort} className="px-5 py-3.5 text-left text-xs font-bold text-indigo-700 uppercase tracking-wider whitespace-nowrap" />
+                      <SortableTh column="trackerNextCall" label="Next Call" sortConfig={sortConfig} onSort={handleSort} className="px-5 py-3.5 text-left text-xs font-bold text-indigo-700 uppercase tracking-wider whitespace-nowrap" />
+                      <SortableTh column="trackerFreq" label="Freq" sortConfig={sortConfig} onSort={handleSort} className="px-5 py-3.5 text-left text-xs font-bold text-indigo-700 uppercase tracking-wider whitespace-nowrap" />
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-gray-100 bg-card">
                     {filteredLeads.length === 0 ? (
                       <tr>
-                        <td colSpan="16" className="px-4 py-20 text-center">
+                        <td colSpan="18" className="px-4 py-20 text-center">
                           <div className="flex flex-col items-center justify-center gap-2">
                             <div className="flex h-14 w-14 items-center justify-center rounded-full bg-gray-100">
                               <PhoneCallIcon className="h-6 w-6 text-gray-300" />
@@ -1376,7 +1500,19 @@ function Leads() {
                               {lead.leadNumber || '-'}
                             </span>
                           </td>
+                          <td className="px-5 py-3.5 whitespace-nowrap">
+                            {(lead.trackerStatus || lead.remarks) ? (
+                              <span className="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-bold bg-emerald-100 text-emerald-700">
+                                Updated
+                              </span>
+                            ) : (
+                              <span className="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-bold bg-amber-100 text-amber-700">
+                                Pending
+                              </span>
+                            )}
+                          </td>
                           <td className="px-5 py-3.5 whitespace-nowrap text-sm font-semibold text-gray-900 max-w-[180px] truncate" title={lead.companyName}>{lead.companyName || '-'}</td>
+                          <td className="px-5 py-3.5 whitespace-nowrap text-sm text-gray-600 max-w-[160px] truncate" title={lead.salesPerson}>{lead.salesPerson || '-'}</td>
                           <td className="px-5 py-3.5 whitespace-nowrap text-sm text-gray-600 max-w-[120px] truncate" title={lead.location}>{lead.location || '-'}</td>
                           <td className="px-5 py-3.5 whitespace-nowrap text-sm text-gray-600 max-w-[140px] truncate" title={lead.productName}>{lead.productName || '-'}</td>
                           <td className="px-5 py-3.5 whitespace-nowrap text-sm text-gray-600 max-w-[140px] truncate" title={lead.customerName}>{lead.customerName || '-'}</td>
@@ -1490,24 +1626,24 @@ function Leads() {
                   </div>
                 </div>
               ) : (
-                <table className="w-full border-collapse">
+                <table className="w-full border-separate border-spacing-0">
                   <thead className="sticky top-0 z-10">
                     <tr className="bg-gradient-to-r from-slate-50 to-gray-50 border-b border-gray-200">
                       <th className="sticky left-0 z-20 bg-slate-50 px-5 py-3.5 text-left text-xs font-bold text-slate-700 uppercase tracking-wider whitespace-nowrap shadow-xs">Action</th>
-                      <th className="px-5 py-3.5 text-left text-xs font-bold text-slate-700 uppercase tracking-wider whitespace-nowrap">Lead No.</th>
-                      <th className="px-5 py-3.5 text-left text-xs font-bold text-slate-700 uppercase tracking-wider whitespace-nowrap">Company</th>
-                      <th className="px-5 py-3.5 text-left text-xs font-bold text-slate-700 uppercase tracking-wider whitespace-nowrap">Location</th>
-                      <th className="px-5 py-3.5 text-left text-xs font-bold text-slate-700 uppercase tracking-wider whitespace-nowrap">Product</th>
-                      <th className="px-5 py-3.5 text-left text-xs font-bold text-slate-700 uppercase tracking-wider whitespace-nowrap">Customer Name</th>
-                      <th className="px-5 py-3.5 text-left text-xs font-bold text-slate-700 uppercase tracking-wider whitespace-nowrap">Contact No.</th>
-                      <th className="px-5 py-3.5 text-left text-xs font-bold text-slate-700 uppercase tracking-wider whitespace-nowrap">Email</th>
-                      <th className="px-5 py-3.5 text-left text-xs font-bold text-slate-700 uppercase tracking-wider whitespace-nowrap">Update Remarks</th>
-                      <th className="px-5 py-3.5 text-left text-xs font-bold text-slate-700 uppercase tracking-wider whitespace-nowrap">Last Date Of Call</th>
-                      <th className="px-5 py-3.5 text-left text-xs font-bold text-slate-700 uppercase tracking-wider whitespace-nowrap">Call Status</th>
-                      <th className="px-5 py-3.5 text-left text-xs font-bold text-slate-700 uppercase tracking-wider whitespace-nowrap">Next Action</th>
-                      <th className="px-5 py-3.5 text-left text-xs font-bold text-slate-700 uppercase tracking-wider whitespace-nowrap">Status</th>
-                      <th className="px-5 py-3.5 text-left text-xs font-bold text-slate-700 uppercase tracking-wider whitespace-nowrap">Cust. Remarks</th>
-                      <th className="px-5 py-3.5 text-left text-xs font-bold text-slate-700 uppercase tracking-wider whitespace-nowrap">Next Call</th>
+                      <SortableTh column="leadNumber" label="Lead No." sortConfig={sortConfig} onSort={handleSort} className="px-5 py-3.5 text-left text-xs font-bold text-slate-700 uppercase tracking-wider whitespace-nowrap" />
+                      <SortableTh column="companyName" label="Company" sortConfig={sortConfig} onSort={handleSort} className="px-5 py-3.5 text-left text-xs font-bold text-slate-700 uppercase tracking-wider whitespace-nowrap" />
+                      <SortableTh column="location" label="Location" sortConfig={sortConfig} onSort={handleSort} className="px-5 py-3.5 text-left text-xs font-bold text-slate-700 uppercase tracking-wider whitespace-nowrap" />
+                      <SortableTh column="productName" label="Product" sortConfig={sortConfig} onSort={handleSort} className="px-5 py-3.5 text-left text-xs font-bold text-slate-700 uppercase tracking-wider whitespace-nowrap" />
+                      <SortableTh column="customerName" label="Customer Name" sortConfig={sortConfig} onSort={handleSort} className="px-5 py-3.5 text-left text-xs font-bold text-slate-700 uppercase tracking-wider whitespace-nowrap" />
+                      <SortableTh column="contactNo" label="Contact No." sortConfig={sortConfig} onSort={handleSort} className="px-5 py-3.5 text-left text-xs font-bold text-slate-700 uppercase tracking-wider whitespace-nowrap" />
+                      <SortableTh column="emailId" label="Email" sortConfig={sortConfig} onSort={handleSort} className="px-5 py-3.5 text-left text-xs font-bold text-slate-700 uppercase tracking-wider whitespace-nowrap" />
+                      <SortableTh column="remarks" label="Update Remarks" sortConfig={sortConfig} onSort={handleSort} className="px-5 py-3.5 text-left text-xs font-bold text-slate-700 uppercase tracking-wider whitespace-nowrap" />
+                      <SortableTh column="trackerLastCall" label="Last Date Of Call" sortConfig={sortConfig} onSort={handleSort} className="px-5 py-3.5 text-left text-xs font-bold text-slate-700 uppercase tracking-wider whitespace-nowrap" />
+                      <SortableTh column="trackerStatus" label="Call Status" sortConfig={sortConfig} onSort={handleSort} className="px-5 py-3.5 text-left text-xs font-bold text-slate-700 uppercase tracking-wider whitespace-nowrap" />
+                      <SortableTh column="trackerNextAction" label="Next Action" sortConfig={sortConfig} onSort={handleSort} className="px-5 py-3.5 text-left text-xs font-bold text-slate-700 uppercase tracking-wider whitespace-nowrap" />
+                      <SortableTh column="trackerEnquiry" label="Status" sortConfig={sortConfig} onSort={handleSort} className="px-5 py-3.5 text-left text-xs font-bold text-slate-700 uppercase tracking-wider whitespace-nowrap" />
+                      <SortableTh column="trackerRemarks" label="Cust. Remarks" sortConfig={sortConfig} onSort={handleSort} className="px-5 py-3.5 text-left text-xs font-bold text-slate-700 uppercase tracking-wider whitespace-nowrap" />
+                      <SortableTh column="trackerNextCall" label="Next Call" sortConfig={sortConfig} onSort={handleSort} className="px-5 py-3.5 text-left text-xs font-bold text-slate-700 uppercase tracking-wider whitespace-nowrap" />
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-gray-100 bg-card">
@@ -1797,7 +1933,19 @@ function Leads() {
                           {["50", "100", "200", "350", "500", "650", "900", "1000", "1200"].map((size) => (
                             <option key={size} value={`DRI ${size} tpd`}>DRI {size} tpd</option>
                           ))}
+                          <option value="Custom">Custom</option>
                         </select>
+                        {formData.projectSize === "Custom" && (
+                          <input
+                            type="text"
+                            id="customProjectSize"
+                            value={formData.customProjectSize}
+                            onChange={handleChange}
+                            placeholder="Enter custom project size"
+                            className="w-full mt-2 px-4 py-2.5 text-sm border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-sky-500/50 focus:border-sky-500 bg-slate-50 hover:bg-slate-100 transition-colors"
+                            required
+                          />
+                        )}
                       </div>
                     </div>
                   </div>

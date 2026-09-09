@@ -6,10 +6,31 @@ import { PlusIcon, SearchIcon, XIcon, RefreshCwIcon, BarChartIcon } from "../com
 import { AuthContext } from "../App"
 import CallTrackerForm from "./Call-Tracker-Form"
 import axios from "axios"
-import { Download } from "lucide-react"
+import { Download, ArrowUp, ArrowDown, ArrowUpDown } from "lucide-react"
 import PageHeader from "../components/ui/PageHeader"
 import { exportToCsv } from "../utils/exportCsv"
 import { getCurrentTimestamp, reformatIfDate } from "../utils/dateTime"
+import { sortRows, nextSortDirection } from "../utils/sortRows"
+
+// Small clickable header cell used to make a table column sortable —
+// keeps the page's own className string (color/sticky) untouched.
+function SortableTh({ column, label, sortConfig, onSort, className }) {
+  const isActive = sortConfig.key === column
+  return (
+    <th onClick={() => onSort(column)} className={`${className} cursor-pointer select-none`}>
+      <span className="inline-flex items-center gap-1">
+        {label}
+        {isActive && sortConfig.direction === "asc" ? (
+          <ArrowUp className="h-3 w-3" />
+        ) : isActive && sortConfig.direction === "desc" ? (
+          <ArrowDown className="h-3 w-3" />
+        ) : (
+          <ArrowUpDown className="h-3 w-3 opacity-30" />
+        )}
+      </span>
+    </th>
+  )
+}
 
 // All columns to display in "View" modal
 const ALL_COLUMNS = [
@@ -69,6 +90,7 @@ const TABLE_COLUMNS = [
   "Enquiry No.",
   "Source",
   "Firm Name",
+  "Party Name",
   "Enquiry status",
   "Name Of Sales Person",
   "Location",
@@ -97,6 +119,16 @@ function CallTracker() {
   const location = useLocation()
   const navigate = useNavigate()
   const [searchTerm, setSearchTerm] = useState("")
+  const [firmFilter, setFirmFilter] = useState("")
+  const [salesPersonFilter, setSalesPersonFilter] = useState("")
+  const [statusFilter, setStatusFilter] = useState("")
+  const [sortConfig, setSortConfig] = useState({ key: null, direction: null })
+  const handleSort = (key) => {
+    setSortConfig((prev) => {
+      const direction = nextSortDirection(prev, key)
+      return { key: direction ? key : null, direction }
+    })
+  }
   const [isLoading, setIsLoading] = useState(true)
   const [presetLeadNo, setPresetLeadNo] = useState(null)
 
@@ -348,13 +380,23 @@ function CallTracker() {
     } else if (activeTab === "orderNotReceived") {
       if (trackerStatus !== "Tracker No" && trackerStatus !== "No") return false
     }
+    if (firmFilter && String(row["Firm Name"] || "").trim() !== firmFilter) return false
+    if (salesPersonFilter && String(row["Name Of Sales Person"] || "").trim() !== salesPersonFilter) return false
+    if (statusFilter && String(row["Enquiry status"] || "").trim() !== statusFilter) return false
+
     // Search filter
     if (!searchTerm) return true
     const term = searchTerm.toLowerCase()
     return Object.values(row).some(v => v && v.toString().toLowerCase().includes(term))
   })
 
-  const paginatedRows = filteredRows
+  const firmFilterOptions = Array.from(new Set(enquiryRows.map(r => String(r["Firm Name"] || "").trim()).filter(Boolean))).sort()
+  const salesPersonFilterOptions = Array.from(new Set(enquiryRows.map(r => String(r["Name Of Sales Person"] || "").trim()).filter(Boolean))).sort()
+  const statusFilterOptions = Array.from(new Set(enquiryRows.map(r => String(r["Enquiry status"] || "").trim()).filter(Boolean))).sort()
+
+  const paginatedRows = (sortConfig.key)
+    ? sortRows(filteredRows, sortConfig.direction, (r) => r[sortConfig.key])
+    : filteredRows
 
   const handleExportRows = () => {
     exportToCsv(`nbd-enquiry-${activeTab}`, [
@@ -1144,29 +1186,68 @@ function CallTracker() {
       </div>
 
       {/* Controls */}
-      <div className="shrink-0 bg-card rounded-2xl shadow-sm border border-slate-200/70 p-6 mb-6">
-        <div className="flex flex-col md:flex-row gap-4 justify-between items-start md:items-center">
-          <div className="flex flex-col sm:flex-row gap-4 flex-1">
+      <div className="shrink-0 bg-card rounded-xl shadow-sm border border-slate-200/70 p-3 mb-3">
+        <div className="flex flex-col md:flex-row gap-2 justify-between items-start md:items-center">
+          <div className="flex flex-1 flex-wrap items-center gap-2">
             <input
               type="text"
               placeholder="Search Enquiry..."
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
-              className="px-4 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-sky-500 min-w-[250px]"
+              className="px-3 py-1.5 text-sm border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-sky-500 min-w-[180px]"
             />
+            <select
+              value={firmFilter}
+              onChange={(e) => setFirmFilter(e.target.value)}
+              className="px-2.5 py-1.5 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-sky-500 text-sm text-gray-700 bg-white cursor-pointer max-w-[150px]"
+            >
+              <option value="">All firms</option>
+              {firmFilterOptions.map((f) => (
+                <option key={f} value={f}>{f}</option>
+              ))}
+            </select>
+            <select
+              value={salesPersonFilter}
+              onChange={(e) => setSalesPersonFilter(e.target.value)}
+              className="px-2.5 py-1.5 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-sky-500 text-sm text-gray-700 bg-white cursor-pointer max-w-[150px]"
+            >
+              <option value="">All sales persons</option>
+              {salesPersonFilterOptions.map((sp) => (
+                <option key={sp} value={sp}>{sp}</option>
+              ))}
+            </select>
+            <select
+              value={statusFilter}
+              onChange={(e) => setStatusFilter(e.target.value)}
+              className="px-2.5 py-1.5 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-sky-500 text-sm text-gray-700 bg-white cursor-pointer max-w-[150px]"
+            >
+              <option value="">All statuses</option>
+              {statusFilterOptions.map((s) => (
+                <option key={s} value={s}>{s}</option>
+              ))}
+            </select>
+            {(firmFilter || salesPersonFilter || statusFilter) && (
+              <button
+                type="button"
+                onClick={() => { setFirmFilter(""); setSalesPersonFilter(""); setStatusFilter("") }}
+                className="px-2 py-1.5 text-sm font-medium text-sky-600 hover:text-sky-800 underline whitespace-nowrap"
+              >
+                Clear filters
+              </button>
+            )}
           </div>
-          <div className="flex gap-3">
+          <div className="flex gap-2 shrink-0">
             <button
               onClick={handleExportRows}
               disabled={filteredRows.length === 0}
-              className="flex items-center gap-2 px-4 py-2 bg-card border border-gray-300 text-gray-600 font-medium rounded-md hover:bg-gray-50 text-sm cursor-pointer disabled:opacity-50"
+              className="flex items-center gap-2 px-3 py-1.5 text-sm bg-card border border-gray-300 text-gray-600 font-medium rounded-md hover:bg-gray-50 cursor-pointer disabled:opacity-50"
             >
               <Download className="h-4 w-4" />
               Export
             </button>
             <button
               onClick={fetchNBDEnquiryData}
-              className="flex items-center gap-2 px-4 py-2 bg-card border border-gray-300 text-gray-600 font-medium rounded-md hover:bg-gray-50 text-sm cursor-pointer"
+              className="flex items-center gap-2 px-3 py-1.5 text-sm bg-card border border-gray-300 text-gray-600 font-medium rounded-md hover:bg-gray-50 cursor-pointer"
             >
               <RefreshCwIcon className="h-4 w-4" />
               Refresh
@@ -1174,7 +1255,7 @@ function CallTracker() {
             {activeTab === "all" && (
               <button
                 onClick={() => setShowNewCallTrackerForm(true)}
-                className="bg-sky-600 hover:bg-sky-700 text-white font-medium py-2 px-4 rounded-md transition-colors flex items-center gap-2 text-sm"
+                className="bg-sky-600 hover:bg-sky-700 text-white font-medium py-1.5 px-3 rounded-md transition-colors flex items-center gap-2 text-sm"
               >
                 <PlusIcon className="h-4 w-4" /> New Enquiry
               </button>
@@ -1622,39 +1703,41 @@ function CallTracker() {
         ) : (
           <div className="flex-1 min-h-0 flex flex-col">
             <div className="flex-1 min-h-0 overflow-auto">
-              <table className="min-w-full border-collapse">
+              <table className="min-w-full border-separate border-spacing-0">
                 <thead className="sticky top-0 z-10">
                   <tr className="bg-muted border-b border-border">
                   {/* Call button column — only on Call Tracker tab */}
                   {activeTab === "callTracker" && (
-                    <th className="sticky left-0 z-20 bg-muted px-5 py-3.5 text-left text-[11px] font-bold text-indigo-600 uppercase tracking-widest whitespace-nowrap w-24 shadow-xs">
+                    <th className="sticky left-0 z-20 bg-muted px-5 py-3.5 text-left text-xs font-bold text-indigo-600 uppercase tracking-wider whitespace-nowrap w-24 shadow-xs">
                       Action
                     </th>
                   )}
                   {TABLE_COLUMNS.map((col) => (
-                    <th
+                    <SortableTh
                       key={col}
-                      className="px-5 py-3.5 text-left text-[11px] font-bold text-muted-foreground uppercase tracking-widest whitespace-nowrap"
-                    >
-                      {col}
-                    </th>
+                      column={col}
+                      label={col}
+                      sortConfig={sortConfig}
+                      onSort={handleSort}
+                      className="px-5 py-3.5 text-left text-xs font-bold text-muted-foreground uppercase tracking-wider whitespace-nowrap"
+                    />
                   ))}
                   {/* Extra Call Tracker columns for tracker tabs */}
                   {["callTracker", "orderReceived", "orderNotReceived"].includes(activeTab) &&
                     CALL_TRACKER_COLUMNS.map((col) => (
-                      <th
+                      <SortableTh
                         key={col}
-                        className="px-5 py-3.5 text-left text-[11px] font-bold text-indigo-500 uppercase tracking-widest whitespace-nowrap"
-                      >
-                        {CALL_TRACKER_COLUMN_LABELS[col] || col}
-                      </th>
+                        column={col}
+                        label={CALL_TRACKER_COLUMN_LABELS[col] || col}
+                        sortConfig={sortConfig}
+                        onSort={handleSort}
+                        className="px-5 py-3.5 text-left text-xs font-bold text-indigo-500 uppercase tracking-wider whitespace-nowrap"
+                      />
                     ))
                   }
                   {/* Current Stage column — shown on the "All Enquiry" tab too */}
                   {activeTab === "all" && (
-                    <th className="px-5 py-3.5 text-left text-[11px] font-bold text-indigo-500 uppercase tracking-widest whitespace-nowrap">
-                      Current Stage
-                    </th>
+                    <SortableTh column="Current Stage" label="Current Stage" sortConfig={sortConfig} onSort={handleSort} className="px-5 py-3.5 text-left text-xs font-bold text-indigo-500 uppercase tracking-wider whitespace-nowrap" />
                   )}
                   {/* View chevron column */}
                   <th className="px-5 py-3.5 w-14"></th>

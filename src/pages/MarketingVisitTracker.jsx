@@ -4,11 +4,32 @@ import React, { useState, useEffect, useContext, useMemo, useCallback } from "re
 import { useLocation, useNavigate } from "react-router-dom";
 import { AuthContext } from "../context/AuthContext";
 import axios from "axios";
-import { X, ClipboardList, Send, Plus, Search, FileText, PhoneCall, History, CheckCircle, XCircle, Image as ImageIcon, AlertTriangle, Download } from "lucide-react";
+import { X, ClipboardList, Send, Plus, Search, FileText, PhoneCall, History, CheckCircle, XCircle, Image as ImageIcon, AlertTriangle, Download, ArrowUp, ArrowDown, ArrowUpDown } from "lucide-react";
 import ConfirmDialog from "../components/ui/ConfirmDialog";
 import PageHeader from "../components/ui/PageHeader";
 import { exportToCsv } from "../utils/exportCsv";
 import { getCurrentTimestamp, formatDateOnly } from "../utils/dateTime";
+import { sortRows, nextSortDirection } from "../utils/sortRows";
+
+// Small clickable header cell used to make a table column sortable —
+// keeps the page's own className string (color/sticky) untouched.
+function SortableTh({ column, label, sortConfig, onSort, className }) {
+  const isActive = sortConfig.key === column;
+  return (
+    <th onClick={() => onSort(column)} className={`${className} cursor-pointer select-none`}>
+      <span className="inline-flex items-center gap-1">
+        {label}
+        {isActive && sortConfig.direction === "asc" ? (
+          <ArrowUp className="h-3 w-3" />
+        ) : isActive && sortConfig.direction === "desc" ? (
+          <ArrowDown className="h-3 w-3" />
+        ) : (
+          <ArrowUpDown className="h-3 w-3 opacity-30" />
+        )}
+      </span>
+    </th>
+  );
+}
 
 const STORAGE_KEY = "nbd_marketing_visit_tracker_data";
 
@@ -128,6 +149,14 @@ export default function MarketingVisitTracker() {
   const [activeTab, setActiveTab] = useState("Assign Marketing");
   const [searchQuery, setSearchQuery] = useState("");
   const [firmFilter, setFirmFilter] = useState("all");
+  const [salesPersonFilter, setSalesPersonFilter] = useState("");
+  const [sortConfig, setSortConfig] = useState({ key: null, direction: null });
+  const handleSort = (key) => {
+    setSortConfig((prev) => {
+      const direction = nextSortDirection(prev, key);
+      return { key: direction ? key : null, direction };
+    });
+  };
   const [sheetHeaders, setSheetHeaders] = useState([]);
   // Client plant/party names come strictly from the live Master sheet — populated by fetchMasterFirms below
   const [existingParties, setExistingParties] = useState([]);
@@ -849,12 +878,41 @@ export default function MarketingVisitTracker() {
       const matchesFirm =
         firmFilter === "all" ||
         (v.nameOfPlant && v.nameOfPlant.toLowerCase() === firmFilter.toLowerCase());
+      const matchesSalesPerson =
+        !salesPersonFilter ||
+        (v.salesPerson && v.salesPerson.trim() === salesPersonFilter);
 
-      return matchesTab && matchesSearch && matchesFirm;
+      return matchesTab && matchesSearch && matchesFirm && matchesSalesPerson;
     });
-  }, [visits, activeTab, searchQuery, firmFilter]);
+  }, [visits, activeTab, searchQuery, firmFilter, salesPersonFilter]);
 
-  const paginatedVisits = filteredVisits;
+  const salesPersonFilterOptions = useMemo(
+    () => Array.from(new Set(visits.map((v) => String(v.salesPerson || "").trim()).filter(Boolean))).sort(),
+    [visits]
+  );
+
+  const VISIT_SORT_ACCESSORS = {
+    id: (v) => v.id,
+    source: (v) => v.source,
+    visitDate: (v) => v.visitDate,
+    salesPerson: (v) => v.salesPerson,
+    nameOfPlant: (v) => v.nameOfPlant,
+    contactPerson: (v) => v.contactPerson,
+    designation: (v) => v.designation,
+    department: (v) => v.department,
+    contentDetails: (v) => v.contentDetails,
+    shutdown: (v) => v.shutdown,
+    remark: (v) => v.remark,
+    status: (v) => v.status,
+    status1: (v) => v.status1,
+    status2: (v) => v.status2,
+    marketingVisitStatus: (v) => v.marketingVisitStatus,
+    currentStep: (v) => v.currentStep,
+  };
+
+  const paginatedVisits = (sortConfig.key && VISIT_SORT_ACCESSORS[sortConfig.key])
+    ? sortRows(filteredVisits, sortConfig.direction, VISIT_SORT_ACCESSORS[sortConfig.key])
+    : filteredVisits;
 
   const handleExportVisits = () => {
     exportToCsv(`marketing-visits-${activeTab.replace(/\s+/g, "-").toLowerCase()}`, [
@@ -1005,23 +1063,23 @@ export default function MarketingVisitTracker() {
         </div>
 
         {/* Controls Bar */}
-        <div className="shrink-0 bg-card rounded-2xl shadow-sm border border-slate-200/70 p-6 mb-6">
-          <div className="flex flex-col md:flex-row gap-4 justify-between">
-            <div className="flex flex-col sm:flex-row gap-4 flex-1">
-              <div className="relative flex-1">
+        <div className="shrink-0 bg-card rounded-xl shadow-sm border border-slate-200/70 p-3 mb-3">
+          <div className="flex flex-col md:flex-row gap-2 justify-between">
+            <div className="flex flex-1 flex-wrap items-center gap-2">
+              <div className="relative">
                 <input
                   type="text"
                   placeholder="Search visits (Plant, Person, Source, Details)..."
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
-                  className="w-full !pl-10 !pr-4 border rounded-md focus:ring-2 focus:ring-[#14533a]/50 focus:border-[#14533a] border-gray-300 text-sm"
+                  className="!pl-10 !pr-3 py-1.5 min-w-[220px] border rounded-md focus:ring-2 focus:ring-[#14533a]/50 focus:border-[#14533a] border-gray-300 text-sm"
                 />
-                <Search className="absolute left-3 top-2.5 h-4.5 w-4.5 text-gray-400" />
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
               </div>
               <select
                 value={firmFilter}
                 onChange={(e) => setFirmFilter(e.target.value)}
-                className="px-4 py-2 border rounded-md border-gray-300 bg-card text-sm max-w-xs truncate focus:outline-none focus:ring-2 focus:ring-[#14533a]/50 focus:border-[#14533a]"
+                className="px-2.5 py-1.5 border rounded-md border-gray-300 bg-card text-sm max-w-[150px] cursor-pointer focus:outline-none focus:ring-2 focus:ring-[#14533a]/50 focus:border-[#14533a]"
               >
                 <option value="all">All Plants</option>
                 {existingParties.map((f) => (
@@ -1030,19 +1088,38 @@ export default function MarketingVisitTracker() {
                   </option>
                 ))}
               </select>
+              <select
+                value={salesPersonFilter}
+                onChange={(e) => setSalesPersonFilter(e.target.value)}
+                className="px-2.5 py-1.5 border rounded-md border-gray-300 bg-card text-sm max-w-[150px] cursor-pointer focus:outline-none focus:ring-2 focus:ring-[#14533a]/50 focus:border-[#14533a]"
+              >
+                <option value="">All sales persons</option>
+                {salesPersonFilterOptions.map((sp) => (
+                  <option key={sp} value={sp}>{sp}</option>
+                ))}
+              </select>
+              {(firmFilter !== "all" || salesPersonFilter) && (
+                <button
+                  type="button"
+                  onClick={() => { setFirmFilter("all"); setSalesPersonFilter("") }}
+                  className="px-2 py-1.5 text-sm font-medium text-[#14533a] hover:opacity-80 underline whitespace-nowrap"
+                >
+                  Clear filters
+                </button>
+              )}
             </div>
-            <div className="flex gap-2">
+            <div className="flex gap-2 shrink-0">
               <button
                 onClick={handleExportVisits}
                 disabled={filteredVisits.length === 0}
-                className="flex items-center justify-center gap-2 bg-card border border-border text-muted-foreground hover:text-foreground hover:bg-muted font-medium py-2 px-4 rounded-md whitespace-nowrap text-sm shadow-sm cursor-pointer disabled:opacity-50"
+                className="flex items-center justify-center gap-2 bg-card border border-border text-muted-foreground hover:text-foreground hover:bg-muted font-medium py-1.5 px-3 text-sm rounded-md whitespace-nowrap shadow-sm cursor-pointer disabled:opacity-50"
               >
                 <Download size={16} />
                 Export
               </button>
               <button
                 onClick={openNewModal}
-                className="bg-[#14533a] hover:bg-[#0f3f2b] text-white font-medium py-2 px-4 rounded-md whitespace-nowrap text-sm shadow-sm transition flex items-center gap-1.5 justify-center cursor-pointer"
+                className="bg-[#14533a] hover:bg-[#0f3f2b] text-white font-medium py-1.5 px-3 rounded-md whitespace-nowrap text-sm shadow-sm transition flex items-center gap-1.5 justify-center cursor-pointer"
               >
                 <Plus size={16} />
                 Log Client Plant Visit Report
@@ -1054,69 +1131,37 @@ export default function MarketingVisitTracker() {
         {/* Visits Table */}
         <div className="flex-1 min-h-0 flex flex-col bg-white rounded-2xl shadow-md border border-slate-200/70 overflow-hidden">
           <div className="flex-1 min-h-0 overflow-auto">
-            <table className="w-full">
+            <table className="w-full border-separate border-spacing-0">
               <thead className="bg-muted border-b sticky top-0 z-10">
                 <tr>
                   {activeTab === "Assign Marketing" && (
-                    <th className="sticky left-0 z-20 bg-muted px-4 py-3 text-center text-xs font-semibold text-muted-foreground uppercase whitespace-nowrap shadow-xs">
+                    <th className="sticky left-0 z-20 bg-muted px-5 py-3.5 text-center text-xs font-bold text-muted-foreground uppercase tracking-wider whitespace-nowrap shadow-xs">
                       Action
                     </th>
                   )}
-                  <th className="px-4 py-3 text-left text-xs font-semibold text-muted-foreground uppercase whitespace-nowrap">
-                    Task ID
-                  </th>
-                  <th className="px-4 py-3 text-left text-xs font-semibold text-muted-foreground uppercase whitespace-nowrap">
-                    Source
-                  </th>
-                  <th className="px-4 py-3 text-left text-xs font-semibold text-muted-foreground uppercase whitespace-nowrap">
-                    Visit Date
-                  </th>
-                  <th className="px-4 py-3 text-left text-xs font-semibold text-muted-foreground uppercase whitespace-nowrap">
-                    Sales Person
-                  </th>
-                  <th className="px-4 py-3 text-left text-xs font-semibold text-muted-foreground uppercase whitespace-nowrap">
-                    Plant Name
-                  </th>
-                  <th className="px-4 py-3 text-left text-xs font-semibold text-muted-foreground uppercase whitespace-nowrap">
-                    Contact Person
-                  </th>
-                  <th className="px-4 py-3 text-left text-xs font-semibold text-muted-foreground uppercase whitespace-nowrap">
-                    Designation
-                  </th>
-                  <th className="px-4 py-3 text-left text-xs font-semibold text-muted-foreground uppercase whitespace-nowrap">
-                    Department
-                  </th>
-                  <th className="px-4 py-3 text-left text-xs font-semibold text-muted-foreground uppercase whitespace-nowrap">
-                    Discussion Details
-                  </th>
-                  <th className="px-4 py-3 text-left text-xs font-semibold text-muted-foreground uppercase whitespace-nowrap">
-                    Type
-                  </th>
-                  <th className="px-4 py-3 text-left text-xs font-semibold text-muted-foreground uppercase">
-                    Remarks
-                  </th>
-                  <th className="px-4 py-3 text-left text-xs font-semibold text-muted-foreground uppercase whitespace-nowrap">
-                    Status
-                  </th>
-                  <th className="px-4 py-3 text-left text-xs font-semibold text-muted-foreground uppercase whitespace-nowrap">
-                    Status 1
-                  </th>
-                  <th className="px-4 py-3 text-left text-xs font-semibold text-muted-foreground uppercase whitespace-nowrap">
-                    Status 2
-                  </th>
-                  <th className="px-4 py-3 text-left text-xs font-semibold text-muted-foreground uppercase whitespace-nowrap">
-                    Marketing Visit Status
-                  </th>
-                  <th className="px-4 py-3 text-left text-xs font-semibold text-muted-foreground uppercase whitespace-nowrap">
-                    Stage
-                  </th>
+                  <SortableTh column="id" label="Task ID" sortConfig={sortConfig} onSort={handleSort} className="px-5 py-3.5 text-left text-xs font-bold text-muted-foreground uppercase tracking-wider whitespace-nowrap" />
+                  <SortableTh column="source" label="Source" sortConfig={sortConfig} onSort={handleSort} className="px-5 py-3.5 text-left text-xs font-bold text-muted-foreground uppercase tracking-wider whitespace-nowrap" />
+                  <SortableTh column="visitDate" label="Visit Date" sortConfig={sortConfig} onSort={handleSort} className="px-5 py-3.5 text-left text-xs font-bold text-muted-foreground uppercase tracking-wider whitespace-nowrap" />
+                  <SortableTh column="salesPerson" label="Sales Person" sortConfig={sortConfig} onSort={handleSort} className="px-5 py-3.5 text-left text-xs font-bold text-muted-foreground uppercase tracking-wider whitespace-nowrap" />
+                  <SortableTh column="nameOfPlant" label="Plant Name" sortConfig={sortConfig} onSort={handleSort} className="px-5 py-3.5 text-left text-xs font-bold text-muted-foreground uppercase tracking-wider whitespace-nowrap" />
+                  <SortableTh column="contactPerson" label="Contact Person" sortConfig={sortConfig} onSort={handleSort} className="px-5 py-3.5 text-left text-xs font-bold text-muted-foreground uppercase tracking-wider whitespace-nowrap" />
+                  <SortableTh column="designation" label="Designation" sortConfig={sortConfig} onSort={handleSort} className="px-5 py-3.5 text-left text-xs font-bold text-muted-foreground uppercase tracking-wider whitespace-nowrap" />
+                  <SortableTh column="department" label="Department" sortConfig={sortConfig} onSort={handleSort} className="px-5 py-3.5 text-left text-xs font-bold text-muted-foreground uppercase tracking-wider whitespace-nowrap" />
+                  <SortableTh column="contentDetails" label="Discussion Details" sortConfig={sortConfig} onSort={handleSort} className="px-5 py-3.5 text-left text-xs font-bold text-muted-foreground uppercase tracking-wider whitespace-nowrap" />
+                  <SortableTh column="shutdown" label="Type" sortConfig={sortConfig} onSort={handleSort} className="px-5 py-3.5 text-left text-xs font-bold text-muted-foreground uppercase tracking-wider whitespace-nowrap" />
+                  <SortableTh column="remark" label="Remarks" sortConfig={sortConfig} onSort={handleSort} className="px-5 py-3.5 text-left text-xs font-bold text-muted-foreground uppercase tracking-wider" />
+                  <SortableTh column="status" label="Status" sortConfig={sortConfig} onSort={handleSort} className="px-5 py-3.5 text-left text-xs font-bold text-muted-foreground uppercase tracking-wider whitespace-nowrap" />
+                  <SortableTh column="status1" label="Status 1" sortConfig={sortConfig} onSort={handleSort} className="px-5 py-3.5 text-left text-xs font-bold text-muted-foreground uppercase tracking-wider whitespace-nowrap" />
+                  <SortableTh column="status2" label="Status 2" sortConfig={sortConfig} onSort={handleSort} className="px-5 py-3.5 text-left text-xs font-bold text-muted-foreground uppercase tracking-wider whitespace-nowrap" />
+                  <SortableTh column="marketingVisitStatus" label="Marketing Visit Status" sortConfig={sortConfig} onSort={handleSort} className="px-5 py-3.5 text-left text-xs font-bold text-muted-foreground uppercase tracking-wider whitespace-nowrap" />
+                  <SortableTh column="currentStep" label="Stage" sortConfig={sortConfig} onSort={handleSort} className="px-5 py-3.5 text-left text-xs font-bold text-muted-foreground uppercase tracking-wider whitespace-nowrap" />
                 </tr>
               </thead>
               <tbody className="divide-y">
                 {paginatedVisits.map((v) => (
                   <tr key={v.id} className="group hover:bg-muted">
                     {activeTab === "Assign Marketing" && (
-                      <td className="sticky left-0 z-10 bg-white group-hover:bg-muted px-4 py-3 whitespace-nowrap text-sm text-center shadow-xs">
+                      <td className="sticky left-0 z-10 bg-white group-hover:bg-muted px-5 py-3.5 whitespace-nowrap text-sm text-center shadow-xs">
                         <button
                           type="button"
                           onClick={() => openStatusModal(v, "Assign Marketing")}
@@ -1127,12 +1172,12 @@ export default function MarketingVisitTracker() {
                         </button>
                       </td>
                     )}
-                    <td className="px-4 py-3 whitespace-nowrap">
+                    <td className="px-5 py-3.5 whitespace-nowrap">
                       <span className="inline-flex items-center px-2.5 py-1 rounded-md bg-sky-100 text-sky-700 text-sm font-mono font-bold">
                         {v.id}
                       </span>
                     </td>
-                    <td className="px-4 py-3 whitespace-nowrap text-sm">
+                    <td className="px-5 py-3.5 whitespace-nowrap text-sm">
                       {v.source === "NBD Lead" ? (
                         <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-bold bg-sky-100 text-sky-800 border border-sky-200">
                           NBD Lead
@@ -1147,34 +1192,34 @@ export default function MarketingVisitTracker() {
                         </span>
                       )}
                     </td>
-                    <td className="px-4 py-3 whitespace-nowrap text-sm text-muted-foreground font-medium">
+                    <td className="px-5 py-3.5 whitespace-nowrap text-sm text-muted-foreground font-medium">
                       {v.visitDate || formatDisplayDate(v.timestamp)}
                     </td>
-                    <td className="px-4 py-3 whitespace-nowrap text-sm font-semibold text-foreground">
+                    <td className="px-5 py-3.5 whitespace-nowrap text-sm font-semibold text-foreground">
                       {v.salesPerson}
                     </td>
-                    <td className="px-4 py-3 whitespace-nowrap text-sm text-muted-foreground">
+                    <td className="px-5 py-3.5 whitespace-nowrap text-sm text-muted-foreground">
                       {v.nameOfPlant}
                     </td>
-                    <td className="px-4 py-3 whitespace-nowrap text-sm text-muted-foreground">
+                    <td className="px-5 py-3.5 whitespace-nowrap text-sm text-muted-foreground">
                       {v.contactPerson}
                     </td>
-                    <td className="px-4 py-3 whitespace-nowrap text-sm text-muted-foreground">
+                    <td className="px-5 py-3.5 whitespace-nowrap text-sm text-muted-foreground">
                       {v.designation}
                     </td>
-                    <td className="px-4 py-3 whitespace-nowrap text-sm text-muted-foreground">
+                    <td className="px-5 py-3.5 whitespace-nowrap text-sm text-muted-foreground">
                       {v.department}
                     </td>
-                    <td className="px-4 py-3 text-sm text-muted-foreground max-w-xs truncate" title={v.contentDetails}>
+                    <td className="px-5 py-3.5 text-sm text-muted-foreground max-w-xs truncate" title={v.contentDetails}>
                       {v.contentDetails}
                     </td>
-                    <td className="px-4 py-3 whitespace-nowrap text-sm text-muted-foreground">
+                    <td className="px-5 py-3.5 whitespace-nowrap text-sm text-muted-foreground">
                       {v.shutdown}
                     </td>
-                    <td className="px-4 py-3 text-sm text-muted-foreground max-w-xs truncate" title={v.remark}>
+                    <td className="px-5 py-3.5 text-sm text-muted-foreground max-w-xs truncate" title={v.remark}>
                       {v.remark}
                     </td>
-                    <td className="px-4 py-3 whitespace-nowrap text-sm">
+                    <td className="px-5 py-3.5 whitespace-nowrap text-sm">
                       {v.status ? (
                         <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-bold border ${
                           String(v.status).toLowerCase() === "approved"
@@ -1189,7 +1234,7 @@ export default function MarketingVisitTracker() {
                         <span className="text-slate-300 text-xs italic">Pending</span>
                       )}
                     </td>
-                    <td className="px-4 py-3 whitespace-nowrap text-sm">
+                    <td className="px-5 py-3.5 whitespace-nowrap text-sm">
                       {v.status1 ? (
                         <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-bold border ${
                           String(v.status1).toLowerCase() === "approved"
@@ -1204,7 +1249,7 @@ export default function MarketingVisitTracker() {
                         <span className="text-slate-300 text-xs italic">Pending</span>
                       )}
                     </td>
-                    <td className="px-4 py-3 whitespace-nowrap text-sm">
+                    <td className="px-5 py-3.5 whitespace-nowrap text-sm">
                       {v.status2 ? (
                         <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-bold border ${
                           String(v.status2).toUpperCase() === "HOT"
@@ -1219,7 +1264,7 @@ export default function MarketingVisitTracker() {
                         <span className="text-slate-300 text-xs italic">-</span>
                       )}
                     </td>
-                    <td className="px-4 py-3 whitespace-nowrap text-sm">
+                    <td className="px-5 py-3.5 whitespace-nowrap text-sm">
                       {v.marketingVisitStatus ? (
                         <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-bold border ${
                           String(v.marketingVisitStatus).toLowerCase() === "yes"
@@ -1234,7 +1279,7 @@ export default function MarketingVisitTracker() {
                         <span className="text-slate-300 text-xs italic">-</span>
                       )}
                     </td>
-                    <td className="px-4 py-3 whitespace-nowrap text-sm text-muted-foreground">
+                    <td className="px-5 py-3.5 whitespace-nowrap text-sm text-muted-foreground">
                       <span className="bg-[#e8f3ee] text-[#14533a] px-2.5 py-1 rounded-full text-xs font-semibold border border-[#14533a]/20">
                         {v.currentStep}
                       </span>
