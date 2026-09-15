@@ -107,7 +107,7 @@ const TAB_CONFIG = {
         timestampCol: 27,
         inputColumns: [
             { key: 'finalOfferLetter', label: 'Final Upload Offer Letter', headerName: 'Final Upload Offer Letter', storeCol: 29, type: 'file' },
-            { key: 'dataSheetAttachment', label: 'Data Sheet Attachment', headerName: 'Data Sheet Attachment', storeCol: 30, type: 'file' },
+            { key: 'dataSheetAttachment', label: 'Data Sheet Attachment', headerName: 'Data Sheet Attachment', storeCol: 30, type: 'file', required: false },
             // Resolved by header name at submit/prefill time (see resolveInputCol) — the
             // storeCol numbers below are only a fallback and aren't the real sheet position.
             { key: 'proposalAmount1', label: 'Proposal Amount 1', headerName: 'Proposal Amount 1', storeCol: 31, type: 'text', required: false },
@@ -1091,7 +1091,7 @@ function Offer() {
                                                                         accept="image/*,application/pdf"
                                                                         onChange={(e) => setModalFormData({ ...modalFormData, [col.key]: e.target.files[0] })}
                                                                         className="w-full text-xs text-muted-foreground file:mr-4 file:py-1.5 file:px-3 file:rounded-lg file:border-0 file:text-xs file:font-bold file:bg-sky-50 file:text-sky-700 hover:file:bg-sky-100 transition-colors cursor-pointer border border-border rounded-lg p-2 bg-muted focus:outline-none"
-                                                                        required
+                                                                        required={col.required !== false}
                                                                     />
                                                                 </div>
                                                             ) : (col.type === 'select' || col.options) ? (
