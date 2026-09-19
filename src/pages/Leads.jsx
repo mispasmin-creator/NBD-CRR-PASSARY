@@ -123,6 +123,7 @@ function Leads() {
   const [customerNameFilter, setCustomerNameFilter] = useState("")
   const [salesPersonFilter, setSalesPersonFilter] = useState("")
   const [enquiryReceivedFilter, setEnquiryReceivedFilter] = useState("")
+  const [callUpdateFilter, setCallUpdateFilter] = useState("") // "" | "Updated" | "Pending"
   const [sortConfig, setSortConfig] = useState({ key: null, direction: null })
 
   const handleSort = (key) => {
@@ -518,6 +519,15 @@ function Leads() {
     if (customerNameFilter && String(lead.customerName || "").trim() !== customerNameFilter) return false
     if (salesPersonFilter && String(lead.salesPerson || "").trim() !== salesPersonFilter) return false
     if (enquiryReceivedFilter && String(lead.trackerEnquiry || "").trim() !== enquiryReceivedFilter) return false
+    if (callUpdateFilter) {
+      // "remarks" (Column R) is filled during the earlier Update Status step, before the
+      // lead ever reaches Call Tracking — so it can't signal whether a call was logged
+      // *here*. Only Call Status / Customer Remarks / Next Call Date get written by the
+      // Call Tracking "Call" action itself.
+      const isUpdated = Boolean(lead.trackerStatus || lead.trackerRemarks || lead.trackerNextCall)
+      if (callUpdateFilter === "Updated" && !isUpdated) return false
+      if (callUpdateFilter === "Pending" && isUpdated) return false
+    }
 
     if (!searchTerm) return true
     const searchLower = searchTerm.toLowerCase()
@@ -561,7 +571,7 @@ function Leads() {
     trackerRemarks: (l) => l.trackerRemarks,
     trackerNextCall: (l) => l.trackerNextCall,
     trackerFreq: (l) => l.trackerFreq,
-    callUpdate: (l) => (l.trackerStatus || l.remarks) ? "Updated" : "Pending",
+    callUpdate: (l) => (l.trackerStatus || l.trackerRemarks || l.trackerNextCall) ? "Updated" : "Pending",
   }
 
   const paginatedLeads = (sortConfig.key && SORT_ACCESSORS[sortConfig.key])
@@ -1249,10 +1259,21 @@ function Leads() {
                 <option key={val} value={val}>{ENQUIRY_RECEIVED_LABELS[val] || val}</option>
               ))}
             </select>
-            {(companyFilter || customerNameFilter || salesPersonFilter || enquiryReceivedFilter) && (
+            {activeTab === "callTracking" && (
+              <select
+                value={callUpdateFilter}
+                onChange={(e) => setCallUpdateFilter(e.target.value)}
+                className="px-2.5 py-1.5 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-sky-500 text-sm text-gray-700 bg-white cursor-pointer max-w-[150px]"
+              >
+                <option value="">All call updates</option>
+                <option value="Pending">Pending only</option>
+                <option value="Updated">Updated only</option>
+              </select>
+            )}
+            {(companyFilter || customerNameFilter || salesPersonFilter || enquiryReceivedFilter || callUpdateFilter) && (
               <button
                 type="button"
-                onClick={() => { setCompanyFilter(""); setCustomerNameFilter(""); setSalesPersonFilter(""); setEnquiryReceivedFilter("") }}
+                onClick={() => { setCompanyFilter(""); setCustomerNameFilter(""); setSalesPersonFilter(""); setEnquiryReceivedFilter(""); setCallUpdateFilter("") }}
                 className="px-2 py-1.5 text-sm font-medium text-sky-600 hover:text-sky-800 underline whitespace-nowrap"
               >
                 Clear filters
@@ -1501,7 +1522,7 @@ function Leads() {
                             </span>
                           </td>
                           <td className="px-5 py-3.5 whitespace-nowrap">
-                            {(lead.trackerStatus || lead.remarks) ? (
+                            {(lead.trackerStatus || lead.trackerRemarks || lead.trackerNextCall) ? (
                               <span className="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-bold bg-emerald-100 text-emerald-700">
                                 Updated
                               </span>

@@ -85,6 +85,23 @@ const isFromNbdLead = (row) => {
   return false
 }
 
+// Classify a "Next Date of Call" value (stored as DD/MM/YYYY text) against today
+const getCallDateCategory = (rawVal) => {
+  if (!rawVal) return null
+  const [dd, mm, yyyy] = String(rawVal).split("/")
+  if (!dd || !mm || !yyyy) return null
+  const d = new Date(Number(yyyy), Number(mm) - 1, Number(dd))
+  if (isNaN(d.getTime())) return null
+  const now = new Date()
+  const today = new Date(now.getFullYear(), now.getMonth(), now.getDate())
+  const diffDays = Math.round((d - today) / 86400000)
+  if (diffDays < 0) return "overdue"
+  if (diffDays === 0) return "today"
+  if (diffDays === 1) return "tomorrow"
+  if (diffDays <= 7) return "week"
+  return "later"
+}
+
 // Key columns to show in the table (summary view)
 const TABLE_COLUMNS = [
   "Enquiry No.",
@@ -122,6 +139,7 @@ function CallTracker() {
   const [firmFilter, setFirmFilter] = useState("")
   const [salesPersonFilter, setSalesPersonFilter] = useState("")
   const [statusFilter, setStatusFilter] = useState("")
+  const [callDateFilter, setCallDateFilter] = useState("all") // "all" | "overdue" | "today" | "tomorrow" | "week"
   const [sortConfig, setSortConfig] = useState({ key: null, direction: null })
   const handleSort = (key) => {
     setSortConfig((prev) => {
@@ -215,6 +233,7 @@ function CallTracker() {
     const scriptUrl = import.meta.env.VITE_GOOGLE_APPS_SCRIPT_URL
     const sheetName = import.meta.env.VITE_NBD_ENQUIRY_SHEET_NAME
     const fmsSheetName = import.meta.env.VITE_FMS_SHEET_NAME || "FMS"
+    const trackerSheetName = import.meta.env.VITE_NBD_CALL_TRACKER_SHEET_NAME
 
     if (!scriptUrl || !sheetName) {
       showNotification("NBD Enquiry sheet config missing in .env", "error")
@@ -226,9 +245,10 @@ function CallTracker() {
     const maxAttempts = 4
     for (let attempt = 1; attempt <= maxAttempts; attempt++) {
       try {
-        const [response, fmsRes] = await Promise.all([
+        const [response, fmsRes, trackerRes] = await Promise.all([
           axios.get(`${scriptUrl}?sheet=${encodeURIComponent(sheetName)}&t=${Date.now()}`),
-          fmsSheetName ? axios.get(`${scriptUrl}?sheet=${encodeURIComponent(fmsSheetName)}&t=${Date.now()}`).catch(() => null) : Promise.resolve(null)
+          fmsSheetName ? axios.get(`${scriptUrl}?sheet=${encodeURIComponent(fmsSheetName)}&t=${Date.now()}`).catch(() => null) : Promise.resolve(null),
+          trackerSheetName ? axios.get(`${scriptUrl}?sheet=${encodeURIComponent(trackerSheetName)}&t=${Date.now()}`).catch(() => null) : Promise.resolve(null)
         ])
 
         if (!response.data || !response.data.success) throw new Error("Failed to fetch sheet data")
@@ -343,6 +363,34 @@ function CallTracker() {
           return bNo - aNo
         })
 
+        // Merge "Next Date of Call" from the NBD CALL TRACKER sheet — it lives
+        // there only, never mirrored into the Enquiry sheet — so today/tomorrow/
+        // overdue call-due badges can be shown against each enquiry row.
+        if (trackerRes?.data?.success && Array.isArray(trackerRes.data.data)) {
+          const trackerRows = trackerRes.data.data
+          const trackerHeaders = (trackerRows[1] || []).map(h => String(h || "").trim())
+          const findTCol = (name) => trackerHeaders.findIndex(h => h.toLowerCase() === name.toLowerCase())
+          const tEnqCol = findTCol("Enquiry No.")
+          const tNextDateCol = findTCol("Next Date of Call")
+
+          if (tEnqCol !== -1 && tNextDateCol !== -1) {
+            const nextCallByEnquiry = {}
+            // Walk forward so the bottom-most (latest) entry for each Enquiry No. wins
+            for (let i = 2; i < trackerRows.length; i++) {
+              const enq = String(trackerRows[i]?.[tEnqCol] || "").trim()
+              if (!enq) continue
+              const val = String(trackerRows[i]?.[tNextDateCol] || "").trim()
+              if (val) nextCallByEnquiry[enq] = val
+            }
+            mappedRows.forEach((row) => {
+              const enq = String(row["Enquiry No."] || row["Enquiry No"] || "").trim()
+              if (enq && nextCallByEnquiry[enq]) {
+                row["Next Date of Call"] = nextCallByEnquiry[enq]
+              }
+            })
+          }
+        }
+
         setEnquiryRows(mappedRows)
         setIsLoading(false)
         return
@@ -383,6 +431,16 @@ function CallTracker() {
     if (firmFilter && String(row["Firm Name"] || "").trim() !== firmFilter) return false
     if (salesPersonFilter && String(row["Name Of Sales Person"] || "").trim() !== salesPersonFilter) return false
     if (statusFilter && String(row["Enquiry status"] || "").trim() !== statusFilter) return false
+
+    // "Who do I need to call today / tomorrow / this week" filter — Call Tracker tab only
+    if (activeTab === "callTracker" && callDateFilter !== "all") {
+      const category = getCallDateCategory(row["Next Date of Call"])
+      if (callDateFilter === "week") {
+        if (category !== "overdue" && category !== "today" && category !== "tomorrow" && category !== "week") return false
+      } else if (category !== callDateFilter) {
+        return false
+      }
+    }
 
     // Search filter
     if (!searchTerm) return true
@@ -1676,6 +1734,59 @@ function CallTracker() {
         </div>
       )}
 
+      {/* Who do I need to call — Today / Tomorrow / This Week (Call Tracker tab only) */}
+      {activeTab === "callTracker" && (() => {
+        const countFor = (cat) => enquiryRows.filter((row) => {
+          const trackerStatus = String(row["Tracker Status"] || "").trim()
+          if (trackerStatus === "Yes" || trackerStatus === "Tracker No" || trackerStatus === "No") return false
+          const c = getCallDateCategory(row["Next Date of Call"])
+          if (cat === "week") return c === "overdue" || c === "today" || c === "tomorrow" || c === "week"
+          return c === cat
+        }).length
+
+        const cards = [
+          { key: "overdue", label: "Overdue", color: "red" },
+          { key: "today", label: "Call Today", color: "orange" },
+          { key: "tomorrow", label: "Call Tomorrow", color: "amber" },
+          { key: "week", label: "This Week", color: "sky" },
+        ]
+        const colorClasses = {
+          red: { base: "bg-red-50 border-red-200 text-red-700", active: "bg-red-100 border-red-400 ring-2 ring-red-300 text-red-800", count: "bg-red-200 text-red-800", countBase: "bg-red-100 text-red-700" },
+          orange: { base: "bg-orange-50 border-orange-200 text-orange-700", active: "bg-orange-100 border-orange-400 ring-2 ring-orange-300 text-orange-800", count: "bg-orange-200 text-orange-800", countBase: "bg-orange-100 text-orange-700" },
+          amber: { base: "bg-amber-50 border-amber-200 text-amber-700", active: "bg-amber-100 border-amber-400 ring-2 ring-amber-300 text-amber-800", count: "bg-amber-200 text-amber-800", countBase: "bg-amber-100 text-amber-700" },
+          sky: { base: "bg-sky-50 border-sky-200 text-sky-700", active: "bg-sky-100 border-sky-400 ring-2 ring-sky-300 text-sky-800", count: "bg-sky-200 text-sky-800", countBase: "bg-sky-100 text-sky-700" },
+        }
+
+        return (
+          <>
+            <div className="shrink-0 grid grid-cols-2 sm:grid-cols-4 gap-2 mb-3">
+              {cards.map((c) => {
+                const isActive = callDateFilter === c.key
+                const cls = colorClasses[c.color]
+                return (
+                  <button
+                    key={c.key}
+                    onClick={() => setCallDateFilter(isActive ? "all" : c.key)}
+                    className={`flex items-center justify-between gap-2 rounded-lg border p-2.5 text-left transition-all hover:shadow-md ${isActive ? cls.active : cls.base}`}
+                  >
+                    <span className="text-sm font-semibold">{c.label}</span>
+                    <span className={`text-sm font-bold px-2.5 py-1 rounded-full ${isActive ? cls.count : cls.countBase}`}>
+                      {countFor(c.key)}
+                    </span>
+                  </button>
+                )
+              })}
+            </div>
+            {callDateFilter !== "all" && (
+              <div className="shrink-0 mb-3 flex items-center gap-2 text-sm text-gray-600">
+                Showing only enquiries to call for: <span className="font-semibold text-gray-800">{callDateFilter === "week" ? "This Week (incl. today & overdue)" : callDateFilter.charAt(0).toUpperCase() + callDateFilter.slice(1)}</span>
+                <button onClick={() => setCallDateFilter("all")} className="text-sky-600 hover:text-sky-800 font-medium underline">Clear</button>
+              </div>
+            )}
+          </>
+        )
+      })()}
+
       {/* ── Main Table ── */}
       <div className="flex-1 min-h-0 flex flex-col bg-card rounded-2xl shadow-md border border-slate-200/70 overflow-hidden">
         {/* Table Header Bar */}
@@ -1735,6 +1846,10 @@ function CallTracker() {
                       />
                     ))
                   }
+                  {/* Next call due date — tracker tabs only */}
+                  {["callTracker", "orderReceived", "orderNotReceived"].includes(activeTab) && (
+                    <SortableTh column="Next Date of Call" label="Next Call" sortConfig={sortConfig} onSort={handleSort} className="px-5 py-3.5 text-left text-xs font-bold text-indigo-500 uppercase tracking-wider whitespace-nowrap" />
+                  )}
                   {/* Current Stage column — shown on the "All Enquiry" tab too */}
                   {activeTab === "all" && (
                     <SortableTh column="Current Stage" label="Current Stage" sortConfig={sortConfig} onSort={handleSort} className="px-5 py-3.5 text-left text-xs font-bold text-indigo-500 uppercase tracking-wider whitespace-nowrap" />
@@ -1839,6 +1954,26 @@ function CallTracker() {
                         )
                       })
                     }
+                    {/* Next call due date — tracker tabs only */}
+                    {["callTracker", "orderReceived", "orderNotReceived"].includes(activeTab) && (() => {
+                      const nextCallVal = row["Next Date of Call"] || ""
+                      const cat = getCallDateCategory(nextCallVal)
+                      const badgeCls = cat === "overdue" ? "bg-red-100 text-red-700"
+                        : cat === "today" ? "bg-orange-100 text-orange-700"
+                          : cat === "tomorrow" ? "bg-amber-100 text-amber-700"
+                            : "text-muted-foreground"
+                      return (
+                        <td className="px-5 py-3.5 whitespace-nowrap text-[13px]">
+                          {nextCallVal ? (
+                            <span className={`${cat ? `px-2 py-0.5 rounded font-medium ${badgeCls}` : ""}`}>
+                              {nextCallVal}{cat === "overdue" ? " (Overdue)" : cat === "today" ? " (Today)" : cat === "tomorrow" ? " (Tomorrow)" : ""}
+                            </span>
+                          ) : (
+                            <span className="text-slate-300">—</span>
+                          )}
+                        </td>
+                      )
+                    })()}
                     {/* Current Stage column — shown on the "All Enquiry" tab too */}
                     {activeTab === "all" && (() => {
                       const val = row["Current Stage"] || ""
@@ -1872,6 +2007,7 @@ function CallTracker() {
                       colSpan={
                         TABLE_COLUMNS.length +
                         (["callTracker", "orderReceived", "orderNotReceived"].includes(activeTab) ? CALL_TRACKER_COLUMNS.length : 0) +
+                        (["callTracker", "orderReceived", "orderNotReceived"].includes(activeTab) ? 1 : 0) + // Next Call col
                         (activeTab === "all" ? 1 : 0) + // Current Stage col
                         (activeTab === "callTracker" ? 1 : 0) + // Action button col
                         1 // chevron col
