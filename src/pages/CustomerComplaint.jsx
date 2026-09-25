@@ -7,6 +7,7 @@ import axios from "axios";
 import { Download, ArrowUp, ArrowDown, ArrowUpDown } from "lucide-react";
 import PageHeader from "../components/ui/PageHeader";
 import StepTracker from "../components/ui/StepTracker";
+import Pagination from "../components/ui/Pagination";
 import { exportToCsv } from "../utils/exportCsv";
 import { getCurrentTimestamp, formatDateOnly, formatTimestamp } from "../utils/dateTime";
 import { sortRows, nextSortDirection } from "../utils/sortRows";
@@ -112,6 +113,8 @@ export default function CustomerComplaint() {
       return { key: direction ? key : null, direction };
     });
   };
+  const [page, setPage] = useState(1);
+  const [selectedRows, setSelectedRows] = useState(new Set());
   const [sheetHeaders, setSheetHeaders] = useState(DEFAULT_HEADERS);
 
   const [firmNamesList, setFirmNamesList] = useState([
@@ -567,9 +570,35 @@ export default function CustomerComplaint() {
     currentStep: (c) => c.currentStep,
   };
 
-  const paginatedComplaints = (sortConfig.key && COMPLAINT_SORT_ACCESSORS[sortConfig.key])
+  const sortedComplaints = (sortConfig.key && COMPLAINT_SORT_ACCESSORS[sortConfig.key])
     ? sortRows(filteredComplaints, sortConfig.direction, COMPLAINT_SORT_ACCESSORS[sortConfig.key])
     : filteredComplaints;
+
+  const PAGE_SIZE = 25;
+  const paginatedComplaints = sortedComplaints.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE);
+
+  useEffect(() => {
+    setPage(1);
+  }, [activeTab, searchQuery, firmFilter, receivedByFilter]);
+
+  const toggleRowSelected = (key) => {
+    setSelectedRows((prev) => {
+      const next = new Set(prev);
+      if (next.has(key)) next.delete(key);
+      else next.add(key);
+      return next;
+    });
+  };
+  const toggleSelectAllOnPage = () => {
+    const pageKeys = paginatedComplaints.map((c) => c.id);
+    const allSelected = pageKeys.length > 0 && pageKeys.every((k) => selectedRows.has(k));
+    setSelectedRows((prev) => {
+      const next = new Set(prev);
+      if (allSelected) pageKeys.forEach((k) => next.delete(k));
+      else pageKeys.forEach((k) => next.add(k));
+      return next;
+    });
+  };
 
   const handleExportComplaints = () => {
     exportToCsv(`complaints-${activeTab.replace(/\s+/g, "-").toLowerCase()}`, [
@@ -1122,6 +1151,9 @@ export default function CustomerComplaint() {
             <table className="w-full border-separate border-spacing-0">
               <thead className="bg-muted border-b sticky top-0 z-10">
                 <tr>
+                  <th className="px-3 py-3.5 w-10">
+                    <input type="checkbox" aria-label="Select all on this page" checked={paginatedComplaints.length > 0 && paginatedComplaints.every((c) => selectedRows.has(c.id))} onChange={toggleSelectAllOnPage} className="h-4 w-4 rounded border-gray-300 text-sky-600 focus:ring-sky-500 cursor-pointer" />
+                  </th>
                   {activeTab !== "History" && (
                     <th className="sticky left-0 z-20 bg-muted px-5 py-3.5 text-left text-xs font-bold text-muted-foreground uppercase tracking-wider whitespace-nowrap shadow-xs">
                       Action
@@ -1157,6 +1189,9 @@ export default function CustomerComplaint() {
               <tbody className="divide-y">
                 {paginatedComplaints.map((c) => (
                   <tr key={c.id} className="group hover:bg-muted">
+                    <td className="px-3 py-3.5 whitespace-nowrap">
+                      <input type="checkbox" aria-label={`Select ${c.id}`} checked={selectedRows.has(c.id)} onChange={() => toggleRowSelected(c.id)} className="h-4 w-4 rounded border-gray-300 text-sky-600 focus:ring-sky-500 cursor-pointer" />
+                    </td>
                     {activeTab !== "History" && (
                       <td className="sticky left-0 z-10 bg-white group-hover:bg-muted px-5 py-3.5 whitespace-nowrap shadow-xs">
                         <div className="flex items-center gap-2">
@@ -1278,11 +1313,7 @@ export default function CustomerComplaint() {
               </div>
             )}
           </div>
-          {filteredComplaints.length > 0 && (
-            <div className="px-5 py-2.5 bg-gray-50 border-t border-gray-200 text-xs text-gray-500 font-medium">
-              {filteredComplaints.length} {filteredComplaints.length === 1 ? "record" : "records"}
-            </div>
-          )}
+          <Pagination page={page} pageSize={PAGE_SIZE} totalItems={filteredComplaints.length} onPageChange={setPage} />
         </div>
 
         {/* ── Popup: Register new Complaint (Clean 6 fields) ─────────────────── */}

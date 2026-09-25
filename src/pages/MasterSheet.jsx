@@ -7,6 +7,8 @@ import { BuildingIcon, SearchIcon, PlusIcon, XIcon } from "../components/Icons"
 import { Download, ArrowUp, ArrowDown, ArrowUpDown } from "lucide-react"
 import { exportToCsv } from "../utils/exportCsv"
 import PageHeader from "../components/ui/PageHeader"
+import Pagination from "../components/ui/Pagination"
+import Avatar from "../components/ui/Avatar"
 import { sortRows, nextSortDirection } from "../utils/sortRows"
 
 // Small clickable header cell used to make a table column sortable —
@@ -63,6 +65,8 @@ function MasterSheet() {
       return { key: direction ? key : null, direction }
     })
   }
+  const [page, setPage] = useState(1)
+  const [selectedRows, setSelectedRows] = useState(new Set())
   const [showNewModal, setShowNewModal] = useState(false)
   const [form, setForm] = useState(emptyForm)
   const [isSubmitting, setIsSubmitting] = useState(false)
@@ -119,9 +123,35 @@ function MasterSheet() {
   const salesPersonFilterOptions = Array.from(new Set(rows.map((r) => r.salesPerson.trim()).filter(Boolean))).sort()
   const enquiryStatusFilterOptions = Array.from(new Set(rows.map((r) => r.enquiryStatus.trim()).filter(Boolean))).sort()
 
-  const paginatedRows = (sortConfig.key)
+  const sortedRows = (sortConfig.key)
     ? sortRows(filteredRows, sortConfig.direction, (r) => r[sortConfig.key])
     : filteredRows
+
+  const PAGE_SIZE = 25
+  const paginatedRows = sortedRows.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE)
+
+  useEffect(() => {
+    setPage(1)
+  }, [searchTerm, salesPersonFilter, enquiryStatusFilter])
+
+  const toggleRowSelected = (key) => {
+    setSelectedRows((prev) => {
+      const next = new Set(prev)
+      if (next.has(key)) next.delete(key)
+      else next.add(key)
+      return next
+    })
+  }
+  const toggleSelectAllOnPage = () => {
+    const pageKeys = paginatedRows.map((r) => r._rowIndex)
+    const allSelected = pageKeys.length > 0 && pageKeys.every((k) => selectedRows.has(k))
+    setSelectedRows((prev) => {
+      const next = new Set(prev)
+      if (allSelected) pageKeys.forEach((k) => next.delete(k))
+      else pageKeys.forEach((k) => next.add(k))
+      return next
+    })
+  }
 
   const handleExport = () => {
     exportToCsv(
@@ -238,6 +268,9 @@ function MasterSheet() {
             <table className="w-full border-separate border-spacing-0">
               <thead className="bg-muted border-b sticky top-0 z-10">
                 <tr>
+                  <th className="px-3 py-3.5 w-10">
+                    <input type="checkbox" aria-label="Select all on this page" checked={paginatedRows.length > 0 && paginatedRows.every((r) => selectedRows.has(r._rowIndex))} onChange={toggleSelectAllOnPage} className="h-4 w-4 rounded border-gray-300 text-sky-600 focus:ring-sky-500 cursor-pointer" />
+                  </th>
                   {FIELDS.map((f, i) => (
                     <SortableTh
                       key={f.key}
@@ -255,19 +288,22 @@ function MasterSheet() {
               <tbody className="divide-y divide-slate-100">
                 {isLoading ? (
                   <tr>
-                    <td colSpan={FIELDS.length} className="px-5 py-10 text-center text-sm text-muted-foreground">
+                    <td colSpan={FIELDS.length + 1} className="px-5 py-10 text-center text-sm text-muted-foreground">
                       Loading...
                     </td>
                   </tr>
                 ) : paginatedRows.length === 0 ? (
                   <tr>
-                    <td colSpan={FIELDS.length} className="px-5 py-10 text-center text-sm text-muted-foreground">
+                    <td colSpan={FIELDS.length + 1} className="px-5 py-10 text-center text-sm text-muted-foreground">
                       No Master entries found.
                     </td>
                   </tr>
                 ) : (
                   paginatedRows.map((row) => (
                     <tr key={row._rowIndex} className="group hover:bg-slate-50 transition-colors">
+                      <td className="px-3 py-3.5 whitespace-nowrap">
+                        <input type="checkbox" aria-label={`Select row ${row._rowIndex}`} checked={selectedRows.has(row._rowIndex)} onChange={() => toggleRowSelected(row._rowIndex)} className="h-4 w-4 rounded border-gray-300 text-sky-600 focus:ring-sky-500 cursor-pointer" />
+                      </td>
                       {FIELDS.map((f, i) => (
                         <td
                           key={f.key}
@@ -277,7 +313,11 @@ function MasterSheet() {
                               : "text-slate-700"
                           }`}
                         >
-                          {row[f.key] || "-"}
+                          {f.key === "salesPerson" && row[f.key] ? (
+                            <span className="inline-flex items-center gap-1.5"><Avatar name={row[f.key]} size="xs" />{row[f.key]}</span>
+                          ) : (
+                            row[f.key] || "-"
+                          )}
                         </td>
                       ))}
                     </tr>
@@ -287,9 +327,7 @@ function MasterSheet() {
             </table>
           </div>
           {!isLoading && (
-            <div className="px-5 py-2.5 bg-gray-50 border-t border-gray-200 text-xs text-gray-500 font-medium">
-              {filteredRows.length} {filteredRows.length === 1 ? "entry" : "entries"}
-            </div>
+            <Pagination page={page} pageSize={PAGE_SIZE} totalItems={filteredRows.length} onPageChange={setPage} />
           )}
         </div>
       </div>

@@ -17,6 +17,7 @@ import { X, Send, CheckCircle2, Download, ArrowUp, ArrowDown, ArrowUpDown } from
 import { exportToCsv } from "../utils/exportCsv"
 import { getCurrentTimestamp, reformatIfDate } from "../utils/dateTime"
 import PageHeader from "../components/ui/PageHeader"
+import Pagination from "../components/ui/Pagination"
 import { sortRows, nextSortDirection } from "../utils/sortRows"
 
 // Small clickable header cell used to make a table column sortable —
@@ -105,6 +106,8 @@ function OrderNotReceivedFMS() {
   }
   const [activeTab, setActiveTab] = useState("All")
   const [activeMainTab, setActiveMainTab] = useState("all")
+  const [page, setPage] = useState(1)
+  const [selectedRows, setSelectedRows] = useState(new Set())
 
   // Modal and Form States for "Order Not Received" Action Popup
   const [showActionModal, setShowActionModal] = useState(false)
@@ -587,12 +590,39 @@ function OrderNotReceivedFMS() {
 
   const firmFilterOptions = Array.from(new Set(activeMainTabRecords.map((r) => String(r.firmName || r.companyName || "").trim()).filter(Boolean))).sort()
 
-  const paginatedRecords = (sortConfig.key)
+  const sortedRecords = (sortConfig.key)
     ? sortRows(filteredRecords, sortConfig.direction, (r) => r[sortConfig.key])
     : filteredRecords
 
+  const PAGE_SIZE = 25
+  const paginatedRecords = sortedRecords.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE)
+
+  useEffect(() => {
+    setPage(1)
+  }, [activeMainTab, activeTab, searchTerm, firmFilter])
+
+  const rowKey = (r) => r.key
+  const toggleRowSelected = (key) => {
+    setSelectedRows((prev) => {
+      const next = new Set(prev)
+      if (next.has(key)) next.delete(key)
+      else next.add(key)
+      return next
+    })
+  }
+  const toggleSelectAllOnPage = () => {
+    const pageKeys = paginatedRecords.map(rowKey)
+    const allSelected = pageKeys.length > 0 && pageKeys.every((k) => selectedRows.has(k))
+    setSelectedRows((prev) => {
+      const next = new Set(prev)
+      if (allSelected) pageKeys.forEach((k) => next.delete(k))
+      else pageKeys.forEach((k) => next.add(k))
+      return next
+    })
+  }
+
   // Matches exactly which <th> cells render below, so the empty-state colSpan never over/undershoots
-  const visibleColumnCount = 15
+  const visibleColumnCount = 16
     + ((activeMainTab === "getSample" || activeMainTab === "testing" || activeMainTab === "takeAction" || activeMainTab === "all") ? 1 : 0)
     + ((activeMainTab === "getSample" || activeMainTab === "testing" || activeMainTab === "takeAction" || activeMainTab === "history" || activeMainTab === "all") ? 5 : 0)
 
@@ -1206,6 +1236,9 @@ function OrderNotReceivedFMS() {
                   <table className="w-full border-separate border-spacing-0">
                     <thead className="sticky top-0 z-10">
                       <tr className="bg-gradient-to-r from-rose-50 to-red-50 border-b border-gray-200">
+                        <th className="px-3 py-3.5 w-10">
+                          <input type="checkbox" aria-label="Select all on this page" checked={paginatedRecords.length > 0 && paginatedRecords.every((r) => selectedRows.has(rowKey(r)))} onChange={toggleSelectAllOnPage} className="h-4 w-4 rounded border-gray-300 text-rose-600 focus:ring-rose-500 cursor-pointer" />
+                        </th>
                         <th className="sticky left-0 z-20 bg-rose-50 px-5 py-3.5 text-center text-xs font-bold text-rose-700 uppercase tracking-wider whitespace-nowrap shadow-xs">
                           Action
                         </th>
@@ -1264,6 +1297,9 @@ function OrderNotReceivedFMS() {
                       ) : (
                         paginatedRecords.map((r) => (
                           <tr key={r.key} className="group hover:bg-rose-50/30 transition-all duration-150">
+                            <td className="px-3 py-3.5 whitespace-nowrap">
+                              <input type="checkbox" aria-label={`Select ${r.onrNo || r.key}`} checked={selectedRows.has(rowKey(r))} onChange={() => toggleRowSelected(rowKey(r))} className="h-4 w-4 rounded border-gray-300 text-rose-600 focus:ring-rose-500 cursor-pointer" />
+                            </td>
                             <td className="sticky left-0 z-10 bg-white group-hover:bg-rose-50/30 px-5 py-3.5 whitespace-nowrap text-sm text-center shadow-xs">
                               {activeMainTab === "takeAction" ? (
                                 r.actual3 && r.actual3 !== "-" ? (
@@ -1625,10 +1661,8 @@ function OrderNotReceivedFMS() {
                 </div>
               </div>
             )}
-            {!isLoading && filteredRecords.length > 0 && (
-              <div className="shrink-0 px-5 py-2.5 bg-gray-50 border-t border-gray-200 text-xs text-gray-500 font-medium">
-                {filteredRecords.length} {filteredRecords.length === 1 ? "record" : "records"}
-              </div>
+            {!isLoading && (
+              <Pagination page={page} pageSize={PAGE_SIZE} totalItems={filteredRecords.length} onPageChange={setPage} />
             )}
           </div>
         </div>

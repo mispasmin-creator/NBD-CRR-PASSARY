@@ -4,6 +4,8 @@ import { useState, useEffect } from "react"
 import { useNavigate } from "react-router-dom"
 import { PlusIcon, XIcon, PhoneCallIcon, UsersIcon } from "../components/Icons"
 import PageHeader from "../components/ui/PageHeader"
+import Pagination from "../components/ui/Pagination"
+import Avatar from "../components/ui/Avatar"
 import axios from "axios"
 import { Download, ArrowUp, ArrowDown, ArrowUpDown } from "lucide-react"
 import { sortRows, nextSortDirection } from "../utils/sortRows"
@@ -125,6 +127,12 @@ function Leads() {
   const [enquiryReceivedFilter, setEnquiryReceivedFilter] = useState("")
   const [callUpdateFilter, setCallUpdateFilter] = useState("") // "" | "Updated" | "Pending"
   const [sortConfig, setSortConfig] = useState({ key: null, direction: null })
+  const [page, setPage] = useState(1)
+  const [selectedRows, setSelectedRows] = useState(new Set())
+
+  useEffect(() => {
+    setPage(1)
+  }, [activeTab, searchTerm, companyFilter, customerNameFilter, salesPersonFilter, enquiryReceivedFilter, callUpdateFilter, callDateFilter])
 
   const handleSort = (key) => {
     setSortConfig((prev) => {
@@ -574,9 +582,31 @@ function Leads() {
     callUpdate: (l) => (l.trackerStatus || l.trackerRemarks || l.trackerNextCall) ? "Updated" : "Pending",
   }
 
-  const paginatedLeads = (sortConfig.key && SORT_ACCESSORS[sortConfig.key])
+  const sortedLeads = (sortConfig.key && SORT_ACCESSORS[sortConfig.key])
     ? sortRows(filteredLeads, sortConfig.direction, SORT_ACCESSORS[sortConfig.key])
     : filteredLeads
+
+  const PAGE_SIZE = 25
+  const paginatedLeads = sortedLeads.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE)
+
+  const toggleRowSelected = (key) => {
+    setSelectedRows((prev) => {
+      const next = new Set(prev)
+      if (next.has(key)) next.delete(key)
+      else next.add(key)
+      return next
+    })
+  }
+  const toggleSelectAllOnPage = () => {
+    const pageKeys = paginatedLeads.map((l) => l.leadNumber)
+    const allSelected = pageKeys.length > 0 && pageKeys.every((k) => selectedRows.has(k))
+    setSelectedRows((prev) => {
+      const next = new Set(prev)
+      if (allSelected) pageKeys.forEach((k) => next.delete(k))
+      else pageKeys.forEach((k) => next.add(k))
+      return next
+    })
+  }
 
   const handleExportLeads = () => {
     exportToCsv(`nbd-leads-${activeTab}`, [
@@ -1317,6 +1347,9 @@ function Leads() {
                 <table className="w-full border-separate border-spacing-0">
                   <thead className="sticky top-0 z-10">
                     <tr className="bg-gradient-to-r from-teal-50 to-emerald-50 border-b border-gray-200">
+                      <th className="px-3 py-3.5 w-10">
+                        <input type="checkbox" aria-label="Select all on this page" checked={paginatedLeads.length > 0 && paginatedLeads.every((l) => selectedRows.has(l.leadNumber))} onChange={toggleSelectAllOnPage} className="h-4 w-4 rounded border-gray-300 text-teal-600 focus:ring-teal-500 cursor-pointer" />
+                      </th>
                       <th className="sticky left-0 z-20 bg-teal-50 px-5 py-3.5 text-left text-xs font-bold text-teal-700 uppercase tracking-wider whitespace-nowrap shadow-xs">Action</th>
                       <SortableTh column="leadNumber" label="Lead No." sortConfig={sortConfig} onSort={handleSort} className="px-5 py-3.5 text-left text-xs font-bold text-teal-700 uppercase tracking-wider whitespace-nowrap" />
                       <SortableTh column="ourFirmName" label="Our Firm Name" sortConfig={sortConfig} onSort={handleSort} className="px-5 py-3.5 text-left text-xs font-bold text-teal-700 uppercase tracking-wider whitespace-nowrap" />
@@ -1330,7 +1363,7 @@ function Leads() {
                   <tbody className="divide-y divide-gray-100 bg-card">
                     {filteredLeads.length === 0 ? (
                       <tr>
-                        <td colSpan="8" className="px-4 py-20 text-center">
+                        <td colSpan="9" className="px-4 py-20 text-center">
                           <div className="flex flex-col items-center justify-center gap-2">
                             <div className="flex h-14 w-14 items-center justify-center rounded-full bg-gray-100">
                               <svg className="h-6 w-6 text-gray-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -1344,6 +1377,9 @@ function Leads() {
                     ) : (
                       paginatedLeads.map((lead, index) => (
                         <tr key={lead.leadNumber || index} className="group hover:bg-teal-50/30 transition-colors duration-150">
+                          <td className="px-3 py-3.5 whitespace-nowrap">
+                            <input type="checkbox" aria-label={`Select ${lead.leadNumber}`} checked={selectedRows.has(lead.leadNumber)} onChange={() => toggleRowSelected(lead.leadNumber)} className="h-4 w-4 rounded border-gray-300 text-teal-600 focus:ring-teal-500 cursor-pointer" />
+                          </td>
                           <td className="sticky left-0 z-10 bg-white group-hover:bg-teal-50/30 px-5 py-3.5 whitespace-nowrap shadow-xs">
                             <button
                               onClick={() => handleUpdateClick(lead)}
@@ -1359,7 +1395,9 @@ function Leads() {
                           </td>
                           <td className="px-5 py-3.5 whitespace-nowrap text-sm text-gray-600 max-w-[160px] truncate" title={lead.ourFirmName}>{lead.ourFirmName || '-'}</td>
                           <td className="px-5 py-3.5 whitespace-nowrap text-sm text-gray-600 max-w-[160px] truncate" title={lead.leadReceivedFrom}>{lead.leadReceivedFrom || '-'}</td>
-                          <td className="px-5 py-3.5 whitespace-nowrap text-sm text-gray-600 max-w-[160px] truncate" title={lead.salesPerson}>{lead.salesPerson || '-'}</td>
+                          <td className="px-5 py-3.5 whitespace-nowrap text-sm text-gray-600 max-w-[160px] truncate" title={lead.salesPerson}>
+                            {lead.salesPerson ? <span className="inline-flex items-center gap-1.5"><Avatar name={lead.salesPerson} size="xs" />{lead.salesPerson}</span> : '-'}
+                          </td>
                           <td className="px-5 py-3.5 whitespace-nowrap text-sm font-semibold text-gray-900 max-w-[200px] truncate" title={lead.companyName}>{lead.companyName || '-'}</td>
                           <td className="px-5 py-3.5 whitespace-nowrap text-sm text-gray-600 max-w-[140px] truncate" title={lead.department}>{lead.department || '-'}</td>
                           <td className="px-5 py-3.5 whitespace-nowrap text-sm text-gray-600 max-w-[140px] truncate" title={lead.location}>{lead.location || '-'}</td>
@@ -1370,11 +1408,7 @@ function Leads() {
                 </table>
               )}
             </div>
-            {filteredLeads.length > 0 && (
-              <div className="shrink-0 px-5 py-2.5 bg-gray-50 border-t border-gray-200 text-xs text-gray-500 font-medium">
-                {filteredLeads.length} {filteredLeads.length === 1 ? "record" : "records"}
-              </div>
-            )}
+            <Pagination page={page} pageSize={PAGE_SIZE} totalItems={filteredLeads.length} onPageChange={setPage} />
           </div>
 
           {/* Mobile Card View - Update Status */}
@@ -1472,6 +1506,9 @@ function Leads() {
                 <table className="w-full border-separate border-spacing-0">
                   <thead className="sticky top-0 z-10">
                     <tr className="bg-gradient-to-r from-indigo-50 to-purple-50 border-b border-gray-200">
+                      <th className="px-3 py-3.5 w-10">
+                        <input type="checkbox" aria-label="Select all on this page" checked={paginatedLeads.length > 0 && paginatedLeads.every((l) => selectedRows.has(l.leadNumber))} onChange={toggleSelectAllOnPage} className="h-4 w-4 rounded border-gray-300 text-indigo-600 focus:ring-indigo-500 cursor-pointer" />
+                      </th>
                       <th className="sticky left-0 z-20 bg-indigo-50 px-5 py-3.5 text-left text-xs font-bold text-indigo-700 uppercase tracking-wider whitespace-nowrap shadow-xs">Action</th>
                       <SortableTh column="leadNumber" label="Lead No." sortConfig={sortConfig} onSort={handleSort} className="px-5 py-3.5 text-left text-xs font-bold text-indigo-700 uppercase tracking-wider whitespace-nowrap" />
                       <SortableTh column="callUpdate" label="Call Update" sortConfig={sortConfig} onSort={handleSort} className="px-5 py-3.5 text-left text-xs font-bold text-indigo-700 uppercase tracking-wider whitespace-nowrap" />
@@ -1495,7 +1532,7 @@ function Leads() {
                   <tbody className="divide-y divide-gray-100 bg-card">
                     {filteredLeads.length === 0 ? (
                       <tr>
-                        <td colSpan="18" className="px-4 py-20 text-center">
+                        <td colSpan="19" className="px-4 py-20 text-center">
                           <div className="flex flex-col items-center justify-center gap-2">
                             <div className="flex h-14 w-14 items-center justify-center rounded-full bg-gray-100">
                               <PhoneCallIcon className="h-6 w-6 text-gray-300" />
@@ -1507,6 +1544,9 @@ function Leads() {
                     ) : (
                       paginatedLeads.map((lead, index) => (
                         <tr key={lead.leadNumber || index} className="group hover:bg-indigo-50/30 transition-colors duration-150">
+                          <td className="px-3 py-3.5 whitespace-nowrap">
+                            <input type="checkbox" aria-label={`Select ${lead.leadNumber}`} checked={selectedRows.has(lead.leadNumber)} onChange={() => toggleRowSelected(lead.leadNumber)} className="h-4 w-4 rounded border-gray-300 text-indigo-600 focus:ring-indigo-500 cursor-pointer" />
+                          </td>
                           <td className="sticky left-0 z-10 bg-white group-hover:bg-indigo-50/30 px-5 py-3.5 whitespace-nowrap shadow-xs">
                             <button
                               onClick={() => handleCallTrackerClick(lead)}
@@ -1533,7 +1573,9 @@ function Leads() {
                             )}
                           </td>
                           <td className="px-5 py-3.5 whitespace-nowrap text-sm font-semibold text-gray-900 max-w-[180px] truncate" title={lead.companyName}>{lead.companyName || '-'}</td>
-                          <td className="px-5 py-3.5 whitespace-nowrap text-sm text-gray-600 max-w-[160px] truncate" title={lead.salesPerson}>{lead.salesPerson || '-'}</td>
+                          <td className="px-5 py-3.5 whitespace-nowrap text-sm text-gray-600 max-w-[160px] truncate" title={lead.salesPerson}>
+                            {lead.salesPerson ? <span className="inline-flex items-center gap-1.5"><Avatar name={lead.salesPerson} size="xs" />{lead.salesPerson}</span> : '-'}
+                          </td>
                           <td className="px-5 py-3.5 whitespace-nowrap text-sm text-gray-600 max-w-[120px] truncate" title={lead.location}>{lead.location || '-'}</td>
                           <td className="px-5 py-3.5 whitespace-nowrap text-sm text-gray-600 max-w-[140px] truncate" title={lead.productName}>{lead.productName || '-'}</td>
                           <td className="px-5 py-3.5 whitespace-nowrap text-sm text-gray-600 max-w-[140px] truncate" title={lead.customerName}>{lead.customerName || '-'}</td>
@@ -1590,11 +1632,7 @@ function Leads() {
                 </table>
               )}
             </div>
-            {filteredLeads.length > 0 && (
-              <div className="shrink-0 px-5 py-2.5 bg-gray-50 border-t border-gray-200 text-xs text-gray-500 font-medium">
-                {filteredLeads.length} {filteredLeads.length === 1 ? "record" : "records"}
-              </div>
-            )}
+            <Pagination page={page} pageSize={PAGE_SIZE} totalItems={filteredLeads.length} onPageChange={setPage} />
           </div>
 
           {/* Mobile Card View - Call Tracking */}
@@ -1650,6 +1688,9 @@ function Leads() {
                 <table className="w-full border-separate border-spacing-0">
                   <thead className="sticky top-0 z-10">
                     <tr className="bg-gradient-to-r from-slate-50 to-gray-50 border-b border-gray-200">
+                      <th className="px-3 py-3.5 w-10">
+                        <input type="checkbox" aria-label="Select all on this page" checked={paginatedLeads.length > 0 && paginatedLeads.every((l) => selectedRows.has(l.leadNumber))} onChange={toggleSelectAllOnPage} className="h-4 w-4 rounded border-gray-300 text-slate-600 focus:ring-slate-500 cursor-pointer" />
+                      </th>
                       <th className="sticky left-0 z-20 bg-slate-50 px-5 py-3.5 text-left text-xs font-bold text-slate-700 uppercase tracking-wider whitespace-nowrap shadow-xs">Action</th>
                       <SortableTh column="leadNumber" label="Lead No." sortConfig={sortConfig} onSort={handleSort} className="px-5 py-3.5 text-left text-xs font-bold text-slate-700 uppercase tracking-wider whitespace-nowrap" />
                       <SortableTh column="companyName" label="Company" sortConfig={sortConfig} onSort={handleSort} className="px-5 py-3.5 text-left text-xs font-bold text-slate-700 uppercase tracking-wider whitespace-nowrap" />
@@ -1670,7 +1711,7 @@ function Leads() {
                   <tbody className="divide-y divide-gray-100 bg-card">
                     {filteredLeads.length === 0 ? (
                       <tr>
-                        <td colSpan="15" className="px-4 py-20 text-center">
+                        <td colSpan="16" className="px-4 py-20 text-center">
                           <div className="flex flex-col items-center justify-center gap-2">
                             <div className="flex h-14 w-14 items-center justify-center rounded-full bg-gray-100">
                               <svg className="h-6 w-6 text-gray-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -1686,6 +1727,9 @@ function Leads() {
                         const isReceived = String(lead.trackerEnquiry || "").trim() === "Yes"
                         return (
                           <tr key={lead.leadNumber || index} className="group hover:bg-slate-50/60 transition-colors duration-150">
+                            <td className="px-3 py-3.5 whitespace-nowrap">
+                              <input type="checkbox" aria-label={`Select ${lead.leadNumber}`} checked={selectedRows.has(lead.leadNumber)} onChange={() => toggleRowSelected(lead.leadNumber)} className="h-4 w-4 rounded border-gray-300 text-slate-600 focus:ring-slate-500 cursor-pointer" />
+                            </td>
                             <td className="sticky left-0 z-10 bg-white group-hover:bg-slate-50/60 px-5 py-3.5 whitespace-nowrap shadow-xs">
                               <button
                                 onClick={() => handleCallTrackerClick(lead)}
@@ -1734,11 +1778,7 @@ function Leads() {
                 </table>
               )}
             </div>
-            {filteredLeads.length > 0 && (
-              <div className="shrink-0 px-5 py-2.5 bg-gray-50 border-t border-gray-200 text-xs text-gray-500 font-medium">
-                {filteredLeads.length} {filteredLeads.length === 1 ? "record" : "records"}
-              </div>
-            )}
+            <Pagination page={page} pageSize={PAGE_SIZE} totalItems={filteredLeads.length} onPageChange={setPage} />
           </div>
 
           {/* Mobile Card View - History */}

@@ -7,6 +7,8 @@ import axios from "axios";
 import { X, ClipboardList, Send, Plus, Search, FileText, PhoneCall, History, CheckCircle, XCircle, Image as ImageIcon, AlertTriangle, Download, ArrowUp, ArrowDown, ArrowUpDown } from "lucide-react";
 import ConfirmDialog from "../components/ui/ConfirmDialog";
 import PageHeader from "../components/ui/PageHeader";
+import Pagination from "../components/ui/Pagination";
+import Avatar from "../components/ui/Avatar";
 import { exportToCsv } from "../utils/exportCsv";
 import { getCurrentTimestamp, formatDateOnly } from "../utils/dateTime";
 import { sortRows, nextSortDirection } from "../utils/sortRows";
@@ -157,6 +159,8 @@ export default function MarketingVisitTracker() {
       return { key: direction ? key : null, direction };
     });
   };
+  const [page, setPage] = useState(1);
+  const [selectedRows, setSelectedRows] = useState(new Set());
   const [sheetHeaders, setSheetHeaders] = useState([]);
   // Client plant/party names come strictly from the live Master sheet — populated by fetchMasterFirms below
   const [existingParties, setExistingParties] = useState([]);
@@ -910,9 +914,35 @@ export default function MarketingVisitTracker() {
     currentStep: (v) => v.currentStep,
   };
 
-  const paginatedVisits = (sortConfig.key && VISIT_SORT_ACCESSORS[sortConfig.key])
+  const sortedVisits = (sortConfig.key && VISIT_SORT_ACCESSORS[sortConfig.key])
     ? sortRows(filteredVisits, sortConfig.direction, VISIT_SORT_ACCESSORS[sortConfig.key])
     : filteredVisits;
+
+  const PAGE_SIZE = 25;
+  const paginatedVisits = sortedVisits.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE);
+
+  useEffect(() => {
+    setPage(1);
+  }, [activeTab, searchQuery, firmFilter, salesPersonFilter]);
+
+  const toggleRowSelected = (key) => {
+    setSelectedRows((prev) => {
+      const next = new Set(prev);
+      if (next.has(key)) next.delete(key);
+      else next.add(key);
+      return next;
+    });
+  };
+  const toggleSelectAllOnPage = () => {
+    const pageKeys = paginatedVisits.map((v) => v.id);
+    const allSelected = pageKeys.length > 0 && pageKeys.every((k) => selectedRows.has(k));
+    setSelectedRows((prev) => {
+      const next = new Set(prev);
+      if (allSelected) pageKeys.forEach((k) => next.delete(k));
+      else pageKeys.forEach((k) => next.add(k));
+      return next;
+    });
+  };
 
   const handleExportVisits = () => {
     exportToCsv(`marketing-visits-${activeTab.replace(/\s+/g, "-").toLowerCase()}`, [
@@ -1134,6 +1164,9 @@ export default function MarketingVisitTracker() {
             <table className="w-full border-separate border-spacing-0">
               <thead className="bg-muted border-b sticky top-0 z-10">
                 <tr>
+                  <th className="px-3 py-3.5 w-10">
+                    <input type="checkbox" aria-label="Select all on this page" checked={paginatedVisits.length > 0 && paginatedVisits.every((v) => selectedRows.has(v.id))} onChange={toggleSelectAllOnPage} className="h-4 w-4 rounded border-gray-300 text-[#14533a] focus:ring-[#14533a] cursor-pointer" />
+                  </th>
                   {activeTab === "Assign Marketing" && (
                     <th className="sticky left-0 z-20 bg-muted px-5 py-3.5 text-center text-xs font-bold text-muted-foreground uppercase tracking-wider whitespace-nowrap shadow-xs">
                       Action
@@ -1160,6 +1193,9 @@ export default function MarketingVisitTracker() {
               <tbody className="divide-y">
                 {paginatedVisits.map((v) => (
                   <tr key={v.id} className="group hover:bg-muted">
+                    <td className="px-3 py-3.5 whitespace-nowrap">
+                      <input type="checkbox" aria-label={`Select ${v.id}`} checked={selectedRows.has(v.id)} onChange={() => toggleRowSelected(v.id)} className="h-4 w-4 rounded border-gray-300 text-[#14533a] focus:ring-[#14533a] cursor-pointer" />
+                    </td>
                     {activeTab === "Assign Marketing" && (
                       <td className="sticky left-0 z-10 bg-white group-hover:bg-muted px-5 py-3.5 whitespace-nowrap text-sm text-center shadow-xs">
                         <button
@@ -1196,7 +1232,7 @@ export default function MarketingVisitTracker() {
                       {v.visitDate || formatDisplayDate(v.timestamp)}
                     </td>
                     <td className="px-5 py-3.5 whitespace-nowrap text-sm font-semibold text-foreground">
-                      {v.salesPerson}
+                      {v.salesPerson ? <span className="inline-flex items-center gap-1.5"><Avatar name={v.salesPerson} size="xs" />{v.salesPerson}</span> : '-'}
                     </td>
                     <td className="px-5 py-3.5 whitespace-nowrap text-sm text-muted-foreground">
                       {v.nameOfPlant}
@@ -1294,11 +1330,7 @@ export default function MarketingVisitTracker() {
               </div>
             )}
           </div>
-          {filteredVisits.length > 0 && (
-            <div className="px-5 py-2.5 bg-gray-50 border-t border-gray-200 text-xs text-gray-500 font-medium">
-              {filteredVisits.length} {filteredVisits.length === 1 ? "record" : "records"}
-            </div>
-          )}
+          <Pagination page={page} pageSize={PAGE_SIZE} totalItems={filteredVisits.length} onPageChange={setPage} />
         </div>
 
         {/* Modal: Log Client Plant Visit Report */}

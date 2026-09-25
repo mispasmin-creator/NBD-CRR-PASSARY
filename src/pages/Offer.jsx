@@ -17,6 +17,7 @@ import axios from "axios"
 import { Download, ArrowUp, ArrowDown, ArrowUpDown } from "lucide-react"
 import PageHeader from "../components/ui/PageHeader"
 import StepTracker from "../components/ui/StepTracker"
+import Pagination from "../components/ui/Pagination"
 import { exportToCsv } from "../utils/exportCsv"
 import { getCurrentTimestamp } from "../utils/dateTime"
 import { sortRows, nextSortDirection } from "../utils/sortRows"
@@ -41,6 +42,14 @@ function SortableTh({ column, label, sortConfig, onSort, className }) {
     )
 }
 
+// "Re-Offer" isn't a pipeline stage (no Planned/Actual columns of its own) — it's a view of
+// every enquiry whose Stage column says "Make Re - Offer", set from the NBD Enquiry Call Tracker.
+const RE_OFFER_TAB = "Make Re - Offer"
+const isReOfferRow = (row) => {
+    const stage = String(row["Stage"] || row["Current Stage"] || "").toLowerCase().replace(/[\s_-]+/g, "")
+    return stage === "makereoffer"
+}
+
 const TABS = [
     { id: "All Enquiries", label: "All" },
     { id: "Get Rates & Attached Offer Letter", label: "Rates & Offer Letter" },
@@ -48,6 +57,7 @@ const TABS = [
     { id: "Check The Offer Letter In Sales Person", label: "Sales Check" },
     { id: "Technical Discussion When Accounts and Sales Approved Offer Letter", label: "Tech Discussion" },
     { id: "Send Offer Letter", label: "Send Offer" },
+    { id: RE_OFFER_TAB, label: "Re-Offer" },
     { id: "History", label: "History" }
 ]
 
@@ -176,6 +186,8 @@ function Offer() {
             return { key: direction ? key : null, direction }
         })
     }
+    const [page, setPage] = useState(1)
+    const [selectedRows, setSelectedRows] = useState(new Set())
     const [isLoading, setIsLoading] = useState(true)
     const [offerRows, setOfferRows] = useState([])
     const [offerHeaderRow, setOfferHeaderRow] = useState([])
@@ -329,6 +341,8 @@ function Offer() {
             return offerRows.filter(isHistoryRow).length
         }
 
+        if (tabId === RE_OFFER_TAB) return offerRows.filter(isReOfferRow).length
+
         return offerRows.filter(row => isStageActive(row, tabId)).length
     }
 
@@ -350,15 +364,44 @@ function Offer() {
             return isHistoryRow(row)
         }
 
+        if (activeTab === RE_OFFER_TAB) return isReOfferRow(row)
+
         return isStageActive(row, activeTab)
     })
 
     const firmFilterOptions = Array.from(new Set(offerRows.map(r => String(r["Firm Name"] || "").trim()).filter(Boolean))).sort()
     const partyFilterOptions = Array.from(new Set(offerRows.map(r => String(r["Party Name"] || "").trim()).filter(Boolean))).sort()
 
-    const paginatedRows = (sortConfig.key)
+    const sortedRows = (sortConfig.key)
         ? sortRows(filteredRows, sortConfig.direction, (r) => r[sortConfig.key])
         : filteredRows
+
+    const PAGE_SIZE = 25
+    const paginatedRows = sortedRows.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE)
+
+    useEffect(() => {
+        setPage(1)
+    }, [activeTab, searchTerm, firmFilter, partyFilter])
+
+    const rowKey = (r) => r["Enquiry No."]
+    const toggleRowSelected = (key) => {
+        setSelectedRows((prev) => {
+            const next = new Set(prev)
+            if (next.has(key)) next.delete(key)
+            else next.add(key)
+            return next
+        })
+    }
+    const toggleSelectAllOnPage = () => {
+        const pageKeys = paginatedRows.map(rowKey)
+        const allSelected = pageKeys.length > 0 && pageKeys.every((k) => selectedRows.has(k))
+        setSelectedRows((prev) => {
+            const next = new Set(prev)
+            if (allSelected) pageKeys.forEach((k) => next.delete(k))
+            else pageKeys.forEach((k) => next.add(k))
+            return next
+        })
+    }
 
     const handleExport = () => {
         exportToCsv(`offers-${activeTab.replace(/\s+/g, "-").toLowerCase()}`, [
@@ -477,7 +520,11 @@ function Offer() {
                 {TABS.map((tab) => {
                     const count = getTabCount(tab.id)
                     const isActive = activeTab === tab.id
-                    const config = TAB_CONFIG[tab.id] || (tab.id === "History" ? {
+                    const config = TAB_CONFIG[tab.id] || (tab.id === RE_OFFER_TAB ? {
+                        icon: <RefreshCwIcon className="h-4 w-4" />,
+                        colorClass: "bg-rose-50 text-rose-700 shadow-sm ring-1 ring-rose-200",
+                        badgeClass: "bg-rose-100 text-rose-700"
+                    } : tab.id === "History" ? {
                         icon: <HistoryIcon className="h-4 w-4" />,
                         colorClass: "bg-emerald-50 text-emerald-700 shadow-sm ring-1 ring-emerald-200",
                         badgeClass: "bg-emerald-100 text-emerald-700"
@@ -576,6 +623,9 @@ function Offer() {
                     <table className="w-full text-left border-separate border-spacing-0">
                         <thead className="sticky top-0 z-10">
                             <tr className="bg-muted/80 border-b border-border">
+                                <th className="px-3 py-3.5 w-10">
+                                    <input type="checkbox" aria-label="Select all on this page" checked={paginatedRows.length > 0 && paginatedRows.every((r) => selectedRows.has(rowKey(r)))} onChange={toggleSelectAllOnPage} className="h-4 w-4 rounded border-gray-300 text-indigo-600 focus:ring-indigo-500 cursor-pointer" />
+                                </th>
                                 {isActionTab && (
                                     <th className="sticky left-0 z-20 bg-muted px-5 py-3.5 text-xs font-bold text-muted-foreground uppercase tracking-wider text-center whitespace-nowrap shadow-xs">
                                         Action
@@ -602,7 +652,7 @@ function Offer() {
                         <tbody className="divide-y divide-slate-100">
                             {isLoading ? (
                                 <tr>
-                                    <td colSpan={columnsToRender.length + (isActionTab ? 1 : 0)} className="px-6 py-20 text-center">
+                                    <td colSpan={columnsToRender.length + (isActionTab ? 1 : 0) + 1} className="px-6 py-20 text-center">
                                         <div className="flex flex-col items-center gap-4">
                                             <div className="relative h-12 w-12">
                                                 <div className="absolute inset-0 border-4 border-sky-100 rounded-full"></div>
@@ -614,7 +664,7 @@ function Offer() {
                                 </tr>
                             ) : filteredRows.length === 0 ? (
                                 <tr>
-                                    <td colSpan={columnsToRender.length + (isActionTab ? 1 : 0)} className="px-6 py-20 text-center">
+                                    <td colSpan={columnsToRender.length + (isActionTab ? 1 : 0) + 1} className="px-6 py-20 text-center">
                                         <div className="bg-muted rounded-2xl p-8 inline-block">
                                             <UsersIcon className="h-10 w-10 text-slate-200 mx-auto mb-3" />
                                             <p className="text-sm font-bold text-muted-foreground italic">No enquiries found in this segment.</p>
@@ -627,6 +677,9 @@ function Offer() {
 
                                     return (
                                         <tr key={originalIdx} className="hover:bg-muted/50 transition-colors group">
+                                            <td className="px-3 py-3.5 whitespace-nowrap">
+                                                <input type="checkbox" aria-label={`Select ${rowKey(row)}`} checked={selectedRows.has(rowKey(row))} onChange={() => toggleRowSelected(rowKey(row))} className="h-4 w-4 rounded border-gray-300 text-indigo-600 focus:ring-indigo-500 cursor-pointer" />
+                                            </td>
                                             {isActionTab && (
                                                 <td className="sticky left-0 z-10 bg-white group-hover:bg-muted/50 px-5 py-3.5 whitespace-nowrap text-center shadow-xs">
                                                     <button
@@ -660,6 +713,14 @@ function Offer() {
                                             {columnsToRender.map((col) => {
                                                 let val = row[col]
                                                 let displayContent = val || <span className="text-slate-300 font-normal">N/A</span>
+
+                                                if (col === "Stage" && activeTab === RE_OFFER_TAB) {
+                                                    displayContent = (
+                                                        <span className="px-3 py-1 bg-rose-100 text-rose-700 rounded-lg text-[12px] font-bold">
+                                                            Re-Offer
+                                                        </span>
+                                                    )
+                                                }
 
                                                 // Handle stage badges in "All Enquiries" and "History" tabs
                                                 if (col === "Stage" && (activeTab === "All Enquiries" || activeTab === "History")) {
@@ -854,9 +915,7 @@ function Offer() {
                 </div>
 
                 {!isLoading && (
-                    <div className="px-5 py-2.5 bg-gray-50 border-t border-gray-200 text-xs text-gray-500 font-medium">
-                        {filteredRows.length} {filteredRows.length === 1 ? "record" : "records"}
-                    </div>
+                    <Pagination page={page} pageSize={PAGE_SIZE} totalItems={filteredRows.length} onPageChange={setPage} />
                 )}
             </div>
 
@@ -894,7 +953,7 @@ function Offer() {
                                 {/* Pipeline progress */}
                                 <div className="mb-5 pb-5 border-b border-slate-100">
                                     <StepTracker
-                                        steps={TABS.filter(t => t.id !== "All Enquiries" && t.id !== "History").map(t => t.label)}
+                                        steps={TABS.filter(t => t.id !== "All Enquiries" && t.id !== "History" && t.id !== RE_OFFER_TAB).map(t => t.label)}
                                         currentStep={TABS.find(t => t.id === modalActiveTab)?.label}
                                     />
                                 </div>

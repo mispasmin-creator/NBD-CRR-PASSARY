@@ -8,6 +8,8 @@ import CallTrackerForm from "./Call-Tracker-Form"
 import axios from "axios"
 import { Download, ArrowUp, ArrowDown, ArrowUpDown } from "lucide-react"
 import PageHeader from "../components/ui/PageHeader"
+import Pagination from "../components/ui/Pagination"
+import Avatar from "../components/ui/Avatar"
 import { exportToCsv } from "../utils/exportCsv"
 import { getCurrentTimestamp, reformatIfDate } from "../utils/dateTime"
 import { sortRows, nextSortDirection } from "../utils/sortRows"
@@ -147,6 +149,8 @@ function CallTracker() {
       return { key: direction ? key : null, direction }
     })
   }
+  const [page, setPage] = useState(1)
+  const [selectedRows, setSelectedRows] = useState(new Set())
   const [isLoading, setIsLoading] = useState(true)
   const [presetLeadNo, setPresetLeadNo] = useState(null)
 
@@ -452,9 +456,36 @@ function CallTracker() {
   const salesPersonFilterOptions = Array.from(new Set(enquiryRows.map(r => String(r["Name Of Sales Person"] || "").trim()).filter(Boolean))).sort()
   const statusFilterOptions = Array.from(new Set(enquiryRows.map(r => String(r["Enquiry status"] || "").trim()).filter(Boolean))).sort()
 
-  const paginatedRows = (sortConfig.key)
+  const sortedRows = (sortConfig.key)
     ? sortRows(filteredRows, sortConfig.direction, (r) => r[sortConfig.key])
     : filteredRows
+
+  const PAGE_SIZE = 25
+  const paginatedRows = sortedRows.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE)
+
+  useEffect(() => {
+    setPage(1)
+  }, [activeTab, searchTerm, firmFilter, salesPersonFilter, statusFilter, callDateFilter])
+
+  const rowKey = (r) => r["Enquiry No."] || r["Enquiry No"]
+  const toggleRowSelected = (key) => {
+    setSelectedRows((prev) => {
+      const next = new Set(prev)
+      if (next.has(key)) next.delete(key)
+      else next.add(key)
+      return next
+    })
+  }
+  const toggleSelectAllOnPage = () => {
+    const pageKeys = paginatedRows.map(rowKey)
+    const allSelected = pageKeys.length > 0 && pageKeys.every((k) => selectedRows.has(k))
+    setSelectedRows((prev) => {
+      const next = new Set(prev)
+      if (allSelected) pageKeys.forEach((k) => next.delete(k))
+      else pageKeys.forEach((k) => next.add(k))
+      return next
+    })
+  }
 
   const handleExportRows = () => {
     exportToCsv(`nbd-enquiry-${activeTab}`, [
@@ -1817,6 +1848,9 @@ function CallTracker() {
               <table className="min-w-full border-separate border-spacing-0">
                 <thead className="sticky top-0 z-10">
                   <tr className="bg-muted border-b border-border">
+                  <th className="px-3 py-3.5 w-10">
+                    <input type="checkbox" aria-label="Select all on this page" checked={paginatedRows.length > 0 && paginatedRows.every((r) => selectedRows.has(rowKey(r)))} onChange={toggleSelectAllOnPage} className="h-4 w-4 rounded border-gray-300 text-indigo-600 focus:ring-indigo-500 cursor-pointer" />
+                  </th>
                   {/* Call button column — only on Call Tracker tab */}
                   {activeTab === "callTracker" && (
                     <th className="sticky left-0 z-20 bg-muted px-5 py-3.5 text-left text-xs font-bold text-indigo-600 uppercase tracking-wider whitespace-nowrap w-24 shadow-xs">
@@ -1861,6 +1895,9 @@ function CallTracker() {
               <tbody className="divide-y divide-slate-100">
                 {paginatedRows.map((row, index) => (
                   <tr key={index} className="hover:bg-blue-50/40 transition-colors group">
+                    <td className="px-3 py-3.5 whitespace-nowrap">
+                      <input type="checkbox" aria-label={`Select ${rowKey(row)}`} checked={selectedRows.has(rowKey(row))} onChange={() => toggleRowSelected(rowKey(row))} className="h-4 w-4 rounded border-gray-300 text-indigo-600 focus:ring-indigo-500 cursor-pointer" />
+                    </td>
                     {/* Call button — first column, only on Call Tracker tab */}
                     {activeTab === "callTracker" && (
                       <td className="sticky left-0 z-10 bg-white group-hover:bg-blue-50/40 px-5 py-3.5 whitespace-nowrap shadow-xs">
@@ -1904,6 +1941,8 @@ function CallTracker() {
                             )
                           ) : col === "Firm Name" ? (
                             <span className="text-[13px] font-semibold text-foreground">{val || <span className="text-slate-300">—</span>}</span>
+                          ) : col === "Name Of Sales Person" && val ? (
+                            <span className="inline-flex items-center gap-1.5 text-[13px] text-muted-foreground"><Avatar name={val} size="xs" />{val}</span>
                           ) : val ? (
                             <span className="text-[13px] text-muted-foreground">{val}</span>
                           ) : (
@@ -2010,6 +2049,7 @@ function CallTracker() {
                         (["callTracker", "orderReceived", "orderNotReceived"].includes(activeTab) ? 1 : 0) + // Next Call col
                         (activeTab === "all" ? 1 : 0) + // Current Stage col
                         (activeTab === "callTracker" ? 1 : 0) + // Action button col
+                        1 + // checkbox col
                         1 // chevron col
                       }
                       className="px-6 py-20 text-center"
@@ -2035,10 +2075,8 @@ function CallTracker() {
             </div>
           </div>
         )}
-        {!isLoading && filteredRows.length > 0 && (
-          <div className="shrink-0 px-5 py-2.5 bg-gray-50 border-t border-gray-200 text-xs text-gray-500 font-medium">
-            {filteredRows.length} {filteredRows.length === 1 ? "record" : "records"}
-          </div>
+        {!isLoading && (
+          <Pagination page={page} pageSize={PAGE_SIZE} totalItems={filteredRows.length} onPageChange={setPage} />
         )}
       </div>
 

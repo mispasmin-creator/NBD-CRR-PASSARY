@@ -7,6 +7,8 @@
     import { UsersIcon, TrendingUpIcon, ShareIcon, ShoppingCartIcon, AlertCircleIcon, RefreshCwIcon, HistoryIcon, RetentionIcon } from "../components/Icons"
     import { X, Send, Image as ImageIcon, ExternalLink, CheckCircle, Paperclip, Download, ArrowUp, ArrowDown, ArrowUpDown } from "lucide-react"
     import PageHeader from "../components/ui/PageHeader"
+    import Pagination from "../components/ui/Pagination"
+    import Avatar from "../components/ui/Avatar"
     import { exportToCsv } from "../utils/exportCsv"
     import { getCurrentTimestamp, reformatIfDate, formatTimestamp } from "../utils/dateTime"
     import { sortRows, nextSortDirection } from "../utils/sortRows"
@@ -67,6 +69,8 @@
                 return { key: direction ? key : null, direction }
             })
         }
+        const [page, setPage] = useState(1)
+        const [selectedRows, setSelectedRows] = useState(new Set())
         const [showForm, setShowForm] = useState(false)
         const [isSubmitting, setIsSubmitting] = useState(false)
         const [isTabSubmitting, setIsTabSubmitting] = useState(false)
@@ -541,11 +545,7 @@
             if (salesPersonFilter && String(e.salesPerson || "").trim() !== salesPersonFilter) return false
             if (statusFilter && String(e.status || "").trim() !== statusFilter) return false
 
-            if (activeTab !== "All Crm") {
-                return isEnquiryInTab(e, activeTab)
-            }
-
-            return true
+            return isEnquiryInTab(e, activeTab)
         })
 
         const salesPersonFilterOptions = Array.from(new Set(enquiries.map(e => String(e.salesPerson || "").trim()).filter(Boolean))).sort()
@@ -561,9 +561,35 @@
             status: (e) => e.status,
         }
 
-        const paginatedEnquiries = (sortConfig.key && CRR_SORT_ACCESSORS[sortConfig.key])
+        const sortedEnquiries = (sortConfig.key && CRR_SORT_ACCESSORS[sortConfig.key])
             ? sortRows(filteredEnquiries, sortConfig.direction, CRR_SORT_ACCESSORS[sortConfig.key])
             : filteredEnquiries
+
+        const PAGE_SIZE = 25
+        const paginatedEnquiries = sortedEnquiries.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE)
+
+        useEffect(() => {
+            setPage(1)
+        }, [activeTab, searchQuery, salesPersonFilter, statusFilter])
+
+        const toggleRowSelected = (key) => {
+            setSelectedRows((prev) => {
+                const next = new Set(prev)
+                if (next.has(key)) next.delete(key)
+                else next.add(key)
+                return next
+            })
+        }
+        const toggleSelectAllOnPage = () => {
+            const pageKeys = paginatedEnquiries.map((e) => e.enquiryNo)
+            const allSelected = pageKeys.length > 0 && pageKeys.every((k) => selectedRows.has(k))
+            setSelectedRows((prev) => {
+                const next = new Set(prev)
+                if (allSelected) pageKeys.forEach((k) => next.delete(k))
+                else pageKeys.forEach((k) => next.add(k))
+                return next
+            })
+        }
 
         const handleExportEnquiries = () => {
             exportToCsv(`crr-enquiries-${activeTab.replace(/\s+/g, "-").toLowerCase()}`, [
@@ -940,6 +966,9 @@
                         <table className="w-full border-separate border-spacing-0">
                             <thead className="bg-muted border-b border-border sticky top-0 z-10">
                                 <tr>
+                                    <th className="px-3 py-3.5 w-10">
+                                        <input type="checkbox" aria-label="Select all on this page" checked={paginatedEnquiries.length > 0 && paginatedEnquiries.every((e) => selectedRows.has(e.enquiryNo))} onChange={toggleSelectAllOnPage} className="h-4 w-4 rounded border-gray-300 text-indigo-600 focus:ring-indigo-500 cursor-pointer" />
+                                    </th>
                                     <th className="sticky left-0 z-20 bg-muted px-5 py-3.5 text-center text-xs font-bold text-slate-700 uppercase tracking-wider whitespace-nowrap shadow-xs">
                                         Action / Status
                                     </th>
@@ -958,7 +987,7 @@
                             <tbody className="divide-y divide-slate-200">
                                 {isLoadingData ? (
                                     <tr>
-                                        <td colSpan={9} className="px-6 py-14 text-center text-muted-foreground">
+                                        <td colSpan={10} className="px-6 py-14 text-center text-muted-foreground">
                                             <div className="flex flex-col items-center justify-center">
                                                 <div className="animate-spin rounded-full h-8 w-8 border-2 border-primary/20 border-t-primary mb-3"></div>
                                                 <p className="text-sm text-muted-foreground">Loading enquiries...</p>
@@ -967,7 +996,7 @@
                                     </tr>
                                 ) : filteredEnquiries.length === 0 ? (
                                     <tr>
-                                        <td colSpan={9} className="px-6 py-14 text-center text-muted-foreground">
+                                        <td colSpan={10} className="px-6 py-14 text-center text-muted-foreground">
                                             <div className="flex flex-col items-center justify-center gap-2">
                                                 <div className="flex h-12 w-12 items-center justify-center rounded-full bg-muted">
                                                     <svg className="h-5 w-5 text-muted-foreground" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -983,6 +1012,9 @@
                                         const currentStage = getEnquiryStage(enquiry)
                                         return (
                                             <tr key={enquiry.id} className="group hover:bg-muted/70 transition-colors duration-150">
+                                                <td className="px-3 py-3.5 whitespace-nowrap">
+                                                    <input type="checkbox" aria-label={`Select ${enquiry.enquiryNo}`} checked={selectedRows.has(enquiry.enquiryNo)} onChange={() => toggleRowSelected(enquiry.enquiryNo)} className="h-4 w-4 rounded border-gray-300 text-indigo-600 focus:ring-indigo-500 cursor-pointer" />
+                                                </td>
                                                 <td className="sticky left-0 z-10 bg-white group-hover:bg-muted/70 px-5 py-3.5 whitespace-nowrap text-center shadow-xs">
                                                     {activeTab === "All Crm" ? (
                                                         (() => {
@@ -1036,7 +1068,9 @@
                                                 <td className="px-5 py-3.5 text-muted-foreground text-sm max-w-[180px] truncate" title={enquiry.partyName}>{enquiry.partyName || '-'}</td>
                                                 <td className="px-5 py-3.5 text-muted-foreground text-sm max-w-[160px] truncate" title={enquiry.productName}>{enquiry.productName || '-'}</td>
                                                 <td className="px-5 py-3.5 text-muted-foreground text-sm font-medium">{enquiry.qty || '-'}</td>
-                                                <td className="px-5 py-3.5 text-muted-foreground text-sm max-w-[140px] truncate" title={enquiry.salesPerson}>{enquiry.salesPerson || '-'}</td>
+                                                <td className="px-5 py-3.5 text-muted-foreground text-sm max-w-[140px] truncate" title={enquiry.salesPerson}>
+                                                    {enquiry.salesPerson ? <span className="inline-flex items-center gap-1.5"><Avatar name={enquiry.salesPerson} size="xs" />{enquiry.salesPerson}</span> : '-'}
+                                                </td>
                                                 <td className="px-5 py-3.5 whitespace-nowrap">
                                                     <span className="inline-flex items-center px-2.5 py-1 rounded-full bg-gray-100 text-gray-600 text-xs font-semibold">
                                                         {enquiry.status || '-'}
@@ -1065,11 +1099,7 @@
                             </tbody>
                         </table>
                     </div>
-                    {filteredEnquiries.length > 0 && (
-                        <div className="px-5 py-2.5 bg-gray-50 border-t border-gray-200 text-xs text-gray-500 font-medium">
-                            {filteredEnquiries.length} {filteredEnquiries.length === 1 ? "record" : "records"}
-                        </div>
-                    )}
+                    <Pagination page={page} pageSize={PAGE_SIZE} totalItems={filteredEnquiries.length} onPageChange={setPage} />
                 </div>
 
                 {/* Update Stage Modal */}
