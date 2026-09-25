@@ -133,6 +133,21 @@ const TAB_CONFIG = {
     }
 }
 
+// Re-Offer has no Planned/Actual pair of its own, so it isn't a TAB_CONFIG pipeline stage.
+// Its only action is uploading the re-offer letter into the sheet's "Re-Offer" column.
+const RE_OFFER_CONFIG = {
+    timestampCol: null,
+    inputColumns: [{ key: 'reOfferLetter', label: 'Re-Offer Letter', type: 'file' }],
+}
+const getTabConfig = (tabId) => (tabId === RE_OFFER_TAB ? RE_OFFER_CONFIG : TAB_CONFIG[tabId])
+
+// The Re-Offer column is located by its header text ONLY — no hardcoded fallback position,
+// so a missing/renamed column blocks the upload instead of writing into some other cell.
+const findReOfferCol = (headerRow) => headerRow.findIndex(h => {
+    const n = String(h || "").toLowerCase().replace(/[^a-z0-9]/g, "")
+    return ["reoffer", "reofferletter", "uploadreoffer", "reofferupload", "reofferattachment"].includes(n)
+})
+
 const BASE_COLUMNS = [
     "Stage",
     "Enquiry No.",
@@ -422,10 +437,14 @@ function Offer() {
         return inputConfig.storeCol
     }
 
-    const isActionTab = !!TAB_CONFIG[activeTab]
-    const currentTabConfig = TAB_CONFIG[activeTab]
+    const isActionTab = !!getTabConfig(activeTab)
+    const currentTabConfig = getTabConfig(activeTab)
 
-    const columnsToRender = activeTab === "Check The Offer Letter In Sales Person"
+    const reOfferColIdx = findReOfferCol(offerHeaderRow)
+
+    const columnsToRender = activeTab === RE_OFFER_TAB
+        ? [...BASE_COLUMNS, "Re-Offer Letter"]
+        : activeTab === "Check The Offer Letter In Sales Person"
         ? [...BASE_COLUMNS, "Accounts Status", "Accounts Remarks"]
         : activeTab === "Technical Discussion When Accounts and Sales Approved Offer Letter"
         ? [...BASE_COLUMNS, "Accounts Status", "Accounts Remarks", "Sales Status", "Sales Remarks"]
@@ -439,18 +458,55 @@ function Offer() {
         const scriptUrl = import.meta.env.VITE_GOOGLE_APPS_SCRIPT_URL
         const sheetName = import.meta.env.VITE_NBD_OFFER_FMS_SHEET_NAME
         const timestamp = getCurrentTimestamp()
-        const config = TAB_CONFIG[modalActiveTab]
+        const config = getTabConfig(modalActiveTab)
         const targetRowIndex = modalLead._sheetRowIdx + 1
 
+        // Re-Offer: upload the letter and write its Drive link into the "Re-Offer" column — nothing else.
+        if (modalActiveTab === RE_OFFER_TAB) {
+            try {
+                const colIdx = findReOfferCol(offerHeaderRow)
+                if (colIdx === -1) {
+                    showNotification('Sheet mein "Re-Offer" naam ka column nahi mila — pehle NBD OFFER FMS mein us naam ka header add karein.', "error")
+                    return
+                }
+                const file = modalFormData.reOfferLetter
+                if (!(file instanceof File)) {
+                    showNotification("Please choose a Re-Offer letter file to upload.", "error")
+                    return
+                }
+                const fileUrl = await uploadFileToDrive(file)
+                const payload = new URLSearchParams()
+                payload.append('action', 'updateCell')
+                payload.append('sheetName', sheetName)
+                payload.append('rowIndex', targetRowIndex.toString())
+                payload.append('columnIndex', (colIdx + 1).toString())
+                payload.append('value', fileUrl)
+                await axios.post(scriptUrl, payload)
+
+                showNotification(`Re-Offer letter uploaded for ${modalLead["Enquiry No."]}`, "success")
+                setIsStageModalOpen(false)
+                setModalFormData({})
+                fetchOfferData()
+            } catch (error) {
+                console.error("Error uploading Re-Offer letter:", error)
+                showNotification(`Re-Offer upload failed: ${error?.message || "please try again"}`, "error")
+            } finally {
+                setIsModalSubmitting(false)
+            }
+            return
+        }
+
         try {
-            // 1. Update only the timestamp cell (1-indexed columnIndex)
-            const tsPayload = new URLSearchParams()
-            tsPayload.append('action', 'updateCell')
-            tsPayload.append('sheetName', sheetName)
-            tsPayload.append('rowIndex', targetRowIndex.toString())
-            tsPayload.append('columnIndex', (config.timestampCol + 1).toString())
-            tsPayload.append('value', timestamp)
-            await axios.post(scriptUrl, tsPayload)
+            // 1. Update only the timestamp cell (1-indexed columnIndex) — Re-Offer has none
+            if (config.timestampCol != null) {
+                const tsPayload = new URLSearchParams()
+                tsPayload.append('action', 'updateCell')
+                tsPayload.append('sheetName', sheetName)
+                tsPayload.append('rowIndex', targetRowIndex.toString())
+                tsPayload.append('columnIndex', (config.timestampCol + 1).toString())
+                tsPayload.append('value', timestamp)
+                await axios.post(scriptUrl, tsPayload)
+            }
 
             // 2. Update only the specific input columns (handle file upload if needed)
             for (const inputConfig of config.inputColumns) {
@@ -632,7 +688,7 @@ function Offer() {
                                     </th>
                                 )}
                                 {columnsToRender.map((col) => (
-                                    col === "Stage" || col === "Offer Letter" ? (
+                                    col === "Stage" || col === "Offer Letter" || col === "Re-Offer Letter" ? (
                                         <th key={col} className="px-5 py-3.5 text-xs font-bold text-muted-foreground uppercase tracking-wider whitespace-nowrap">
                                             {col}
                                         </th>
@@ -706,7 +762,9 @@ function Offer() {
                                                         }}
                                                         className="inline-flex items-center gap-1 px-3.5 py-1.5 bg-sky-600 hover:bg-sky-700 text-white text-xs font-bold rounded-lg shadow-sm transition-all hover:scale-105 active:scale-95 cursor-pointer"
                                                     >
-                                                        Action
+                                                        {activeTab === RE_OFFER_TAB
+                                                            ? (reOfferColIdx !== -1 && String(row.rawRow?.[reOfferColIdx] || "").trim() ? "Re-upload" : "Upload")
+                                                            : "Action"}
                                                     </button>
                                                 </td>
                                             )}
@@ -832,6 +890,28 @@ function Offer() {
                                                     }
                                                 }
 
+                                                // Re-Offer letter link (from the sheet's "Re-Offer" column)
+                                                if (col === "Re-Offer Letter") {
+                                                    const reUrl = reOfferColIdx !== -1 ? String(row.rawRow?.[reOfferColIdx] || "").trim() : ""
+                                                    displayContent = reUrl ? (
+                                                        <a
+                                                            href={reUrl}
+                                                            target="_blank"
+                                                            rel="noopener noreferrer"
+                                                            onClick={(e) => e.stopPropagation()}
+                                                            className="inline-flex items-center gap-1.5 px-2.5 py-1 bg-emerald-50 hover:bg-emerald-100 text-emerald-700 rounded-lg text-xs font-semibold border border-emerald-200 transition-all hover:scale-105"
+                                                            title="View Re-Offer Letter"
+                                                        >
+                                                            <span>View Re-Offer</span>
+                                                            <svg className="h-3 w-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
+                                                            </svg>
+                                                        </a>
+                                                    ) : (
+                                                        <span className="inline-flex items-center px-2.5 py-1 rounded-lg bg-amber-50 text-amber-700 border border-amber-200 text-xs font-semibold">Pending upload</span>
+                                                    )
+                                                }
+
                                                 // Handle Accounts Status
                                                 if (col === "Accounts Status") {
                                                     const accStatus = row.rawRow?.[14] ? String(row.rawRow[14]).trim() : ""
@@ -951,12 +1031,14 @@ function Offer() {
 
                             <div className="px-6 py-5">
                                 {/* Pipeline progress */}
+                                {modalActiveTab !== RE_OFFER_TAB && (
                                 <div className="mb-5 pb-5 border-b border-slate-100">
                                     <StepTracker
                                         steps={TABS.filter(t => t.id !== "All Enquiries" && t.id !== "History" && t.id !== RE_OFFER_TAB).map(t => t.label)}
                                         currentStep={TABS.find(t => t.id === modalActiveTab)?.label}
                                     />
                                 </div>
+                                )}
 
                                 {/* Lead Details Summary */}
                                 <div className="bg-slate-50 p-4 rounded-xl border border-slate-200 space-y-2 mb-5 text-xs">
@@ -1060,6 +1142,12 @@ function Offer() {
 
                                 </div>
 
+                                {modalActiveTab === RE_OFFER_TAB && reOfferColIdx === -1 && (
+                                    <div className="mb-4 rounded-xl border border-amber-200 bg-amber-50 p-3 text-xs font-medium text-amber-800">
+                                        NBD OFFER FMS sheet mein <span className="font-bold">"Re-Offer"</span> naam ka column nahi mila. Sheet ki header row mein ek column ka naam <span className="font-bold">Re-Offer</span> rakhein, phir page Refresh karein — tab tak upload band hai.
+                                    </div>
+                                )}
+
                                 <form onSubmit={handleModalSubmit} className="space-y-4">
                                     {(() => {
                                         const isAccYes = String(modalLead?.rawRow?.[14] || '').trim().toLowerCase() === 'yes'
@@ -1067,7 +1155,7 @@ function Offer() {
                                         const isBothApproved = isAccYes && isSalesYes
                                         const isTechDiscussion = modalActiveTab === "Technical Discussion When Accounts and Sales Approved Offer Letter"
 
-                                        if (TAB_CONFIG[modalActiveTab]?.inputColumns.length === 0 || (isTechDiscussion && isBothApproved)) {
+                                        if (getTabConfig(modalActiveTab)?.inputColumns.length === 0 || (isTechDiscussion && isBothApproved)) {
                                             return (
                                                 <div className="py-6 text-center bg-muted rounded-xl border border-slate-100">
                                                     <ShareIcon className="h-8 w-8 text-slate-300 mx-auto mb-2" />
@@ -1085,7 +1173,7 @@ function Offer() {
 
                                         return (
                                             <div className="grid grid-cols-1 gap-4 text-xs">
-                                                {TAB_CONFIG[modalActiveTab]?.inputColumns.map(col => {
+                                                {getTabConfig(modalActiveTab)?.inputColumns.map(col => {
                                                     // In Account Check, only show remarks if status is "No"
                                                     if (modalActiveTab === "Check The Offer Letter In Accounts" && col.key === "remarks" && modalFormData.status !== "No") {
                                                         return null
@@ -1210,8 +1298,8 @@ function Offer() {
                                         </button>
                                         <button
                                             type="submit"
-                                            disabled={isModalSubmitting}
-                                            className={`flex items-center justify-center gap-1.5 px-5 py-2 bg-sky-600 hover:bg-sky-700 text-white font-bold rounded-lg shadow-sm transition-all text-xs md:text-sm cursor-pointer
+                                            disabled={isModalSubmitting || (modalActiveTab === RE_OFFER_TAB && reOfferColIdx === -1)}
+                                            className={`flex items-center justify-center gap-1.5 px-5 py-2 bg-sky-600 hover:bg-sky-700 text-white font-bold rounded-lg shadow-sm transition-all text-xs md:text-sm cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed
                                                 ${isModalSubmitting ? 'opacity-50 cursor-not-allowed' : ''}`}
                                         >
                                             {isModalSubmitting ? (
