@@ -17,11 +17,8 @@ import {
   XCircleIcon,
   BuildingIcon,
 } from "./Icons";
-import { fetchDashboardOverview } from "../services/dashboardStats";
 
 const SIDEBAR_COLLAPSED_KEY = "sidebar_collapsed";
-// Pending counts refresh — matches Dashboard's own auto-refresh cadence
-const COUNTS_REFRESH_MS = 5 * 60 * 1000;
 
 function Sidebar({ mobileMenuOpen, setMobileMenuOpen }) {
   const location = useLocation();
@@ -49,41 +46,6 @@ function Sidebar({ mobileMenuOpen, setMobileMenuOpen }) {
 
   // Mobile drawer always shows full sidebar
   const showLabels = !isCollapsed || mobileMenuOpen;
-
-  // Per-module pending counts — same live stats Dashboard shows, indexed to
-  // match fetchDashboardOverview()'s fixed module order (Leads, CRR, NBD
-  // Enquiry, Offer, Complaint, Marketing, Order Not Received).
-  const [moduleCounts, setModuleCounts] = useState([]);
-
-  useEffect(() => {
-    let isMounted = true;
-    const loadCounts = async () => {
-      try {
-        const overview = await fetchDashboardOverview();
-        // "pending" alone under-counts — several modules (Order Not Received, CRR
-        // Enquiry, Customer Complaint) bucket most of their active work as
-        // "inProgress" or "delayed" instead. Anything not yet completed still
-        // needs attention, so badge on total minus completed.
-        if (isMounted) {
-          setModuleCounts((overview?.modules ?? []).map((m) => Math.max(0, (m.total ?? 0) - (m.completed ?? 0))));
-        }
-      } catch {
-        /* silent — badges just stay hidden until next successful refresh */
-      }
-    };
-    // Delay the first fetch so it doesn't compete with the current page's own
-    // (much more urgent) data load for the same slow Apps Script backend —
-    // badges popping in a couple seconds late is fine; a slower page isn't.
-    const initialTimer = setTimeout(loadCounts, 2500);
-    const id = setInterval(() => {
-      if (document.visibilityState === "visible") loadCounts();
-    }, COUNTS_REFRESH_MS);
-    return () => {
-      isMounted = false;
-      clearTimeout(initialTimer);
-      clearInterval(id);
-    };
-  }, []);
 
   // Close drawer on route change
   useEffect(() => {
@@ -230,11 +192,7 @@ function Sidebar({ mobileMenuOpen, setMobileMenuOpen }) {
           <ul className="space-y-1">
             {mainRoutes.map((route) => (
               <li key={route.to}>
-                <SidebarLink
-                  route={route}
-                  showLabel={showLabels}
-                  pendingCount={route.moduleIndex != null ? moduleCounts[route.moduleIndex] : undefined}
-                />
+                <SidebarLink route={route} showLabel={showLabels} />
               </li>
             ))}
           </ul>
@@ -276,14 +234,12 @@ function Sidebar({ mobileMenuOpen, setMobileMenuOpen }) {
 }
 
 /** A single sidebar nav link */
-function SidebarLink({ route, showLabel = true, pendingCount }) {
-  const hasCount = Number.isFinite(pendingCount) && pendingCount > 0;
-
+function SidebarLink({ route, showLabel = true }) {
   return (
     <NavLink
       to={route.to}
       end={route.to === "/"}
-      title={showLabel ? undefined : hasCount ? `${route.label} (${pendingCount} pending)` : route.label}
+      title={showLabel ? undefined : route.label}
       className={({ isActive }) =>
         `group relative flex items-center gap-3 rounded-lg px-3 py-2.5 text-[13.5px] font-medium outline-none transition-all duration-150 focus-visible:ring-2 focus-visible:ring-indigo-500 focus-visible:ring-offset-1 ${
           showLabel ? "" : "md:justify-center md:px-0"
@@ -306,22 +262,8 @@ function SidebarLink({ route, showLabel = true, pendingCount }) {
             }`}
           >
             {route.icon}
-            {hasCount && !showLabel && (
-              <span className="absolute -right-1.5 -top-1.5 flex h-4 min-w-4 items-center justify-center rounded-full bg-amber-500 px-1 text-[9px] font-bold leading-none text-white ring-2 ring-white">
-                {pendingCount > 99 ? "99+" : pendingCount}
-              </span>
-            )}
           </span>
           {showLabel && <span className="truncate">{route.label}</span>}
-          {hasCount && showLabel && (
-            <span
-              className={`ml-auto shrink-0 rounded-md px-1.5 py-0.5 text-[10px] font-bold leading-none ${
-                isActive ? "bg-indigo-100 text-indigo-700" : "bg-amber-50 text-amber-700 border border-amber-200"
-              }`}
-            >
-              {pendingCount > 99 ? "99+" : pendingCount}
-            </span>
-          )}
         </>
       )}
     </NavLink>

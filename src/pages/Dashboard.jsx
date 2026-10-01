@@ -92,14 +92,6 @@ function useRelativeTime(date, intervalMs = 30_000) {
   return formatRelativeTime(date);
 }
 
-function useLiveClock() {
-  const [t, setT] = useState(new Date());
-  useEffect(() => {
-    const id = setInterval(() => setT(new Date()), 1000);
-    return () => clearInterval(id);
-  }, []);
-  return t;
-}
 
 /** Smooth animated counter */
 function Count({ value, duration = 700 }) {
@@ -775,7 +767,6 @@ function Dashboard() {
 
   const isMounted  = useRef(true);
   const noMotion   = useReducedMotion();
-  const clock      = useLiveClock();
 
   useEffect(() => {
     isMounted.current = true;
@@ -833,14 +824,6 @@ function Dashboard() {
         {/* ── Header ── */}
         <motion.div variants={itemV} className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
           <div>
-            <div className="flex items-center gap-2 mb-1.5">
-              <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-slate-100 text-slate-500 text-[10.5px] font-semibold border border-slate-200">
-                <span className="h-1.5 w-1.5 rounded-full bg-emerald-400" />
-                {clock.toLocaleTimeString("en-IN", { hour: "2-digit", minute: "2-digit" })}
-                &nbsp;·&nbsp;
-                {clock.toLocaleDateString("en-IN", { weekday: "short", day: "numeric", month: "short" })}
-              </span>
-            </div>
             <h1 className="text-xl font-extrabold tracking-tight text-slate-900">Dashboard</h1>
             <p className="text-[12px] font-medium text-slate-400 mt-0.5">
               Live overview — jump straight into what needs work.
