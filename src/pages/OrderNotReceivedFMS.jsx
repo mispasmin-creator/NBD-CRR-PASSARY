@@ -440,7 +440,11 @@ function OrderNotReceivedFMS() {
             const s4 = String(row[status4Idx] || "").trim().toLowerCase().replace(/[\s_\-]+/g, "")
             const st = String(row[statusIdx] || "").trim().toLowerCase().replace(/[\s_\-]+/g, "")
             
+            // CRR Enquiry's own "Send Offer" step writes plain "Yes"/"No" into Status 2 (see
+            // CRREnquiry.jsx's isStatusOrderNotReceived) — "No" alone, with no "not received"
+            // text, is what actually lands here, so it must match or these rows never show up.
             const isNotReceived =
+              s2 === "no" ||
               s2.includes("notreceive") ||
               s2.includes("notreceived") ||
               s4.includes("notreceive") ||

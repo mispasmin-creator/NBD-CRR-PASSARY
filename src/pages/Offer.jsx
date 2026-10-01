@@ -44,10 +44,14 @@ function SortableTh({ column, label, sortConfig, onSort, className }) {
 
 // "Re-Offer" isn't a pipeline stage (no Planned/Actual columns of its own) — it's a view of
 // every enquiry whose Stage column says "Make Re - Offer", set from the NBD Enquiry Call Tracker.
+// Once the re-offer letter is uploaded it's done — the row leaves this tab (it still shows on
+// NBD Enquiry's Call Tracker until Order Received/Not Received is updated there, independently).
 const RE_OFFER_TAB = "Make Re - Offer"
-const isReOfferRow = (row) => {
+const isReOfferRow = (row, reOfferColIdx) => {
     const stage = String(row["Stage"] || row["Current Stage"] || "").toLowerCase().replace(/[\s_-]+/g, "")
-    return stage === "makereoffer"
+    if (stage !== "makereoffer") return false
+    if (reOfferColIdx == null || reOfferColIdx === -1) return true // column missing — can't tell, so don't hide it
+    return !String(row.rawRow?.[reOfferColIdx] || "").trim()
 }
 
 const TABS = [
@@ -310,6 +314,8 @@ function Offer() {
         fetchOfferData()
     }, [fetchOfferData])
 
+    const reOfferColIdx = findReOfferCol(offerHeaderRow)
+
     const isHistoryRow = (row) => {
         const lastConfig = TAB_CONFIG["Send Offer Letter"]
         const lastActual = row.rawRow?.[lastConfig.filterEmpty]
@@ -356,7 +362,7 @@ function Offer() {
             return offerRows.filter(isHistoryRow).length
         }
 
-        if (tabId === RE_OFFER_TAB) return offerRows.filter(isReOfferRow).length
+        if (tabId === RE_OFFER_TAB) return offerRows.filter(row => isReOfferRow(row, reOfferColIdx)).length
 
         return offerRows.filter(row => isStageActive(row, tabId)).length
     }
@@ -379,7 +385,7 @@ function Offer() {
             return isHistoryRow(row)
         }
 
-        if (activeTab === RE_OFFER_TAB) return isReOfferRow(row)
+        if (activeTab === RE_OFFER_TAB) return isReOfferRow(row, reOfferColIdx)
 
         return isStageActive(row, activeTab)
     })
@@ -439,8 +445,6 @@ function Offer() {
 
     const isActionTab = !!getTabConfig(activeTab)
     const currentTabConfig = getTabConfig(activeTab)
-
-    const reOfferColIdx = findReOfferCol(offerHeaderRow)
 
     const columnsToRender = activeTab === RE_OFFER_TAB
         ? [...BASE_COLUMNS, "Re-Offer Letter"]
