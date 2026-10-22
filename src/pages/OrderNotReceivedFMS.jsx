@@ -229,9 +229,9 @@ function OrderNotReceivedFMS() {
               source: nameOfFms || "Order Not Received",
               isSubmitted: true,
               timestamp: timestamp,
-              firmName: firmName || companyName,
-              companyName: companyName || firmName,
-              partyName: givenToWhom || "-",
+              firmName: firmName,
+              companyName: companyName,
+              partyName: companyName || "",
               salesPerson: "-",
               department: "-",
               location: "-",
@@ -286,9 +286,9 @@ function OrderNotReceivedFMS() {
               source: "NBD Lead",
               isSubmitted: false,
               timestamp: displayDate(row[0]),
-              firmName: String(row[5] || "").trim(),
+              firmName: String(row[2] || "").trim(),
               companyName: String(row[5] || "").trim(),
-              partyName: String(row[14] || "").trim(),
+              partyName: String(row[5] || "").trim(),
               salesPerson: String(row[4] || "").trim(),
               department: String(row[6] || "").trim(),
               location: String(row[7] || "").trim(),
@@ -360,9 +360,9 @@ function OrderNotReceivedFMS() {
               source: "NBD Enquiry",
               isSubmitted: false,
               timestamp: row["Timestamp"] || "",
-              firmName: row["Firm Name"] || row["Party Name"] || "",
-              companyName: row["Firm Name"] || row["Party Name"] || "",
-              partyName: row["Contact Person Name"] || "",
+              firmName: row["Firm Name"] || "",
+              companyName: row["Party Name"] || "",
+              partyName: row["Party Name"] || "",
               salesPerson: row["Name Of Sales Person"] || "",
               department: row["Department"] || "",
               location: row["Location"] || "",
@@ -469,7 +469,7 @@ function OrderNotReceivedFMS() {
               isSubmitted: false,
               timestamp: displayDate(row[0]),
               firmName: String(row[firmNameIdx] || "").trim(),
-              companyName: String(row[firmNameIdx] || "").trim(),
+              companyName: String(row[partyNameIdx] || "").trim(),
               partyName: String(row[partyNameIdx] || "").trim(),
               salesPerson: String(row[salesPersonIdx] || "").trim(),
               department: String(row[deptIdx] || "").trim(),
@@ -651,7 +651,7 @@ function OrderNotReceivedFMS() {
     setFormData({
       enquiryNo: record?.enquiryNo || record?.id || "",
       firmName: record?.firmName || "",
-      companyName: record?.companyName || record?.firmName || "",
+      companyName: record?.companyName || "",
       productName: record?.productName || record?.product || "",
       qty: record?.qty !== "-" ? record?.qty || "" : "",
       nameOfFms: record?.source !== "Order Not Received" ? record?.source || "NBD Lead" : "NBD Lead",
@@ -1243,7 +1243,7 @@ function OrderNotReceivedFMS() {
                         <th className="px-3 py-3.5 w-10">
                           <input type="checkbox" aria-label="Select all on this page" checked={paginatedRecords.length > 0 && paginatedRecords.every((r) => selectedRows.has(rowKey(r)))} onChange={toggleSelectAllOnPage} className="h-4 w-4 rounded border-gray-300 text-rose-600 focus:ring-rose-500 cursor-pointer" />
                         </th>
-                        <th className="sticky left-0 z-20 bg-rose-50 px-5 py-3.5 text-center text-xs font-bold text-rose-700 uppercase tracking-wider whitespace-nowrap shadow-xs">
+                        <th scope="col" className="sticky left-0 z-20 w-[104px] min-w-[104px] max-w-[104px] bg-rose-50 px-2 py-3.5 text-center text-xs font-bold text-rose-700 uppercase tracking-wider whitespace-nowrap border-r border-rose-100">
                           Action
                         </th>
                         <SortableTh column="timestamp" label="Timestamp" sortConfig={sortConfig} onSort={handleSort} className="px-5 py-3.5 text-left text-xs font-bold text-rose-700 uppercase tracking-wider whitespace-nowrap" />
@@ -1304,7 +1304,7 @@ function OrderNotReceivedFMS() {
                             <td className="px-3 py-3.5 whitespace-nowrap">
                               <input type="checkbox" aria-label={`Select ${r.onrNo || r.key}`} checked={selectedRows.has(rowKey(r))} onChange={() => toggleRowSelected(rowKey(r))} className="h-4 w-4 rounded border-gray-300 text-rose-600 focus:ring-rose-500 cursor-pointer" />
                             </td>
-                            <td className="sticky left-0 z-10 bg-white group-hover:bg-rose-50/30 px-5 py-3.5 whitespace-nowrap text-sm text-center shadow-xs">
+                            <td className="sticky left-0 z-10 w-[104px] min-w-[104px] max-w-[104px] bg-white group-hover:bg-rose-50 px-2 py-3.5 text-sm text-center border-r border-gray-100 [&>button]:max-w-full [&>button]:justify-center [&>button]:whitespace-normal [&>button]:focus-visible:outline-2 [&>button]:focus-visible:outline-offset-2 [&>button]:focus-visible:outline-rose-600 [&>span]:max-w-full [&>span]:justify-center [&>span]:whitespace-normal [&_svg]:shrink-0">
                               {activeMainTab === "takeAction" ? (
                                 r.actual3 && r.actual3 !== "-" ? (
                                   <span className="inline-flex items-center gap-1 px-2.5 py-1 bg-emerald-50 text-emerald-700 border border-emerald-200 text-xs font-semibold rounded-lg">
@@ -1391,7 +1391,7 @@ function OrderNotReceivedFMS() {
                               {r.firmName || "-"}
                             </td>
                             <td className="px-5 py-3.5 whitespace-nowrap text-xs text-gray-600">
-                              {r.companyName || r.firmName || "-"}
+                              {r.companyName || "-"}
                             </td>
                             <td className="px-5 py-3.5 whitespace-nowrap text-xs text-gray-600">
                               {r.productName || r.product || "-"}
@@ -2103,7 +2103,7 @@ function OrderNotReceivedFMS() {
                   </div>
                   <div className="flex justify-between items-center text-xs">
                     <span className="text-muted-foreground font-medium">Company Name:</span>
-                    <span className="font-semibold text-foreground">{testingRecord.companyName || testingRecord.firmName || "-"}</span>
+                    <span className="font-semibold text-foreground">{testingRecord.companyName || "-"}</span>
                   </div>
                   <div className="flex justify-between items-center text-xs">
                     <span className="text-muted-foreground font-medium">Product:</span>
@@ -2217,7 +2217,7 @@ function OrderNotReceivedFMS() {
                   </div>
                   <div className="flex justify-between items-center text-xs">
                     <span className="text-muted-foreground font-medium">Company Name:</span>
-                    <span className="font-semibold text-foreground">{takeActionRecord.companyName || takeActionRecord.firmName || "-"}</span>
+                    <span className="font-semibold text-foreground">{takeActionRecord.companyName || "-"}</span>
                   </div>
                   <div className="flex justify-between items-center text-xs">
                     <span className="text-muted-foreground font-medium">Product:</span>
