@@ -55,6 +55,11 @@
         return s.includes('notreceive') || s.includes('notreceived')
     }
 
+    const isStatusOrderReceived = (val) => {
+        const s = String(val || '').trim().toLowerCase().replace(/[\s_\-]+/g, '')
+        return s === 'yes' || s === 'orderreceive' || s === 'orderreceived'
+    }
+
     function CRREnquiry() {
         const { showNotification } = useContext(AuthContext)
         const location = useLocation()
@@ -176,6 +181,9 @@
 
             const filled = (v) => v && String(v).trim() !== ""
 
+            // A confirmed order is complete, including older rows with missing timestamps.
+            if (isStatusOrderReceived(s2Val)) return "Completed"
+
             // 1. Give Rates: Actual 1 not yet filled — covers both a freshly-created enquiry
             // (Planned 1 may still be blank, e.g. if it's a sheet formula that hasn't populated
             // yet) and one where rates were planned but not yet given.
@@ -184,12 +192,15 @@
             // 2. Send Offer: Actual 1 given, Actual 2 (offer outcome) not yet filled
             if (!filled(a2Val)) return "Send Offer"
 
-            // 3. Offer outcome recorded — either the order came through or it didn't
+            // 3. Keep only unresolved outcomes in Get Order; confirmed orders go to History.
             return isStatusOrderNotReceived(s2Val) ? "Order Not Recived" : "Get Order"
         }, [sheetHeaders])
 
         const isEnquiryInTab = useCallback((enquiry, tab) => {
             const stage = getEnquiryStage(enquiry)
+            // No outcomes are automatically picked up by Order Not Received FMS.
+            // Keep them in CRR History rather than duplicating that FMS's work queue.
+            if (tab === "Order Not Recived") return false
             if (tab === "All Crm") {
                 // Exclude resolved enquiries (Get Order / Order Not Recived / Completed) from All tab
                 return stage !== "Get Order" && stage !== "Order Not Recived" && stage !== "Completed"
@@ -211,7 +222,7 @@
         // input stages — clicking the badge reopens that same modal (prefilled) so a wrongly
         // recorded outcome can be corrected instead of being permanently locked.
         const renderStageBadge = (stage, enquiry) => {
-            if (stage === "Get Order") {
+            if (stage === "Get Order" || stage === "Completed") {
                 return (
                     <button
                         onClick={() => handleStageClick(enquiry, "Send Offer")}
@@ -219,7 +230,7 @@
                         className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-bold bg-emerald-100 text-emerald-800 shadow-xs hover:bg-emerald-200 cursor-pointer hover:-translate-y-0.5 hover:shadow-sm transition-all"
                     >
                         <ShoppingCartIcon className="h-3 w-3" />
-                        Order Received
+                        {stage === "Completed" ? "Order Received" : "Get Order"}
                     </button>
                 )
             }
