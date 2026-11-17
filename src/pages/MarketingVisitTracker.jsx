@@ -1074,7 +1074,7 @@ export default function MarketingVisitTracker() {
                 onClick={() => setActiveTab(tab)}
                 className={`flex min-w-0 flex-col items-center justify-center gap-1 rounded-lg px-1 py-2 text-center text-xs font-medium leading-4 transition-all duration-200 [&>svg]:hidden sm:flex-row sm:gap-2 sm:px-4 sm:text-left sm:text-sm sm:leading-5 sm:whitespace-nowrap sm:[&>svg]:block ${
                   isActive
-                    ? "bg-[#14533a]/10 text-[#14533a] shadow-sm ring-1 ring-[#14533a]/20"
+                    ? "bg-indigo-50 text-indigo-700 shadow-sm ring-1 ring-indigo-200"
                     : "text-gray-500 hover:text-gray-700 hover:bg-gray-50"
                 }`}
               >
@@ -1082,7 +1082,7 @@ export default function MarketingVisitTracker() {
                 {tab}
                 <span
                   className={`text-xs px-2 py-0.5 rounded-full font-semibold ${
-                    isActive ? "bg-[#14533a]/10 text-[#14533a]" : "bg-gray-100 text-gray-500"
+                    isActive ? "bg-indigo-100 text-indigo-700" : "bg-gray-100 text-gray-500"
                   }`}
                 >
                   {count}
@@ -1102,14 +1102,14 @@ export default function MarketingVisitTracker() {
                   placeholder="Search visits (Plant, Person, Source, Details)..."
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
-                  className="!pl-10 !pr-3 py-1.5 min-w-[220px] border rounded-md focus:ring-2 focus:ring-[#14533a]/50 focus:border-[#14533a] border-gray-300 text-sm"
+                  className="!pl-10 !pr-3 py-1.5 min-w-[220px] border rounded-md focus:ring-2 focus:ring-indigo-700/50 focus:border-indigo-700 border-gray-300 text-sm"
                 />
                 <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
               </div>
               <select
                 value={firmFilter}
                 onChange={(e) => setFirmFilter(e.target.value)}
-                className="px-2.5 py-1.5 border rounded-md border-gray-300 bg-card text-sm max-w-[150px] cursor-pointer focus:outline-none focus:ring-2 focus:ring-[#14533a]/50 focus:border-[#14533a]"
+                className="px-2.5 py-1.5 border rounded-md border-gray-300 bg-card text-sm max-w-[150px] cursor-pointer focus:outline-none focus:ring-2 focus:ring-indigo-700/50 focus:border-indigo-700"
               >
                 <option value="all">All Plants</option>
                 {existingParties.map((f) => (
@@ -1121,7 +1121,7 @@ export default function MarketingVisitTracker() {
               <select
                 value={salesPersonFilter}
                 onChange={(e) => setSalesPersonFilter(e.target.value)}
-                className="px-2.5 py-1.5 border rounded-md border-gray-300 bg-card text-sm max-w-[150px] cursor-pointer focus:outline-none focus:ring-2 focus:ring-[#14533a]/50 focus:border-[#14533a]"
+                className="px-2.5 py-1.5 border rounded-md border-gray-300 bg-card text-sm max-w-[150px] cursor-pointer focus:outline-none focus:ring-2 focus:ring-indigo-700/50 focus:border-indigo-700"
               >
                 <option value="">All sales persons</option>
                 {salesPersonFilterOptions.map((sp) => (
@@ -1132,7 +1132,7 @@ export default function MarketingVisitTracker() {
                 <button
                   type="button"
                   onClick={() => { setFirmFilter("all"); setSalesPersonFilter("") }}
-                  className="px-2 py-1.5 text-sm font-medium text-[#14533a] hover:opacity-80 underline whitespace-nowrap"
+                  className="px-2 py-1.5 text-sm font-medium text-indigo-700 hover:opacity-80 underline whitespace-nowrap"
                 >
                   Clear filters
                 </button>
@@ -1149,7 +1149,7 @@ export default function MarketingVisitTracker() {
               </button>
               <button
                 onClick={openNewModal}
-                className="bg-[#14533a] hover:bg-[#0f3f2b] text-white font-medium py-1.5 px-3 rounded-md whitespace-nowrap text-sm shadow-sm transition flex items-center gap-1.5 justify-center cursor-pointer"
+                className="bg-indigo-700 hover:bg-indigo-800 text-white font-medium py-1.5 px-3 rounded-md whitespace-nowrap text-sm shadow-sm transition flex items-center gap-1.5 justify-center cursor-pointer"
               >
                 <Plus size={16} />
                 Log Client Plant Visit Report
@@ -1160,12 +1160,21 @@ export default function MarketingVisitTracker() {
 
         {/* Visits Table */}
         <div className="flex-1 min-h-0 flex flex-col bg-white rounded-2xl shadow-md border border-slate-200/70 overflow-hidden">
+          <div className="shrink-0 flex items-center gap-3 px-5 py-3.5 border-b border-slate-100">
+            <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-indigo-700 text-white">
+              <ClipboardList className="h-4 w-4" />
+            </span>
+            <div className="min-w-0">
+              <h2 className="text-[14px] font-bold text-slate-900 truncate leading-tight">{activeTab}</h2>
+              <p className="text-[11.5px] font-medium text-slate-400">{filteredVisits.length} record{filteredVisits.length === 1 ? "" : "s"} found</p>
+            </div>
+          </div>
           <div className="flex-1 min-h-0 overflow-auto">
             <table className="w-full border-separate border-spacing-0">
               <thead className="bg-muted border-b sticky top-0 z-10">
                 <tr>
                   <th className="px-3 py-3.5 w-10">
-                    <input type="checkbox" aria-label="Select all on this page" checked={paginatedVisits.length > 0 && paginatedVisits.every((v) => selectedRows.has(v.id))} onChange={toggleSelectAllOnPage} className="h-4 w-4 rounded border-gray-300 text-[#14533a] focus:ring-[#14533a] cursor-pointer" />
+                    <input type="checkbox" aria-label="Select all on this page" checked={paginatedVisits.length > 0 && paginatedVisits.every((v) => selectedRows.has(v.id))} onChange={toggleSelectAllOnPage} className="h-4 w-4 rounded border-gray-300 text-indigo-700 focus:ring-indigo-700 cursor-pointer" />
                   </th>
                   {activeTab === "Assign Marketing" && (
                     <th className="sticky left-0 z-20 bg-muted px-5 py-3.5 text-center text-xs font-bold text-muted-foreground uppercase tracking-wider whitespace-nowrap shadow-xs">
@@ -1194,14 +1203,14 @@ export default function MarketingVisitTracker() {
                 {paginatedVisits.map((v) => (
                   <tr key={v.id} className="group hover:bg-muted">
                     <td className="px-3 py-3.5 whitespace-nowrap">
-                      <input type="checkbox" aria-label={`Select ${v.id}`} checked={selectedRows.has(v.id)} onChange={() => toggleRowSelected(v.id)} className="h-4 w-4 rounded border-gray-300 text-[#14533a] focus:ring-[#14533a] cursor-pointer" />
+                      <input type="checkbox" aria-label={`Select ${v.id}`} checked={selectedRows.has(v.id)} onChange={() => toggleRowSelected(v.id)} className="h-4 w-4 rounded border-gray-300 text-indigo-700 focus:ring-indigo-700 cursor-pointer" />
                     </td>
                     {activeTab === "Assign Marketing" && (
                       <td className="sticky left-0 z-10 bg-white group-hover:bg-muted px-5 py-3.5 whitespace-nowrap text-sm text-center shadow-xs">
                         <button
                           type="button"
                           onClick={() => openStatusModal(v, "Assign Marketing")}
-                          className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-[#14533a] hover:bg-[#0f3f2b] text-white text-xs font-bold rounded-lg shadow-sm transition-all hover:scale-105 active:scale-95 cursor-pointer"
+                          className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-indigo-700 hover:bg-indigo-800 text-white text-xs font-bold rounded-lg shadow-sm transition-all hover:scale-105 active:scale-95 cursor-pointer"
                         >
                           <CheckCircle size={14} />
                           Action
@@ -1292,7 +1301,7 @@ export default function MarketingVisitTracker() {
                             ? "bg-rose-50 text-rose-700 border-rose-200"
                             : String(v.status2).toUpperCase() === "WARM"
                             ? "bg-amber-50 text-amber-700 border-amber-200"
-                            : "bg-blue-50 text-blue-700 border-blue-200"
+                            : "bg-indigo-50 text-indigo-700 border-indigo-200"
                         }`}>
                           {v.status2}
                         </span>
@@ -1316,7 +1325,7 @@ export default function MarketingVisitTracker() {
                       )}
                     </td>
                     <td className="px-5 py-3.5 whitespace-nowrap text-sm text-muted-foreground">
-                      <span className="bg-[#e8f3ee] text-[#14533a] px-2.5 py-1 rounded-full text-xs font-semibold border border-[#14533a]/20">
+                      <span className="bg-indigo-50 text-indigo-700 px-2.5 py-1 rounded-full text-xs font-semibold border border-indigo-700/20">
                         {v.currentStep}
                       </span>
                     </td>
@@ -1324,9 +1333,17 @@ export default function MarketingVisitTracker() {
                 ))}
               </tbody>
             </table>
-            {filteredVisits.length === 0 && (
-              <div className="text-center py-12 text-muted-foreground text-sm">
-                No visit reports found.
+            {loading ? (
+              <div className="flex flex-col items-center justify-center py-16">
+                <div className="animate-spin rounded-full h-8 w-8 border-2 border-indigo-700/20 border-t-indigo-700 mb-3"></div>
+                <p className="text-sm text-muted-foreground">Loading visit reports...</p>
+              </div>
+            ) : filteredVisits.length === 0 && (
+              <div className="flex flex-col items-center justify-center gap-2 py-16">
+                <div className="flex h-14 w-14 items-center justify-center rounded-full bg-gray-100">
+                  <ClipboardList className="h-6 w-6 text-gray-300" />
+                </div>
+                <p className="text-base font-semibold text-gray-500">No visit reports found</p>
               </div>
             )}
           </div>
@@ -1336,14 +1353,14 @@ export default function MarketingVisitTracker() {
         {/* Modal: Log Client Plant Visit Report */}
         {showNewModal && (
           <div
-            className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4"
+            className="fixed inset-0 bg-slate-900/45 backdrop-blur-sm flex items-center justify-center z-50 p-4"
             onClick={() => setShowNewModal(false)}
           >
             <div
-              className="bg-card rounded-xl shadow-xl border border-slate-100 overflow-hidden w-full max-w-2xl mx-auto flex flex-col max-h-[92vh]"
+              className="bg-card rounded-2xl shadow-2xl border border-slate-100 overflow-hidden w-full max-w-2xl mx-auto flex flex-col max-h-[92vh]"
               onClick={(e) => e.stopPropagation()}
             >
-              <div className="bg-[#14533a] px-6 py-4 flex justify-between items-center text-white shrink-0">
+              <div className="bg-indigo-700 px-6 py-4 flex justify-between items-center text-white shrink-0">
                 <div className="flex items-center gap-2">
                   <ClipboardList size={20} />
                   <h2 className="text-base md:text-lg font-bold tracking-tight">Log Client Plant Visit Report</h2>
@@ -1363,7 +1380,7 @@ export default function MarketingVisitTracker() {
                   <div className="bg-primary/20 border border-emerald-100 rounded-xl p-4 grid grid-cols-1 sm:grid-cols-3 gap-4 text-xs">
                     <div>
                       <span className="text-muted-foreground font-medium block mb-1">Generated Task ID</span>
-                      <span className="font-mono font-bold text-[#14533a] bg-card px-2 py-1 rounded border border-primary/30 block">
+                      <span className="font-mono font-bold text-indigo-700 bg-card px-2 py-1 rounded border border-primary/30 block">
                         {currentTaskId}
                       </span>
                     </div>
@@ -1375,7 +1392,7 @@ export default function MarketingVisitTracker() {
                         required
                         value={formData.visitDate}
                         onChange={handleInputChange}
-                        className="w-full px-2 py-1 bg-card border border-primary/30 rounded text-foreground font-bold focus:outline-none focus:ring-1 focus:ring-[#14533a] cursor-pointer text-xs"
+                        className="w-full px-2 py-1 bg-card border border-primary/30 rounded text-foreground font-bold focus:outline-none focus:ring-1 focus:ring-indigo-700 cursor-pointer text-xs"
                       />
                     </div>
                     <div>
@@ -1384,7 +1401,7 @@ export default function MarketingVisitTracker() {
                         <select
                           value={selectedSalesPerson}
                           onChange={(e) => setSelectedSalesPerson(e.target.value)}
-                          className="w-full px-2 py-1 bg-card border border-primary/30 rounded text-foreground font-bold focus:outline-none focus:ring-1 focus:ring-[#14533a] cursor-pointer text-xs"
+                          className="w-full px-2 py-1 bg-card border border-primary/30 rounded text-foreground font-bold focus:outline-none focus:ring-1 focus:ring-indigo-700 cursor-pointer text-xs"
                         >
                           {finalSalesPersonsList.map((sp, idx) => (
                             <option key={idx} value={sp}>
@@ -1393,7 +1410,7 @@ export default function MarketingVisitTracker() {
                           ))}
                         </select>
                       ) : (
-                        <span className="font-bold text-[#14533a] bg-card px-2 py-0.5 rounded border border-emerald-100">
+                        <span className="font-bold text-indigo-700 bg-card px-2 py-0.5 rounded border border-emerald-100">
                           {currentUser?.username || "Admin"}
                         </span>
                       )}
@@ -1418,7 +1435,7 @@ export default function MarketingVisitTracker() {
                           setCustomPlantActive(!customPlantActive);
                           setFormData((prev) => ({ ...prev, nameOfPlant: "" }));
                         }}
-                        className="text-xs text-[#14533a] hover:text-[#0f3f2b] font-semibold flex items-center gap-1 cursor-pointer"
+                        className="text-xs text-indigo-700 hover:text-indigo-800 font-semibold flex items-center gap-1 cursor-pointer"
                       >
                         {customPlantActive ? (
                           <>Select from Registered List</>
@@ -1439,7 +1456,7 @@ export default function MarketingVisitTracker() {
                         placeholder=""
                         value={formData.nameOfPlant}
                         onChange={handleInputChange}
-                        className="w-full px-3 py-3 bg-card border border-border rounded-lg focus:outline-none focus:ring-2 focus:ring-[#14533a]/20 focus:border-[#14533a] text-foreground text-sm"
+                        className="w-full px-3 py-3 bg-card border border-border rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-700/20 focus:border-indigo-700 text-foreground text-sm"
                       />
                     ) : (
                       <select
@@ -1447,7 +1464,7 @@ export default function MarketingVisitTracker() {
                         value={formData.nameOfPlant}
                         onChange={handleInputChange}
                         required
-                        className="w-full px-3 py-3 bg-card border border-border rounded-lg focus:outline-none focus:ring-2 focus:ring-[#14533a]/20 focus:border-[#14533a] text-foreground text-sm"
+                        className="w-full px-3 py-3 bg-card border border-border rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-700/20 focus:border-indigo-700 text-foreground text-sm"
                       >
                         <option value="">-- Choose Client Plant --</option>
                         {existingParties.map((p, idx) => (
@@ -1472,7 +1489,7 @@ export default function MarketingVisitTracker() {
                         placeholder=""
                         value={formData.contactPerson}
                         onChange={handleInputChange}
-                        className="w-full px-3 py-3 bg-card border border-border rounded-lg focus:outline-none focus:ring-2 focus:ring-[#14533a]/20 focus:border-[#14533a] text-foreground text-sm"
+                        className="w-full px-3 py-3 bg-card border border-border rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-700/20 focus:border-indigo-700 text-foreground text-sm"
                       />
                     </div>
 
@@ -1487,7 +1504,7 @@ export default function MarketingVisitTracker() {
                         placeholder=""
                         value={formData.designation}
                         onChange={handleInputChange}
-                        className="w-full px-3 py-3 bg-card border border-border rounded-lg focus:outline-none focus:ring-2 focus:ring-[#14533a]/20 focus:border-[#14533a] text-foreground text-sm"
+                        className="w-full px-3 py-3 bg-card border border-border rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-700/20 focus:border-indigo-700 text-foreground text-sm"
                       />
                     </div>
                   </div>
@@ -1509,7 +1526,7 @@ export default function MarketingVisitTracker() {
                           setFormData((prev) => ({ ...prev, department: e.target.value }));
                         }
                       }}
-                      className="w-full px-3 py-3 bg-card border border-border rounded-lg focus:outline-none focus:ring-2 focus:ring-[#14533a]/20 focus:border-[#14533a] text-foreground text-sm"
+                      className="w-full px-3 py-3 bg-card border border-border rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-700/20 focus:border-indigo-700 text-foreground text-sm"
                     >
                       <option value="">-- Select Department --</option>
                       {departmentsList.map((dept, idx) => (
@@ -1526,7 +1543,7 @@ export default function MarketingVisitTracker() {
                         value={formData.department}
                         onChange={handleInputChange}
                         autoFocus
-                        className="w-full px-3 py-3 bg-card border border-[#14533a] rounded-lg focus:outline-none focus:ring-2 focus:ring-[#14533a]/20 focus:border-[#14533a] text-foreground text-sm"
+                        className="w-full px-3 py-3 bg-card border border-indigo-700 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-700/20 focus:border-indigo-700 text-foreground text-sm"
                       />
                     )}
                   </div>
@@ -1543,7 +1560,7 @@ export default function MarketingVisitTracker() {
                       placeholder=""
                       value={formData.contentDetails}
                       onChange={handleInputChange}
-                      className="w-full px-3 py-3 bg-card border border-border rounded-lg focus:outline-none focus:ring-2 focus:ring-[#14533a]/20 focus:border-[#14533a] text-foreground text-sm"
+                      className="w-full px-3 py-3 bg-card border border-border rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-700/20 focus:border-indigo-700 text-foreground text-sm"
                     />
                   </div>
 
@@ -1557,7 +1574,7 @@ export default function MarketingVisitTracker() {
                         name="shutdown"
                         value={formData.shutdown}
                         onChange={handleInputChange}
-                        className="w-full px-3 py-2 bg-card border border-border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[#14533a]/20 focus:border-[#14533a]"
+                        className="w-full px-3 py-2 bg-card border border-border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-700/20 focus:border-indigo-700"
                       >
                         <option value="Project">Project</option>
                         <option value="Shutdown">Shutdown</option>
@@ -1575,7 +1592,7 @@ export default function MarketingVisitTracker() {
                       required
                       value={formData.frequencyOfVisit}
                       onChange={handleInputChange}
-                      className="w-full px-3 py-3 bg-card border border-border rounded-lg focus:outline-none focus:ring-2 focus:ring-[#14533a]/20 focus:border-[#14533a] text-foreground text-sm"
+                      className="w-full px-3 py-3 bg-card border border-border rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-700/20 focus:border-indigo-700 text-foreground text-sm"
                     >
                       <option value="">-- Select Frequency --</option>
                       <option value="7">Every 7 days</option>
@@ -1599,7 +1616,7 @@ export default function MarketingVisitTracker() {
                       placeholder=""
                       value={formData.remark}
                       onChange={handleInputChange}
-                      className="w-full px-3 py-1.5 bg-card border border-border rounded-lg focus:outline-none focus:ring-2 focus:ring-[#14533a]/20 focus:border-[#14533a] text-foreground text-sm"
+                      className="w-full px-3 py-1.5 bg-card border border-border rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-700/20 focus:border-indigo-700 text-foreground text-sm"
                     />
                   </div>
                 </div>
@@ -1618,7 +1635,7 @@ export default function MarketingVisitTracker() {
                   <button
                     type="submit"
                     disabled={loading}
-                    className="px-5 py-2 bg-[#14533a] hover:bg-[#0f3f2b] text-white font-bold text-xs md:text-sm rounded-lg transition-colors flex items-center gap-1.5 shadow-sm disabled:bg-slate-400 disabled:cursor-not-allowed cursor-pointer"
+                    className="px-5 py-2 bg-indigo-700 hover:bg-indigo-800 text-white font-bold text-xs md:text-sm rounded-lg transition-colors flex items-center gap-1.5 shadow-sm disabled:bg-slate-400 disabled:cursor-not-allowed cursor-pointer"
                   >
                     {loading ? (
                       <>
@@ -1641,7 +1658,7 @@ export default function MarketingVisitTracker() {
         {/* Modal: Update Status (Approved / Rejected) for Assign Marketing or Report */}
         {showStatusModal && selectedVisit && (
           <div
-            className="fixed inset-0 bg-black/50 backdrop-blur-xs flex items-center justify-center z-50 p-4"
+            className="fixed inset-0 bg-slate-900/45 backdrop-blur-sm flex items-center justify-center z-50 p-4"
             onClick={() => !isStatusSubmitting && setShowStatusModal(false)}
           >
             <div
@@ -1649,7 +1666,7 @@ export default function MarketingVisitTracker() {
               onClick={(e) => e.stopPropagation()}
             >
               {/* Modal Header */}
-              <div className="bg-[#14533a] px-6 py-5 flex justify-between items-center text-white shrink-0">
+              <div className="bg-indigo-700 px-6 py-5 flex justify-between items-center text-white shrink-0">
                 <div className="flex items-center gap-2.5">
                   <FileText size={22} />
                   <h2 className="text-base md:text-xl font-bold tracking-tight">
@@ -1672,7 +1689,7 @@ export default function MarketingVisitTracker() {
                 <div className="bg-primary/20 border border-emerald-100 rounded-xl p-4 grid grid-cols-1 sm:grid-cols-2 gap-x-4 gap-y-2.5 text-xs">
                   <div className="flex justify-between items-center gap-2">
                     <span className="text-muted-foreground font-semibold shrink-0">Task ID:</span>
-                    <span className="font-mono font-bold text-[#14533a] bg-card px-2 py-0.5 rounded border border-primary/30">
+                    <span className="font-mono font-bold text-indigo-700 bg-card px-2 py-0.5 rounded border border-primary/30">
                       {selectedVisit.id}
                     </span>
                   </div>
@@ -1774,7 +1791,7 @@ export default function MarketingVisitTracker() {
                         value={customerSayValue}
                         onChange={(e) => setCustomerSayValue(e.target.value)}
                         placeholder="Enter customer feedback from the visit..."
-                        className="w-full px-3.5 py-3 bg-card border border-border rounded-lg focus:outline-none focus:ring-2 focus:ring-[#14533a]/20 focus:border-[#14533a] text-foreground text-sm resize-none"
+                        className="w-full px-3.5 py-3 bg-card border border-border rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-700/20 focus:border-indigo-700 text-foreground text-sm resize-none"
                       />
                     </div>
 
@@ -1801,7 +1818,7 @@ export default function MarketingVisitTracker() {
                               className={`flex flex-col items-center justify-center gap-1 h-24 rounded-xl border-2 border-dashed cursor-pointer text-center px-1.5 transition-colors ${
                                 visitPhotos[i]
                                   ? "border-emerald-400 bg-emerald-50/60 text-emerald-700"
-                                  : "border-border bg-muted/40 text-muted-foreground hover:bg-muted/70 hover:border-[#14533a]/40"
+                                  : "border-border bg-muted/40 text-muted-foreground hover:bg-muted/70 hover:border-indigo-700/40"
                               }`}
                             >
                               {visitPhotos[i] ? (
@@ -1847,7 +1864,7 @@ export default function MarketingVisitTracker() {
                   <button
                     type="submit"
                     disabled={isStatusSubmitting}
-                    className="px-5 py-2 bg-[#14533a] hover:bg-[#0f3f2b] text-white font-bold text-xs md:text-sm rounded-lg transition-colors flex items-center gap-1.5 shadow-sm disabled:bg-slate-400 disabled:cursor-not-allowed cursor-pointer"
+                    className="px-5 py-2 bg-indigo-700 hover:bg-indigo-800 text-white font-bold text-xs md:text-sm rounded-lg transition-colors flex items-center gap-1.5 shadow-sm disabled:bg-slate-400 disabled:cursor-not-allowed cursor-pointer"
                   >
                     {isStatusSubmitting ? (
                       <>

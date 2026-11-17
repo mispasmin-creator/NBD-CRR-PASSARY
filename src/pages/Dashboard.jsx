@@ -21,6 +21,8 @@ import {
   BarChart, Bar, Legend,
 } from "recharts";
 import { fetchDashboardOverview } from "../services/dashboardStats";
+import PageHeader from "../components/ui/PageHeader";
+import Avatar from "../components/ui/Avatar";
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 
@@ -169,7 +171,7 @@ function HeroCards({ totals, isLoading }) {
       {HERO.map((c, i) => {
         const val = c.key(totals);
         return (
-          <div key={c.label} className="bg-white rounded-xl border border-slate-200 px-4 pt-4 pb-3.5 flex flex-col gap-3 hover:border-slate-300 hover:shadow-sm transition-all duration-200">
+          <div key={c.label} className="bg-white rounded-2xl border border-slate-200 px-4 pt-4 pb-3.5 flex flex-col gap-3 hover:border-slate-300 hover:shadow-sm transition-all duration-200">
             {/* Icon + label row */}
             <div className="flex items-center justify-between">
               <p className="text-[12px] font-semibold text-slate-400 leading-none">{c.label}</p>
@@ -224,7 +226,7 @@ function SalesPulse({ data, isLoading }) {
         const val = data[c.key] ?? 0;
         const I = c.icon;
         return (
-          <div key={c.label} className="bg-white rounded-xl border border-slate-200 px-4 py-3.5 flex items-center gap-3 hover:shadow-sm transition-shadow">
+          <div key={c.label} className="bg-white rounded-2xl border border-slate-200 px-4 py-3.5 flex items-center gap-3 hover:shadow-sm transition-shadow">
             <div className="h-9 w-9 shrink-0 rounded-xl border border-slate-100 bg-slate-50 flex items-center justify-center">
               <I className="h-4 w-4" style={{ color: c.color }} />
             </div>
@@ -256,7 +258,7 @@ function ModuleCard({ mod, idx }) {
       onClick={() => navigate(mod.route)}
       whileHover={{ y: -2 }}
       whileTap={{ scale: 0.985 }}
-      className="group flex flex-col text-left bg-white rounded-xl border border-slate-200 hover:border-slate-300 hover:shadow-md p-4 transition-all duration-200 cursor-pointer relative overflow-hidden focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500 focus-visible:ring-offset-2"
+      className="group flex flex-col text-left bg-white rounded-2xl border border-slate-200 hover:border-slate-300 hover:shadow-md p-4 transition-all duration-200 cursor-pointer relative overflow-hidden focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500 focus-visible:ring-offset-2"
     >
       {/* Top accent line */}
       <div className="absolute top-0 inset-x-0 h-[2px] rounded-t-xl" style={{ background: acc.ring }} />
@@ -346,7 +348,7 @@ function StatusDonut({ totals, isLoading }) {
   };
 
   return (
-    <div className="bg-white rounded-xl border border-slate-200 p-5 shadow-sm h-full flex flex-col">
+    <div className="bg-white rounded-2xl border border-slate-200 p-5 shadow-sm h-full flex flex-col">
       <div className="flex items-center gap-2 mb-4">
         <div className="h-7 w-7 rounded-lg bg-violet-50 text-violet-700 flex items-center justify-center border border-violet-100">
           <PieChartIcon className="h-3.5 w-3.5" />
@@ -428,7 +430,7 @@ function MonthlyTrend({ data, isLoading }) {
   };
 
   return (
-    <div className="bg-white rounded-xl border border-slate-200 p-5 shadow-sm h-full flex flex-col">
+    <div className="bg-white rounded-2xl border border-slate-200 p-5 shadow-sm h-full flex flex-col">
       <div className="flex items-center gap-2 mb-4">
         <div className="h-7 w-7 rounded-lg bg-emerald-50 text-emerald-700 flex items-center justify-center border border-emerald-100">
           <TrendingUpIcon className="h-3.5 w-3.5" />
@@ -495,7 +497,7 @@ function BreakdownChart({ modules, isLoading }) {
   );
 
   return (
-    <div className="bg-white rounded-xl border border-slate-200 p-5 shadow-sm h-full flex flex-col">
+    <div className="bg-white rounded-2xl border border-slate-200 p-5 shadow-sm h-full flex flex-col">
       <div className="flex items-center gap-2 mb-4">
         <div className="h-7 w-7 rounded-lg bg-indigo-50 text-indigo-700 flex items-center justify-center border border-indigo-100">
           <BarChart3 className="h-3.5 w-3.5" />
@@ -551,7 +553,7 @@ function AttentionPanel({ modules, isLoading }) {
   );
 
   return (
-    <div className="bg-white rounded-xl border border-slate-200 p-5 shadow-sm h-full flex flex-col">
+    <div className="bg-white rounded-2xl border border-slate-200 p-5 shadow-sm h-full flex flex-col">
       <div className="flex items-center justify-between mb-4">
         <div className="flex items-center gap-2">
           <div className="h-7 w-7 rounded-lg bg-rose-50 text-rose-700 flex items-center justify-center border border-rose-100">
@@ -631,7 +633,7 @@ function Leaderboard({ leaderboard, isLoading }) {
   const maxC = data.length > 0 ? Math.max(...data.map((d) => d.converted)) : 1;
 
   return (
-    <div className="bg-white rounded-xl border border-slate-200 p-5 shadow-sm">
+    <div className="bg-white rounded-2xl border border-slate-200 p-5 shadow-sm">
       <div className="flex items-center justify-between mb-4">
         <div className="flex items-center gap-2">
           <div className="h-7 w-7 rounded-lg bg-indigo-50 text-indigo-700 flex items-center justify-center border border-indigo-100">
@@ -688,12 +690,16 @@ function Leaderboard({ leaderboard, isLoading }) {
                 ) : (
                   <span className="w-6 text-center shrink-0 text-[11px] font-bold text-slate-400">#{i + 1}</span>
                 )}
-                {/* Avatar */}
-                <div className={`h-8 w-8 shrink-0 rounded-full flex items-center justify-center text-[12px] font-black text-white ${
-                  i === 0 ? "bg-indigo-700" : i === 1 ? "bg-slate-400" : i === 2 ? "bg-amber-500" : "bg-slate-300"
-                } shadow-sm`}>
-                  {(p.name || "?").charAt(0).toUpperCase()}
-                </div>
+                {/* Avatar — medal colors for the top 3, the shared per-name Avatar for the rest */}
+                {i < 3 ? (
+                  <div className={`h-8 w-8 shrink-0 rounded-full flex items-center justify-center text-[12px] font-black text-white ${
+                    i === 0 ? "bg-indigo-700" : i === 1 ? "bg-slate-400" : "bg-amber-500"
+                  } shadow-sm`}>
+                    {(p.name || "?").charAt(0).toUpperCase()}
+                  </div>
+                ) : (
+                  <Avatar name={p.name} size="sm" />
+                )}
                 {/* Name + bar */}
                 <div className="flex-1 min-w-0">
                   <p className="text-[12.5px] font-bold text-slate-800 truncate leading-tight">{p.name}</p>
@@ -731,7 +737,7 @@ function SummaryStrip({ totals, modules, isLoading }) {
   ];
 
   return (
-    <div className="bg-white rounded-xl border border-slate-200 px-5 py-3 shadow-sm">
+    <div className="bg-white rounded-2xl border border-slate-200 px-5 py-3 shadow-sm">
       <div className="flex items-center gap-0 overflow-x-auto">
         {stats.map((s, i) => (
           <div key={s.label} className={`flex items-center gap-2.5 py-0.5 ${i < stats.length - 1 ? "pr-6 mr-6 border-r border-slate-100" : ""} shrink-0`}>
@@ -822,34 +828,34 @@ function Dashboard() {
       >
 
         {/* ── Header ── */}
-        <motion.div variants={itemV} className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
-          <div>
-            <h1 className="text-xl font-extrabold tracking-tight text-slate-900">Dashboard</h1>
-            <p className="text-[12px] font-medium text-slate-400 mt-0.5">
-              Live overview — jump straight into what needs work.
-            </p>
-          </div>
-
-          <div className="flex items-center gap-2 shrink-0">
-            {fetchedAt && !isLoading && (
-              <span className="hidden sm:flex items-center gap-1.5 text-[11px] font-medium text-slate-400 bg-white border border-slate-200 px-3 py-1.5 rounded-lg">
-                {isRefreshing
-                  ? <RefreshCw className="h-3 w-3 animate-spin text-indigo-600" />
-                  : <Wifi className="h-3 w-3 text-emerald-400" />
-                }
-                {isRefreshing ? "Syncing…" : `Synced ${syncedLabel}`}
-              </span>
-            )}
-            <button
-              type="button"
-              onClick={() => loadData({ manual: true })}
-              disabled={busy}
-              className="flex items-center gap-1.5 rounded-lg bg-indigo-700 hover:bg-indigo-800 text-white text-[13px] font-semibold px-3.5 py-2 shadow-sm shadow-indigo-200 transition-all hover:shadow-md disabled:opacity-60 disabled:cursor-not-allowed focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500 focus-visible:ring-offset-2"
-            >
-              <RefreshCwIcon className={`h-3.5 w-3.5 ${isRefreshing ? "animate-spin" : ""}`} />
-              {isRefreshing ? "Syncing" : "Refresh"}
-            </button>
-          </div>
+        <motion.div variants={itemV}>
+          <PageHeader
+            icon={<BarChart3 className="h-4.5 w-4.5" />}
+            title="Dashboard"
+            subtitle="Live overview — jump straight into what needs work."
+            actions={
+              <>
+                {fetchedAt && !isLoading && (
+                  <span className="hidden sm:flex items-center gap-1.5 text-[11px] font-medium text-slate-400 bg-white border border-slate-200 px-3 py-1.5 rounded-lg">
+                    {isRefreshing
+                      ? <RefreshCw className="h-3 w-3 animate-spin text-indigo-600" />
+                      : <Wifi className="h-3 w-3 text-emerald-400" />
+                    }
+                    {isRefreshing ? "Syncing…" : `Synced ${syncedLabel}`}
+                  </span>
+                )}
+                <button
+                  type="button"
+                  onClick={() => loadData({ manual: true })}
+                  disabled={busy}
+                  className="flex items-center gap-1.5 rounded-lg bg-indigo-700 hover:bg-indigo-800 text-white text-[13px] font-semibold px-3.5 py-2 shadow-sm shadow-indigo-200 transition-all hover:shadow-md disabled:opacity-60 disabled:cursor-not-allowed focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500 focus-visible:ring-offset-2"
+                >
+                  <RefreshCwIcon className={`h-3.5 w-3.5 ${isRefreshing ? "animate-spin" : ""}`} />
+                  {isRefreshing ? "Syncing" : "Refresh"}
+                </button>
+              </>
+            }
+          />
         </motion.div>
 
         {/* ── Error ── */}
@@ -907,7 +913,7 @@ function Dashboard() {
               {modules.map((m, i) => <ModuleCard key={m.key} mod={m} idx={i} />)}
             </motion.div>
           ) : (
-            <div className="rounded-xl border border-dashed border-slate-200 bg-white px-6 py-12 text-center">
+            <div className="rounded-2xl border border-dashed border-slate-200 bg-white px-6 py-12 text-center">
               <Layers className="h-8 w-8 text-slate-200 mx-auto mb-2.5" />
               <p className="text-[13px] font-bold text-slate-600">No module data yet</p>
               <p className="text-[11px] text-slate-400 mt-1">Records will appear once synced.</p>

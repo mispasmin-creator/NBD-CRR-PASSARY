@@ -8,6 +8,7 @@ import { Download, ArrowUp, ArrowDown, ArrowUpDown } from "lucide-react";
 import PageHeader from "../components/ui/PageHeader";
 import StepTracker from "../components/ui/StepTracker";
 import Pagination from "../components/ui/Pagination";
+import Avatar from "../components/ui/Avatar";
 import { exportToCsv } from "../utils/exportCsv";
 import { getCurrentTimestamp, formatDateOnly, formatTimestamp } from "../utils/dateTime";
 import { sortRows, nextSortDirection } from "../utils/sortRows";
@@ -102,6 +103,7 @@ const findColIndex = (hdrs, possibleNames, defaultIdx) => {
 export default function CustomerComplaint() {
   const { showNotification, currentUser } = useContext(AuthContext);
   const [complaints, setComplaints] = useState([]);
+  const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState("All Complaints");
   const [searchQuery, setSearchQuery] = useState("");
   const [firmFilter, setFirmFilter] = useState("all");
@@ -267,6 +269,7 @@ export default function CustomerComplaint() {
       import.meta.env.VITE_COMPLAINT_TRACKER_SHEET_NAME || "Complaint Tracker";
     if (!scriptUrl) return;
 
+    setLoading(true);
     try {
       const res = await axios.get(
         `${scriptUrl}?sheet=${sheetName}&t=${new Date().getTime()}`
@@ -391,6 +394,8 @@ export default function CustomerComplaint() {
       }
     } catch (err) {
       console.warn("Sheet fetch failed:", err.message);
+    } finally {
+      setLoading(false);
     }
   }, []);
 
@@ -1061,7 +1066,7 @@ export default function CustomerComplaint() {
                 onClick={() => setActiveTab(tab)}
                 className={`flex items-center gap-2 rounded-lg px-4 py-2 text-sm font-medium leading-5 transition-all duration-200 whitespace-nowrap ${
                   isActive
-                    ? "bg-sky-50 text-sky-700 shadow-sm ring-1 ring-sky-200"
+                    ? "bg-indigo-50 text-indigo-700 shadow-sm ring-1 ring-indigo-200"
                     : "text-gray-500 hover:text-gray-700 hover:bg-gray-50"
                 }`}
               >
@@ -1072,7 +1077,7 @@ export default function CustomerComplaint() {
                 <span
                   className={`text-xs px-2 py-0.5 rounded-full font-semibold ${
                     isActive
-                      ? "bg-sky-100 text-sky-700"
+                      ? "bg-indigo-100 text-indigo-700"
                       : "bg-gray-100 text-gray-500"
                   }`}
                 >
@@ -1092,7 +1097,7 @@ export default function CustomerComplaint() {
                 placeholder="Search complaints..."
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                className="px-3 py-1.5 text-sm border rounded-md focus:ring-2 focus:ring-sky-500 border-gray-300 min-w-[180px]"
+                className="px-3 py-1.5 text-sm border rounded-md focus:ring-2 focus:ring-indigo-500 border-gray-300 min-w-[180px]"
               />
               <select
                 value={firmFilter}
@@ -1120,7 +1125,7 @@ export default function CustomerComplaint() {
                 <button
                   type="button"
                   onClick={() => { setFirmFilter("all"); setReceivedByFilter("") }}
-                  className="px-2 py-1.5 text-sm font-medium text-sky-600 hover:text-sky-800 underline whitespace-nowrap"
+                  className="px-2 py-1.5 text-sm font-medium text-indigo-600 hover:text-indigo-800 underline whitespace-nowrap"
                 >
                   Clear filters
                 </button>
@@ -1137,7 +1142,7 @@ export default function CustomerComplaint() {
               </button>
               <button
                 onClick={() => setShowNewModal(true)}
-                className="bg-sky-600 hover:bg-sky-700 text-white font-medium py-1.5 px-3 text-sm rounded-md whitespace-nowrap shadow-sm cursor-pointer"
+                className="bg-indigo-700 hover:bg-indigo-800 text-white font-medium py-1.5 px-3 text-sm rounded-md whitespace-nowrap shadow-sm cursor-pointer"
               >
                 + Register new Complaint
               </button>
@@ -1147,12 +1152,21 @@ export default function CustomerComplaint() {
 
         {/* Complaints Table: Action first on workflow pages, proper columns */}
         <div className="flex-1 min-h-0 flex flex-col bg-white rounded-2xl shadow-md border border-slate-200/70 overflow-hidden">
+          <div className="shrink-0 flex items-center gap-3 px-5 py-3.5 border-b border-slate-100">
+            <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-indigo-700 text-white">
+              <MessageSquareIcon className="h-4 w-4" />
+            </span>
+            <div className="min-w-0">
+              <h2 className="text-[14px] font-bold text-slate-900 truncate leading-tight">{activeTab}</h2>
+              <p className="text-[11.5px] font-medium text-slate-400">{filteredComplaints.length} record{filteredComplaints.length === 1 ? "" : "s"} found</p>
+            </div>
+          </div>
           <div className="flex-1 min-h-0 overflow-auto">
             <table className="w-full border-separate border-spacing-0">
               <thead className="bg-muted border-b sticky top-0 z-10">
                 <tr>
                   <th className="px-3 py-3.5 w-10">
-                    <input type="checkbox" aria-label="Select all on this page" checked={paginatedComplaints.length > 0 && paginatedComplaints.every((c) => selectedRows.has(c.id))} onChange={toggleSelectAllOnPage} className="h-4 w-4 rounded border-gray-300 text-sky-600 focus:ring-sky-500 cursor-pointer" />
+                    <input type="checkbox" aria-label="Select all on this page" checked={paginatedComplaints.length > 0 && paginatedComplaints.every((c) => selectedRows.has(c.id))} onChange={toggleSelectAllOnPage} className="h-4 w-4 rounded border-gray-300 text-indigo-600 focus:ring-indigo-500 cursor-pointer" />
                   </th>
                   {activeTab !== "History" && (
                     <th className="sticky left-0 z-20 bg-muted px-5 py-3.5 text-left text-xs font-bold text-muted-foreground uppercase tracking-wider whitespace-nowrap shadow-xs">
@@ -1190,7 +1204,7 @@ export default function CustomerComplaint() {
                 {paginatedComplaints.map((c) => (
                   <tr key={c.id} className="group hover:bg-muted">
                     <td className="px-3 py-3.5 whitespace-nowrap">
-                      <input type="checkbox" aria-label={`Select ${c.id}`} checked={selectedRows.has(c.id)} onChange={() => toggleRowSelected(c.id)} className="h-4 w-4 rounded border-gray-300 text-sky-600 focus:ring-sky-500 cursor-pointer" />
+                      <input type="checkbox" aria-label={`Select ${c.id}`} checked={selectedRows.has(c.id)} onChange={() => toggleRowSelected(c.id)} className="h-4 w-4 rounded border-gray-300 text-indigo-600 focus:ring-indigo-500 cursor-pointer" />
                     </td>
                     {activeTab !== "History" && (
                       <td className="sticky left-0 z-10 bg-white group-hover:bg-muted px-5 py-3.5 whitespace-nowrap shadow-xs">
@@ -1198,7 +1212,7 @@ export default function CustomerComplaint() {
                           {c.currentStep !== "History" && c.currentStep !== "Resolved" && (
                             <button
                               onClick={() => openProcessModal(c)}
-                              className="bg-primary hover:brightness-110 text-primary-foreground px-3 py-1.5 rounded-lg text-xs font-semibold shadow-sm transition"
+                              className="bg-indigo-700 hover:bg-indigo-800 text-white px-3 py-1.5 rounded-lg text-xs font-semibold shadow-sm transition-all hover:scale-105 active:scale-95 cursor-pointer"
                             >
                               Action
                             </button>
@@ -1218,7 +1232,7 @@ export default function CustomerComplaint() {
                       </td>
                     )}
                     <td className="px-5 py-3.5 whitespace-nowrap">
-                      <span className="inline-flex items-center px-2.5 py-1 rounded-md bg-sky-100 text-sky-700 text-sm font-mono font-bold">
+                      <span className="inline-flex items-center px-2.5 py-1 rounded-md bg-indigo-100 text-indigo-700 text-sm font-mono font-bold">
                         {c.id}
                       </span>
                     </td>
@@ -1238,7 +1252,9 @@ export default function CustomerComplaint() {
                       {c.problem}
                     </td>
                     <td className="px-5 py-3.5 text-sm text-muted-foreground max-w-[110px] break-words">
-                      {c.receivedBy}
+                      {c.receivedBy ? (
+                        <span className="inline-flex items-center gap-1.5"><Avatar name={c.receivedBy} size="xs" />{c.receivedBy}</span>
+                      ) : "-"}
                     </td>
                     {activeTab === "Call Tracker" && (
                       <td className="px-5 py-3.5 whitespace-nowrap">
@@ -1307,9 +1323,17 @@ export default function CustomerComplaint() {
                 ))}
               </tbody>
             </table>
-            {filteredComplaints.length === 0 && (
-              <div className="text-center py-12 text-muted-foreground text-sm">
-                No complaints found in Complaint Tracker.
+            {loading ? (
+              <div className="flex flex-col items-center justify-center py-16">
+                <div className="animate-spin rounded-full h-8 w-8 border-2 border-indigo-700/20 border-t-indigo-700 mb-3"></div>
+                <p className="text-sm text-muted-foreground">Loading complaints...</p>
+              </div>
+            ) : filteredComplaints.length === 0 && (
+              <div className="flex flex-col items-center justify-center gap-2 py-16">
+                <div className="flex h-14 w-14 items-center justify-center rounded-full bg-gray-100">
+                  <MessageSquareIcon className="h-6 w-6 text-gray-300" />
+                </div>
+                <p className="text-base font-semibold text-gray-500">No complaints found</p>
               </div>
             )}
           </div>
@@ -1319,18 +1343,23 @@ export default function CustomerComplaint() {
         {/* ── Popup: Register new Complaint (Clean 6 fields) ─────────────────── */}
         {showNewModal && (
           <div
-            className="fixed inset-0 bg-black/40 backdrop-blur-sm flex items-center justify-center z-50 p-4"
+            className="fixed inset-0 bg-slate-900/45 backdrop-blur-sm flex items-center justify-center z-50 p-4"
             onClick={() => setShowNewModal(false)}
           >
             <div
-              className="bg-white rounded-2xl shadow-2xl border border-slate-200 p-6 max-w-lg w-full max-h-[90vh] overflow-y-auto"
+              className="bg-white rounded-2xl shadow-2xl border border-slate-200 max-w-lg w-full max-h-[90vh] overflow-hidden flex flex-col"
               onClick={(e) => e.stopPropagation()}
             >
-              <h2 className="text-xl font-extrabold text-slate-800 mb-4 pb-3 border-b border-slate-100 flex items-center gap-2">
-                <svg className="w-5 h-5 text-sky-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M12 4v16m8-8H4"></path></svg>
-                Register new Complaint
-              </h2>
-              <form onSubmit={handleCreateComplaint} className="space-y-4 text-sm">
+              <div className="bg-indigo-700 px-6 py-4 flex justify-between items-center text-white shrink-0">
+                <div className="flex items-center gap-2">
+                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M12 4v16m8-8H4"></path></svg>
+                  <h2 className="text-base md:text-lg font-bold tracking-tight">Register new Complaint</h2>
+                </div>
+                <button type="button" onClick={() => setShowNewModal(false)} className="text-white/80 hover:text-white hover:bg-white/10 p-1.5 rounded-lg transition-colors cursor-pointer">
+                  <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12" /></svg>
+                </button>
+              </div>
+              <form onSubmit={handleCreateComplaint} className="space-y-4 text-sm p-6 overflow-y-auto">
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <div>
                     <label className="block text-[13px] font-bold text-slate-700 mb-1.5 uppercase tracking-wider">
@@ -1343,7 +1372,7 @@ export default function CustomerComplaint() {
                       onChange={(e) =>
                         setNewForm({ ...newForm, date: e.target.value })
                       }
-                      className="w-full px-4 py-2.5 text-sm border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-sky-500/50 focus:border-sky-500 bg-slate-50 hover:bg-slate-100 transition-colors"
+                      className="w-full px-4 py-2.5 text-sm border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500/50 focus:border-indigo-500 bg-slate-50 hover:bg-slate-100 transition-colors"
                     />
                   </div>
                   <div>
@@ -1356,7 +1385,7 @@ export default function CustomerComplaint() {
                       onChange={(e) =>
                         setNewForm({ ...newForm, firmName: e.target.value })
                       }
-                      className="w-full px-4 py-2.5 text-sm border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-sky-500/50 focus:border-sky-500 bg-slate-50 hover:bg-slate-100 transition-colors cursor-pointer"
+                      className="w-full px-4 py-2.5 text-sm border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500/50 focus:border-indigo-500 bg-slate-50 hover:bg-slate-100 transition-colors cursor-pointer"
                     >
                       <option value="">Select Firm Name</option>
                       {firmNamesList.map((firm) => (
@@ -1381,7 +1410,7 @@ export default function CustomerComplaint() {
                       onChange={(e) =>
                         setNewForm({ ...newForm, customerName: e.target.value })
                       }
-                      className="w-full px-4 py-2.5 text-sm border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-sky-500/50 focus:border-sky-500 bg-slate-50 hover:bg-slate-100 transition-colors"
+                      className="w-full px-4 py-2.5 text-sm border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500/50 focus:border-indigo-500 bg-slate-50 hover:bg-slate-100 transition-colors"
                     />
                   </div>
                   <div>
@@ -1396,7 +1425,7 @@ export default function CustomerComplaint() {
                       onChange={(e) =>
                         setNewForm({ ...newForm, personName: e.target.value })
                       }
-                      className="w-full px-4 py-2.5 text-sm border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-sky-500/50 focus:border-sky-500 bg-slate-50 hover:bg-slate-100 transition-colors"
+                      className="w-full px-4 py-2.5 text-sm border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500/50 focus:border-indigo-500 bg-slate-50 hover:bg-slate-100 transition-colors"
                     />
                   </div>
                 </div>
@@ -1413,7 +1442,7 @@ export default function CustomerComplaint() {
                     onChange={(e) =>
                       setNewForm({ ...newForm, problem: e.target.value })
                     }
-                    className="w-full px-4 py-2.5 text-sm border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-sky-500/50 focus:border-sky-500 bg-slate-50 hover:bg-slate-100 transition-colors"
+                    className="w-full px-4 py-2.5 text-sm border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500/50 focus:border-indigo-500 bg-slate-50 hover:bg-slate-100 transition-colors"
                   ></textarea>
                 </div>
 
@@ -1429,14 +1458,14 @@ export default function CustomerComplaint() {
                     onChange={(e) =>
                       setNewForm({ ...newForm, receivedBy: e.target.value })
                     }
-                    className="w-full px-4 py-2.5 text-sm border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-sky-500/50 focus:border-sky-500 bg-slate-50 hover:bg-slate-100 transition-colors"
+                    className="w-full px-4 py-2.5 text-sm border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500/50 focus:border-indigo-500 bg-slate-50 hover:bg-slate-100 transition-colors"
                   />
                 </div>
 
                 <div className="flex gap-3 pt-4 border-t border-slate-100">
                   <button
                     type="submit"
-                    className="px-6 py-2.5 text-sm font-bold text-white bg-sky-600 rounded-xl shadow-md hover:bg-sky-700 hover:shadow-lg focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-sky-500 transition-all transform hover:-translate-y-0.5"
+                    className="px-6 py-2.5 text-sm font-bold text-white bg-indigo-700 rounded-xl shadow-md hover:bg-indigo-800 hover:shadow-lg focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 transition-all transform hover:-translate-y-0.5"
                   >
                     Register Complaint
                   </button>
@@ -1460,19 +1489,19 @@ export default function CustomerComplaint() {
             onClick={() => setShowProcessModal(false)}
           >
             <div
-              className="bg-white rounded-2xl shadow-2xl border border-slate-200 p-6 max-w-lg w-full"
+              className="bg-white rounded-2xl shadow-2xl border border-slate-200 max-w-lg w-full max-h-[92vh] overflow-hidden flex flex-col"
               onClick={(e) => e.stopPropagation()}
             >
-              <h2 className="text-xl font-extrabold text-slate-800 mb-1 pb-3 border-b border-slate-100 flex items-center gap-2">
-                <svg className="w-5 h-5 text-primary" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M13 10V3L4 14h7v7l9-11h-7z"></path></svg>
-                Take Action — {selectedComplaint.currentStep}
-              </h2>
-              <p className="text-xs text-muted-foreground mt-1 mb-3">
-                <span className="font-semibold text-muted-foreground">Complaint No:</span>{" "}
-                <span className="font-mono font-bold text-primary">{selectedComplaint.id}</span> |{" "}
-                <span className="font-semibold text-muted-foreground">Customer:</span>{" "}
-                {selectedComplaint.customerName}
-              </p>
+              <div className="bg-indigo-700 px-6 py-4 flex justify-between items-center text-white shrink-0">
+                <div>
+                  <h2 className="text-base md:text-lg font-bold tracking-tight">Take Action — {selectedComplaint.currentStep}</h2>
+                  <p className="text-xs text-indigo-100 font-medium mt-1">Complaint No: <span className="font-bold bg-white/20 px-2 py-0.5 rounded">{selectedComplaint.id}</span> · {selectedComplaint.customerName}</p>
+                </div>
+                <button type="button" onClick={() => setShowProcessModal(false)} className="text-white/80 hover:text-white hover:bg-white/10 p-1.5 rounded-lg transition-colors cursor-pointer">
+                  <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12" /></svg>
+                </button>
+              </div>
+              <div className="p-6 overflow-y-auto">
               <div className="mb-4 pb-4 border-b border-slate-100">
                 <StepTracker steps={COMPLAINT_STEPS} currentStep={selectedComplaint.currentStep} />
               </div>
@@ -1493,7 +1522,7 @@ export default function CustomerComplaint() {
                             callStatus: e.target.value,
                           })
                         }
-                        className="w-full px-4 py-2.5 text-sm border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-sky-500/50 focus:border-sky-500 bg-slate-50 hover:bg-slate-100 transition-colors cursor-pointer"
+                        className="w-full px-4 py-2.5 text-sm border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500/50 focus:border-indigo-500 bg-slate-50 hover:bg-slate-100 transition-colors cursor-pointer"
                       >
                         <option value="">Select call outcome...</option>
                         <option value="Connected">Connected</option>
@@ -1517,7 +1546,7 @@ export default function CustomerComplaint() {
                               nextCallDate: e.target.value,
                             })
                           }
-                          className="w-full px-4 py-2.5 text-sm border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-sky-500/50 focus:border-sky-500 bg-slate-50 hover:bg-slate-100 transition-colors cursor-pointer"
+                          className="w-full px-4 py-2.5 text-sm border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500/50 focus:border-indigo-500 bg-slate-50 hover:bg-slate-100 transition-colors cursor-pointer"
                         />
                       </div>
                     )}
@@ -1538,7 +1567,7 @@ export default function CustomerComplaint() {
                               callRemarks: e.target.value,
                             })
                           }
-                          className="w-full px-4 py-2.5 text-sm border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-sky-500/50 focus:border-sky-500 bg-slate-50 hover:bg-slate-100 transition-colors"
+                          className="w-full px-4 py-2.5 text-sm border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500/50 focus:border-indigo-500 bg-slate-50 hover:bg-slate-100 transition-colors"
                         ></textarea>
                       </div>
                     )}
@@ -1561,7 +1590,7 @@ export default function CustomerComplaint() {
                             personAssignName1: e.target.value,
                           })
                         }
-                        className="w-full px-4 py-2.5 text-sm border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-sky-500/50 focus:border-sky-500 bg-slate-50 hover:bg-slate-100 transition-colors"
+                        className="w-full px-4 py-2.5 text-sm border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500/50 focus:border-indigo-500 bg-slate-50 hover:bg-slate-100 transition-colors"
                       />
                     </div>
                     <div>
@@ -1578,7 +1607,7 @@ export default function CustomerComplaint() {
                             dateOfVisit: e.target.value,
                           })
                         }
-                        className="w-full px-4 py-2.5 text-sm border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-sky-500/50 focus:border-sky-500 bg-slate-50 hover:bg-slate-100 transition-colors"
+                        className="w-full px-4 py-2.5 text-sm border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500/50 focus:border-indigo-500 bg-slate-50 hover:bg-slate-100 transition-colors"
                       />
                     </div>
                     <div>
@@ -1594,7 +1623,7 @@ export default function CustomerComplaint() {
                             actionToBeTaken1: e.target.value,
                           })
                         }
-                        className="w-full px-4 py-2.5 text-sm border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-sky-500/50 focus:border-sky-500 bg-slate-50 hover:bg-slate-100 transition-colors cursor-pointer"
+                        className="w-full px-4 py-2.5 text-sm border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500/50 focus:border-indigo-500 bg-slate-50 hover:bg-slate-100 transition-colors cursor-pointer"
                       >
                         <option value="">Select action...</option>
                         <option value="Arrange Visit">Arrange Visit</option>
@@ -1621,7 +1650,7 @@ export default function CustomerComplaint() {
                             isSolved: e.target.value,
                           })
                         }
-                        className="w-full px-4 py-2.5 text-sm border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-sky-500/50 focus:border-sky-500 bg-slate-50 hover:bg-slate-100 transition-colors cursor-pointer"
+                        className="w-full px-4 py-2.5 text-sm border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500/50 focus:border-indigo-500 bg-slate-50 hover:bg-slate-100 transition-colors cursor-pointer"
                       >
                         <option value="Problem Not Solved">Problem Not Solved</option>
                         <option value="Problem Solved">Problem Solved</option>
@@ -1643,7 +1672,7 @@ export default function CustomerComplaint() {
                             remarks: e.target.value,
                           })
                         }
-                        className="w-full px-4 py-2.5 text-sm border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-sky-500/50 focus:border-sky-500 bg-slate-50 hover:bg-slate-100 transition-colors"
+                        className="w-full px-4 py-2.5 text-sm border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500/50 focus:border-indigo-500 bg-slate-50 hover:bg-slate-100 transition-colors"
                       ></textarea>
                     </div>
                   </div>
@@ -1664,7 +1693,7 @@ export default function CustomerComplaint() {
                             actionToBeTaken3: e.target.value,
                           })
                         }
-                        className="w-full px-4 py-2.5 text-sm border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-sky-500/50 focus:border-sky-500 bg-slate-50 hover:bg-slate-100 transition-colors cursor-pointer"
+                        className="w-full px-4 py-2.5 text-sm border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500/50 focus:border-indigo-500 bg-slate-50 hover:bg-slate-100 transition-colors cursor-pointer"
                       >
                         <option value="">Select Action...</option>
                         <option value="Problem Solved">Problem Solved</option>
@@ -1689,7 +1718,7 @@ export default function CustomerComplaint() {
                                 dateOfVisit3: e.target.value,
                               })
                             }
-                            className="w-full px-4 py-2.5 text-sm border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-sky-500/50 focus:border-sky-500 bg-slate-50 hover:bg-slate-100 transition-colors cursor-pointer"
+                            className="w-full px-4 py-2.5 text-sm border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500/50 focus:border-indigo-500 bg-slate-50 hover:bg-slate-100 transition-colors cursor-pointer"
                           />
                         </div>
                         <div>
@@ -1707,7 +1736,7 @@ export default function CustomerComplaint() {
                                 remarks: e.target.value,
                               })
                             }
-                            className="w-full px-4 py-2.5 text-sm border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-sky-500/50 focus:border-sky-500 bg-slate-50 hover:bg-slate-100 transition-colors"
+                            className="w-full px-4 py-2.5 text-sm border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500/50 focus:border-indigo-500 bg-slate-50 hover:bg-slate-100 transition-colors"
                           ></textarea>
                         </div>
                       </>
@@ -1729,7 +1758,7 @@ export default function CustomerComplaint() {
                               remarks: e.target.value,
                             })
                           }
-                          className="w-full px-4 py-2.5 text-sm border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-sky-500/50 focus:border-sky-500 bg-slate-50 hover:bg-slate-100 transition-colors"
+                          className="w-full px-4 py-2.5 text-sm border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500/50 focus:border-indigo-500 bg-slate-50 hover:bg-slate-100 transition-colors"
                         ></textarea>
                       </div>
                     )}
@@ -1749,7 +1778,7 @@ export default function CustomerComplaint() {
                       onChange={(e) =>
                         setProcessForm({ ...processForm, remarks: e.target.value })
                       }
-                      className="w-full px-4 py-2.5 text-sm border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-sky-500/50 focus:border-sky-500 bg-slate-50 hover:bg-slate-100 transition-colors"
+                      className="w-full px-4 py-2.5 text-sm border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500/50 focus:border-indigo-500 bg-slate-50 hover:bg-slate-100 transition-colors"
                     ></textarea>
                   </div>
                 )}
@@ -1757,7 +1786,7 @@ export default function CustomerComplaint() {
                 <div className="flex gap-3 pt-4 border-t border-slate-100">
                   <button
                     type="submit"
-                    className="px-6 py-2.5 text-sm font-bold text-white bg-sky-600 rounded-xl shadow-md hover:bg-sky-700 hover:shadow-lg focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-sky-500 transition-all transform hover:-translate-y-0.5"
+                    className="px-6 py-2.5 text-sm font-bold text-white bg-indigo-700 rounded-xl shadow-md hover:bg-indigo-800 hover:shadow-lg focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 transition-all transform hover:-translate-y-0.5"
                   >
                     Confirm & Save
                   </button>
@@ -1770,6 +1799,7 @@ export default function CustomerComplaint() {
                   </button>
                 </div>
               </form>
+              </div>
             </div>
           </div>
         )}
@@ -1777,17 +1807,23 @@ export default function CustomerComplaint() {
         {/* ── Popup: Complaint Details & History ─────────────────────────────── */}
         {showDetailModal && selectedComplaint && (
           <div
-            className="fixed inset-0 bg-black/40 backdrop-blur-sm flex items-center justify-center z-50 p-4"
+            className="fixed inset-0 bg-slate-900/45 backdrop-blur-sm flex items-center justify-center z-50 p-4"
             onClick={() => setShowDetailModal(false)}
           >
             <div
-              className="bg-white rounded-2xl shadow-2xl border border-slate-200 p-6 max-w-lg w-full max-h-[90vh] flex flex-col"
+              className="bg-white rounded-2xl shadow-2xl border border-slate-200 max-w-lg w-full max-h-[90vh] overflow-hidden flex flex-col"
               onClick={(e) => e.stopPropagation()}
             >
-              <h2 className="text-xl font-extrabold text-slate-800 mb-1 pb-3 border-b border-slate-100">
-                Complaint Tracker Details ({selectedComplaint.id})
-              </h2>
-              <div className="space-y-2 text-sm my-4">
+              <div className="bg-indigo-700 px-6 py-4 flex justify-between items-center text-white shrink-0">
+                <h2 className="text-base md:text-lg font-bold tracking-tight">
+                  Complaint Tracker Details ({selectedComplaint.id})
+                </h2>
+                <button type="button" onClick={() => setShowDetailModal(false)} className="text-white/80 hover:text-white hover:bg-white/10 p-1.5 rounded-lg transition-colors cursor-pointer">
+                  <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12" /></svg>
+                </button>
+              </div>
+              <div className="p-6 overflow-y-auto flex-1 flex flex-col min-h-0">
+              <div className="space-y-2 text-sm mb-4">
                 <p>
                   <span className="font-semibold text-muted-foreground">Firm:</span>{" "}
                   {selectedComplaint.firmName}
@@ -1802,7 +1838,7 @@ export default function CustomerComplaint() {
                 </p>
                 <p>
                   <span className="font-semibold text-muted-foreground">Received By:</span>{" "}
-                  {selectedComplaint.receivedBy}
+                  <span className="inline-flex items-center gap-1.5"><Avatar name={selectedComplaint.receivedBy} size="xs" />{selectedComplaint.receivedBy}</span>
                 </p>
                 <div className="bg-muted p-3 rounded border">
                   <span className="font-semibold text-muted-foreground block text-xs uppercase">
@@ -1815,7 +1851,7 @@ export default function CustomerComplaint() {
               <p className="text-xs font-semibold text-muted-foreground uppercase pt-2">
                 Workflow History
               </p>
-              <div className="flex-1 overflow-y-auto space-y-2 border-l-2 border-sky-500 pl-4 ml-1 my-2">
+              <div className="flex-1 overflow-y-auto space-y-2 border-l-2 border-indigo-500 pl-4 ml-1 my-2">
                 {(selectedComplaint.history || []).map((h, i) => (
                   <div key={i} className="text-sm py-1">
                     <div className="flex justify-between items-center text-xs text-muted-foreground">
@@ -1839,6 +1875,7 @@ export default function CustomerComplaint() {
                 >
                   Close
                 </button>
+              </div>
               </div>
             </div>
           </div>

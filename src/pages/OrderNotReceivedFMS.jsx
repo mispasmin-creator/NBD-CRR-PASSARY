@@ -18,6 +18,7 @@ import { exportToCsv } from "../utils/exportCsv"
 import { getCurrentTimestamp, reformatIfDate } from "../utils/dateTime"
 import PageHeader from "../components/ui/PageHeader"
 import Pagination from "../components/ui/Pagination"
+import Avatar from "../components/ui/Avatar"
 import { sortRows, nextSortDirection } from "../utils/sortRows"
 
 // Small clickable header cell used to make a table column sortable —
@@ -1102,7 +1103,7 @@ function OrderNotReceivedFMS() {
               onClick={() => setActiveMainTab(tab.key)}
               className={`flex items-center gap-2 rounded-lg px-4 py-2 text-sm font-semibold leading-5 transition-all duration-200 whitespace-nowrap cursor-pointer ${
                 isActive
-                  ? "bg-rose-50 text-rose-700 shadow-sm ring-1 ring-rose-200"
+                  ? "bg-indigo-50 text-indigo-700 shadow-sm ring-1 ring-indigo-200"
                   : "text-gray-500 hover:text-gray-700 hover:bg-gray-50"
               }`}
             >
@@ -1111,7 +1112,7 @@ function OrderNotReceivedFMS() {
               {count !== undefined && (
                 <span
                   className={`text-xs px-2 py-0.5 rounded-full font-semibold ${
-                    isActive ? "bg-rose-100 text-rose-700" : "bg-gray-100 text-gray-500"
+                    isActive ? "bg-indigo-100 text-indigo-700" : "bg-gray-100 text-gray-500"
                   }`}
                 >
                   {count}
@@ -1147,14 +1148,14 @@ function OrderNotReceivedFMS() {
                     placeholder="Search by ONR No, Enquiry No, Firm, Product, Reason..."
                     value={searchTerm}
                     onChange={(e) => setSearchTerm(e.target.value)}
-                    className="!pl-10 !pr-3 py-1.5 min-w-[220px] border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-rose-500"
+                    className="!pl-10 !pr-3 py-1.5 min-w-[220px] border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500"
                   />
                   <SearchIcon className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
                 </div>
                 <select
                   value={activeTab}
                   onChange={(e) => setActiveTab(e.target.value)}
-                  className="px-2.5 py-1.5 border border-gray-300 rounded-md bg-card text-sm focus:outline-none focus:ring-2 focus:ring-rose-500 cursor-pointer max-w-[170px]"
+                  className="px-2.5 py-1.5 border border-gray-300 rounded-md bg-card text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 cursor-pointer max-w-[170px]"
                 >
                   {SOURCE_TABS.map((tab) => (
                     <option key={tab} value={tab}>
@@ -1165,7 +1166,7 @@ function OrderNotReceivedFMS() {
                 <select
                   value={firmFilter}
                   onChange={(e) => setFirmFilter(e.target.value)}
-                  className="px-2.5 py-1.5 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-rose-500 text-sm text-gray-700 bg-white cursor-pointer max-w-[150px]"
+                  className="px-2.5 py-1.5 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500 text-sm text-gray-700 bg-white cursor-pointer max-w-[150px]"
                 >
                   <option value="">All firms</option>
                   {firmFilterOptions.map((f) => (
@@ -1176,7 +1177,7 @@ function OrderNotReceivedFMS() {
                   <button
                     type="button"
                     onClick={() => setFirmFilter("")}
-                    className="px-2 py-1.5 text-sm font-medium text-rose-600 hover:text-rose-800 underline whitespace-nowrap"
+                    className="px-2 py-1.5 text-sm font-medium text-indigo-600 hover:text-indigo-800 underline whitespace-nowrap"
                   >
                     Clear filters
                   </button>
@@ -1194,7 +1195,7 @@ function OrderNotReceivedFMS() {
                 <button
                   onClick={fetchAllData}
                   disabled={isLoading}
-                  className="inline-flex items-center gap-2 bg-rose-600 hover:bg-rose-700 disabled:opacity-50 text-white font-medium py-1.5 px-3 text-sm rounded-md transition-colors cursor-pointer"
+                  className="inline-flex items-center gap-2 bg-indigo-700 hover:bg-indigo-800 disabled:opacity-50 text-white font-medium py-1.5 px-3 text-sm rounded-md transition-colors cursor-pointer"
                 >
                   <RefreshCwIcon className={`h-4 w-4 ${isLoading ? "animate-spin" : ""}`} />
                   Refresh
@@ -1205,8 +1206,12 @@ function OrderNotReceivedFMS() {
 
           {/* Table */}
           <div className="flex-1 min-h-0 flex flex-col bg-card rounded-2xl shadow-md border border-slate-200/70 overflow-hidden">
-            <div className="shrink-0 px-6 py-4 border-b border-slate-100 bg-muted/60 flex justify-between items-center">
-              <div>
+            <div className="shrink-0 px-6 py-4 border-b border-slate-100 bg-muted/60 flex justify-between items-center gap-3">
+              <div className="flex items-center gap-3 min-w-0">
+                <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-indigo-700 text-white">
+                  <FileTextIcon className="h-4 w-4" />
+                </span>
+                <div className="min-w-0">
                 <h2 className="text-[15px] font-bold text-foreground">
                   {activeMainTab === "getSample"
                     ? "Get Sample Of Material (Stage 1)"
@@ -1225,12 +1230,13 @@ function OrderNotReceivedFMS() {
                     {filteredRecords.length} record{filteredRecords.length !== 1 ? "s" : ""} found
                   </p>
                 )}
+                </div>
               </div>
             </div>
 
             {isLoading ? (
               <div className="flex flex-col justify-center items-center py-20 text-muted-foreground">
-                <div className="animate-spin rounded-full h-7 w-7 border-2 border-border border-t-rose-500 mb-3"></div>
+                <div className="animate-spin rounded-full h-7 w-7 border-2 border-border border-t-indigo-500 mb-3"></div>
                 <p className="text-[13px] font-medium">Loading Order Not Received data...</p>
               </div>
             ) : (
@@ -1239,27 +1245,27 @@ function OrderNotReceivedFMS() {
                 <div className="hidden md:block flex-1 min-h-0 overflow-auto">
                   <table className="w-full border-separate border-spacing-0">
                     <thead className="sticky top-0 z-10">
-                      <tr className="bg-gradient-to-r from-rose-50 to-red-50 border-b border-gray-200">
+                      <tr className="bg-gradient-to-r from-indigo-50 to-purple-50 border-b border-gray-200">
                         <th className="px-3 py-3.5 w-10">
-                          <input type="checkbox" aria-label="Select all on this page" checked={paginatedRecords.length > 0 && paginatedRecords.every((r) => selectedRows.has(rowKey(r)))} onChange={toggleSelectAllOnPage} className="h-4 w-4 rounded border-gray-300 text-rose-600 focus:ring-rose-500 cursor-pointer" />
+                          <input type="checkbox" aria-label="Select all on this page" checked={paginatedRecords.length > 0 && paginatedRecords.every((r) => selectedRows.has(rowKey(r)))} onChange={toggleSelectAllOnPage} className="h-4 w-4 rounded border-gray-300 text-indigo-600 focus:ring-indigo-500 cursor-pointer" />
                         </th>
-                        <th scope="col" className="sticky left-0 z-20 w-[104px] min-w-[104px] max-w-[104px] bg-rose-50 px-2 py-3.5 text-center text-xs font-bold text-rose-700 uppercase tracking-wider whitespace-nowrap border-r border-rose-100">
+                        <th scope="col" className="sticky left-0 z-20 w-[104px] min-w-[104px] max-w-[104px] bg-indigo-50 px-2 py-3.5 text-center text-xs font-bold text-indigo-700 uppercase tracking-wider whitespace-nowrap border-r border-indigo-100">
                           Action
                         </th>
-                        <SortableTh column="timestamp" label="Timestamp" sortConfig={sortConfig} onSort={handleSort} className="px-5 py-3.5 text-left text-xs font-bold text-rose-700 uppercase tracking-wider whitespace-nowrap" />
-                        <SortableTh column="onrNo" label="ONR-00" sortConfig={sortConfig} onSort={handleSort} className="px-5 py-3.5 text-left text-xs font-bold text-rose-700 uppercase tracking-wider whitespace-nowrap" />
-                        <SortableTh column="enquiryNo" label="Enquiry No Of FMS" sortConfig={sortConfig} onSort={handleSort} className="px-5 py-3.5 text-left text-xs font-bold text-rose-700 uppercase tracking-wider whitespace-nowrap" />
-                        <SortableTh column="firmName" label="Firm Name" sortConfig={sortConfig} onSort={handleSort} className="px-5 py-3.5 text-left text-xs font-bold text-rose-700 uppercase tracking-wider whitespace-nowrap" />
-                        <SortableTh column="companyName" label="Name Of Company" sortConfig={sortConfig} onSort={handleSort} className="px-5 py-3.5 text-left text-xs font-bold text-rose-700 uppercase tracking-wider whitespace-nowrap" />
-                        <SortableTh column="productName" label="Product Name" sortConfig={sortConfig} onSort={handleSort} className="px-5 py-3.5 text-left text-xs font-bold text-rose-700 uppercase tracking-wider whitespace-nowrap" />
-                        <SortableTh column="qty" label="Qty" sortConfig={sortConfig} onSort={handleSort} className="px-5 py-3.5 text-left text-xs font-bold text-rose-700 uppercase tracking-wider whitespace-nowrap" />
-                        <SortableTh column="source" label="Name Of FMS" sortConfig={sortConfig} onSort={handleSort} className="px-5 py-3.5 text-left text-xs font-bold text-rose-700 uppercase tracking-wider whitespace-nowrap" />
-                        <SortableTh column="totalEnquiryValue" label="Total Enquiry Value" sortConfig={sortConfig} onSort={handleSort} className="px-5 py-3.5 text-left text-xs font-bold text-rose-700 uppercase tracking-wider whitespace-nowrap" />
-                        <SortableTh column="givenToWhom" label="Given To Whom" sortConfig={sortConfig} onSort={handleSort} className="px-5 py-3.5 text-left text-xs font-bold text-rose-700 uppercase tracking-wider whitespace-nowrap" />
-                        <SortableTh column="rate" label="Rate" sortConfig={sortConfig} onSort={handleSort} className="px-5 py-3.5 text-left text-xs font-bold text-rose-700 uppercase tracking-wider whitespace-nowrap" />
-                        <SortableTh column="whyNotReceived" label="Why Us Not Received Order" sortConfig={sortConfig} onSort={handleSort} className="px-5 py-3.5 text-left text-xs font-bold text-rose-700 uppercase tracking-wider whitespace-nowrap" />
-                        <SortableTh column="haveToTakeSample" label="Have To Take Sample ?" sortConfig={sortConfig} onSort={handleSort} className="px-5 py-3.5 text-left text-xs font-bold text-rose-700 uppercase tracking-wider whitespace-nowrap" />
-                        <SortableTh column="status" label="Status" sortConfig={sortConfig} onSort={handleSort} className="px-5 py-3.5 text-left text-xs font-bold text-rose-700 uppercase tracking-wider whitespace-nowrap" />
+                        <SortableTh column="timestamp" label="Timestamp" sortConfig={sortConfig} onSort={handleSort} className="px-5 py-3.5 text-left text-xs font-bold text-indigo-700 uppercase tracking-wider whitespace-nowrap" />
+                        <SortableTh column="onrNo" label="ONR-00" sortConfig={sortConfig} onSort={handleSort} className="px-5 py-3.5 text-left text-xs font-bold text-indigo-700 uppercase tracking-wider whitespace-nowrap" />
+                        <SortableTh column="enquiryNo" label="Enquiry No Of FMS" sortConfig={sortConfig} onSort={handleSort} className="px-5 py-3.5 text-left text-xs font-bold text-indigo-700 uppercase tracking-wider whitespace-nowrap" />
+                        <SortableTh column="firmName" label="Firm Name" sortConfig={sortConfig} onSort={handleSort} className="px-5 py-3.5 text-left text-xs font-bold text-indigo-700 uppercase tracking-wider whitespace-nowrap" />
+                        <SortableTh column="companyName" label="Name Of Company" sortConfig={sortConfig} onSort={handleSort} className="px-5 py-3.5 text-left text-xs font-bold text-indigo-700 uppercase tracking-wider whitespace-nowrap" />
+                        <SortableTh column="productName" label="Product Name" sortConfig={sortConfig} onSort={handleSort} className="px-5 py-3.5 text-left text-xs font-bold text-indigo-700 uppercase tracking-wider whitespace-nowrap" />
+                        <SortableTh column="qty" label="Qty" sortConfig={sortConfig} onSort={handleSort} className="px-5 py-3.5 text-left text-xs font-bold text-indigo-700 uppercase tracking-wider whitespace-nowrap" />
+                        <SortableTh column="source" label="Name Of FMS" sortConfig={sortConfig} onSort={handleSort} className="px-5 py-3.5 text-left text-xs font-bold text-indigo-700 uppercase tracking-wider whitespace-nowrap" />
+                        <SortableTh column="totalEnquiryValue" label="Total Enquiry Value" sortConfig={sortConfig} onSort={handleSort} className="px-5 py-3.5 text-left text-xs font-bold text-indigo-700 uppercase tracking-wider whitespace-nowrap" />
+                        <SortableTh column="givenToWhom" label="Given To Whom" sortConfig={sortConfig} onSort={handleSort} className="px-5 py-3.5 text-left text-xs font-bold text-indigo-700 uppercase tracking-wider whitespace-nowrap" />
+                        <SortableTh column="rate" label="Rate" sortConfig={sortConfig} onSort={handleSort} className="px-5 py-3.5 text-left text-xs font-bold text-indigo-700 uppercase tracking-wider whitespace-nowrap" />
+                        <SortableTh column="whyNotReceived" label="Why Us Not Received Order" sortConfig={sortConfig} onSort={handleSort} className="px-5 py-3.5 text-left text-xs font-bold text-indigo-700 uppercase tracking-wider whitespace-nowrap" />
+                        <SortableTh column="haveToTakeSample" label="Have To Take Sample ?" sortConfig={sortConfig} onSort={handleSort} className="px-5 py-3.5 text-left text-xs font-bold text-indigo-700 uppercase tracking-wider whitespace-nowrap" />
+                        <SortableTh column="status" label="Status" sortConfig={sortConfig} onSort={handleSort} className="px-5 py-3.5 text-left text-xs font-bold text-indigo-700 uppercase tracking-wider whitespace-nowrap" />
                         {(activeMainTab === "getSample" || activeMainTab === "testing" || activeMainTab === "takeAction" || activeMainTab === "all") && (
                           <th className="px-5 py-3.5 text-left text-xs font-bold text-amber-700 uppercase tracking-wider whitespace-nowrap">
                             Due Date
@@ -1267,11 +1273,11 @@ function OrderNotReceivedFMS() {
                         )}
                         {(activeMainTab === "getSample" || activeMainTab === "testing" || activeMainTab === "takeAction" || activeMainTab === "history" || activeMainTab === "all") && (
                           <>
-                            <SortableTh column="actual1" label="Actual 1" sortConfig={sortConfig} onSort={handleSort} className="px-5 py-3.5 text-left text-xs font-bold text-rose-700 uppercase tracking-wider whitespace-nowrap" />
-                            <SortableTh column="status1" label="Sample Status" sortConfig={sortConfig} onSort={handleSort} className="px-5 py-3.5 text-left text-xs font-bold text-rose-700 uppercase tracking-wider whitespace-nowrap" />
-                            <SortableTh column="actual2" label="Actual 2" sortConfig={sortConfig} onSort={handleSort} className="px-5 py-3.5 text-left text-xs font-bold text-rose-700 uppercase tracking-wider whitespace-nowrap" />
-                            <SortableTh column="actual3" label="Actual 3" sortConfig={sortConfig} onSort={handleSort} className="px-5 py-3.5 text-left text-xs font-bold text-rose-700 uppercase tracking-wider whitespace-nowrap" />
-                            <SortableTh column="actionRemarks" label="Remarks" sortConfig={sortConfig} onSort={handleSort} className="px-5 py-3.5 text-left text-xs font-bold text-rose-700 uppercase tracking-wider whitespace-nowrap" />
+                            <SortableTh column="actual1" label="Actual 1" sortConfig={sortConfig} onSort={handleSort} className="px-5 py-3.5 text-left text-xs font-bold text-indigo-700 uppercase tracking-wider whitespace-nowrap" />
+                            <SortableTh column="status1" label="Sample Status" sortConfig={sortConfig} onSort={handleSort} className="px-5 py-3.5 text-left text-xs font-bold text-indigo-700 uppercase tracking-wider whitespace-nowrap" />
+                            <SortableTh column="actual2" label="Actual 2" sortConfig={sortConfig} onSort={handleSort} className="px-5 py-3.5 text-left text-xs font-bold text-indigo-700 uppercase tracking-wider whitespace-nowrap" />
+                            <SortableTh column="actual3" label="Actual 3" sortConfig={sortConfig} onSort={handleSort} className="px-5 py-3.5 text-left text-xs font-bold text-indigo-700 uppercase tracking-wider whitespace-nowrap" />
+                            <SortableTh column="actionRemarks" label="Remarks" sortConfig={sortConfig} onSort={handleSort} className="px-5 py-3.5 text-left text-xs font-bold text-indigo-700 uppercase tracking-wider whitespace-nowrap" />
                           </>
                         )}
                       </tr>
@@ -1300,11 +1306,11 @@ function OrderNotReceivedFMS() {
                         </tr>
                       ) : (
                         paginatedRecords.map((r) => (
-                          <tr key={r.key} className="group hover:bg-rose-50/30 transition-all duration-150">
+                          <tr key={r.key} className="group hover:bg-indigo-50/30 transition-all duration-150">
                             <td className="px-3 py-3.5 whitespace-nowrap">
-                              <input type="checkbox" aria-label={`Select ${r.onrNo || r.key}`} checked={selectedRows.has(rowKey(r))} onChange={() => toggleRowSelected(rowKey(r))} className="h-4 w-4 rounded border-gray-300 text-rose-600 focus:ring-rose-500 cursor-pointer" />
+                              <input type="checkbox" aria-label={`Select ${r.onrNo || r.key}`} checked={selectedRows.has(rowKey(r))} onChange={() => toggleRowSelected(rowKey(r))} className="h-4 w-4 rounded border-gray-300 text-indigo-600 focus:ring-indigo-500 cursor-pointer" />
                             </td>
-                            <td className="sticky left-0 z-10 w-[104px] min-w-[104px] max-w-[104px] bg-white group-hover:bg-rose-50 px-2 py-3.5 text-sm text-center border-r border-gray-100 [&>button]:max-w-full [&>button]:justify-center [&>button]:whitespace-normal [&>button]:focus-visible:outline-2 [&>button]:focus-visible:outline-offset-2 [&>button]:focus-visible:outline-rose-600 [&>span]:max-w-full [&>span]:justify-center [&>span]:whitespace-normal [&_svg]:shrink-0">
+                            <td className="sticky left-0 z-10 w-[104px] min-w-[104px] max-w-[104px] bg-white group-hover:bg-indigo-50 px-2 py-3.5 text-sm text-center border-r border-gray-100 [&>button]:max-w-full [&>button]:justify-center [&>button]:whitespace-normal [&>button]:focus-visible:outline-2 [&>button]:focus-visible:outline-offset-2 [&>button]:focus-visible:outline-indigo-600 [&>span]:max-w-full [&>span]:justify-center [&>span]:whitespace-normal [&_svg]:shrink-0">
                               {activeMainTab === "takeAction" ? (
                                 r.actual3 && r.actual3 !== "-" ? (
                                   <span className="inline-flex items-center gap-1 px-2.5 py-1 bg-emerald-50 text-emerald-700 border border-emerald-200 text-xs font-semibold rounded-lg">
@@ -1314,7 +1320,7 @@ function OrderNotReceivedFMS() {
                                   <button
                                     type="button"
                                     onClick={() => handleOpenTakeActionModal(r)}
-                                    className="inline-flex items-center gap-1 px-3.5 py-1.5 bg-rose-600 hover:bg-rose-700 text-white text-xs font-bold rounded-lg shadow-sm transition-all hover:scale-105 active:scale-95 cursor-pointer"
+                                    className="inline-flex items-center gap-1 px-3.5 py-1.5 bg-indigo-700 hover:bg-indigo-800 text-white text-xs font-bold rounded-lg shadow-sm transition-all hover:scale-105 active:scale-95 cursor-pointer"
                                   >
                                     Action
                                   </button>
@@ -1328,7 +1334,7 @@ function OrderNotReceivedFMS() {
                                   <button
                                     type="button"
                                     onClick={() => handleOpenTestingModal(r)}
-                                    className="inline-flex items-center gap-1 px-3.5 py-1.5 bg-rose-600 hover:bg-rose-700 text-white text-xs font-bold rounded-lg shadow-sm transition-all hover:scale-105 active:scale-95 cursor-pointer"
+                                    className="inline-flex items-center gap-1 px-3.5 py-1.5 bg-indigo-700 hover:bg-indigo-800 text-white text-xs font-bold rounded-lg shadow-sm transition-all hover:scale-105 active:scale-95 cursor-pointer"
                                   >
                                     Action
                                   </button>
@@ -1351,7 +1357,7 @@ function OrderNotReceivedFMS() {
                                   <button
                                     type="button"
                                     onClick={() => handleOpenSampleModal(r)}
-                                    className="inline-flex items-center gap-1 px-3.5 py-1.5 bg-rose-600 hover:bg-rose-700 text-white text-xs font-bold rounded-lg shadow-sm transition-all hover:scale-105 active:scale-95 cursor-pointer"
+                                    className="inline-flex items-center gap-1 px-3.5 py-1.5 bg-indigo-700 hover:bg-indigo-800 text-white text-xs font-bold rounded-lg shadow-sm transition-all hover:scale-105 active:scale-95 cursor-pointer"
                                   >
                                     Action
                                   </button>
@@ -1364,7 +1370,7 @@ function OrderNotReceivedFMS() {
                                 <button
                                   type="button"
                                   onClick={() => handleOpenActionModal(r)}
-                                  className="inline-flex items-center gap-1 px-3 py-1.5 bg-rose-600 hover:bg-rose-700 text-white text-xs font-bold rounded-lg shadow-sm transition-all hover:scale-105 active:scale-95 cursor-pointer"
+                                  className="inline-flex items-center gap-1 px-3 py-1.5 bg-indigo-700 hover:bg-indigo-800 text-white text-xs font-bold rounded-lg shadow-sm transition-all hover:scale-105 active:scale-95 cursor-pointer"
                                 >
                                   Action
                                 </button>
@@ -1375,7 +1381,7 @@ function OrderNotReceivedFMS() {
                             </td>
                             <td className="px-5 py-3.5 whitespace-nowrap">
                               {r.onrNo && r.onrNo !== "-" ? (
-                                <span className="inline-flex items-center px-2 py-0.5 rounded font-mono font-bold text-xs bg-rose-100 text-rose-800 border border-rose-200">
+                                <span className="inline-flex items-center px-2 py-0.5 rounded font-mono font-bold text-xs bg-indigo-100 text-indigo-800 border border-indigo-200">
                                   {r.onrNo}
                                 </span>
                               ) : (
@@ -1412,7 +1418,9 @@ function OrderNotReceivedFMS() {
                               {r.totalEnquiryValue || "-"}
                             </td>
                             <td className="px-5 py-3.5 whitespace-nowrap text-xs text-gray-600">
-                              {r.givenToWhom || "-"}
+                              {r.givenToWhom && r.givenToWhom !== "-" ? (
+                                <span className="inline-flex items-center gap-1.5"><Avatar name={r.givenToWhom} size="xs" />{r.givenToWhom}</span>
+                              ) : "-"}
                             </td>
                             <td className="px-5 py-3.5 whitespace-nowrap text-xs text-gray-600">
                               {r.rate || "-"}
@@ -1430,7 +1438,7 @@ function OrderNotReceivedFMS() {
                               )}
                             </td>
                             <td className="px-5 py-3.5 whitespace-nowrap text-xs">
-                              <span className="px-2.5 py-1 rounded-full text-xs font-semibold bg-red-100 text-red-800">
+                              <span className="px-2.5 py-1 rounded-full text-xs font-semibold bg-rose-100 text-rose-800">
                                 {r.status || "-"}
                               </span>
                             </td>
@@ -1507,7 +1515,7 @@ function OrderNotReceivedFMS() {
                         <div className="flex justify-between items-start mb-2">
                           <div className="flex items-center gap-1.5">
                             {r.onrNo && r.onrNo !== "-" && (
-                              <span className="inline-flex items-center px-2 py-0.5 rounded font-mono font-bold text-xs bg-rose-100 text-rose-800 border border-rose-200">
+                              <span className="inline-flex items-center px-2 py-0.5 rounded font-mono font-bold text-xs bg-indigo-100 text-indigo-800 border border-indigo-200">
                                 {r.onrNo}
                               </span>
                             )}
@@ -1604,7 +1612,7 @@ function OrderNotReceivedFMS() {
                               <button
                                 type="button"
                                 onClick={() => handleOpenTakeActionModal(r)}
-                                className="px-4 py-1.5 bg-rose-600 hover:bg-rose-700 text-white text-xs font-bold rounded-lg shadow-sm cursor-pointer"
+                                className="px-4 py-1.5 bg-indigo-700 hover:bg-indigo-800 text-white text-xs font-bold rounded-lg shadow-sm cursor-pointer"
                               >
                                 Action
                               </button>
@@ -1618,7 +1626,7 @@ function OrderNotReceivedFMS() {
                               <button
                                 type="button"
                                 onClick={() => handleOpenTestingModal(r)}
-                                className="px-4 py-1.5 bg-rose-600 hover:bg-rose-700 text-white text-xs font-bold rounded-lg shadow-sm cursor-pointer"
+                                className="px-4 py-1.5 bg-indigo-700 hover:bg-indigo-800 text-white text-xs font-bold rounded-lg shadow-sm cursor-pointer"
                               >
                                 Action
                               </button>
@@ -1640,7 +1648,7 @@ function OrderNotReceivedFMS() {
                               <button
                                 type="button"
                                 onClick={() => handleOpenSampleModal(r)}
-                                className="px-4 py-1.5 bg-rose-600 hover:bg-rose-700 text-white text-xs font-bold rounded-lg shadow-sm cursor-pointer"
+                                className="px-4 py-1.5 bg-indigo-700 hover:bg-indigo-800 text-white text-xs font-bold rounded-lg shadow-sm cursor-pointer"
                               >
                                 Action
                               </button>
@@ -1653,7 +1661,7 @@ function OrderNotReceivedFMS() {
                             <button
                               type="button"
                               onClick={() => handleOpenActionModal(r)}
-                              className="px-4 py-1.5 bg-rose-600 hover:bg-rose-700 text-white text-xs font-bold rounded-lg shadow-sm cursor-pointer"
+                              className="px-4 py-1.5 bg-indigo-700 hover:bg-indigo-800 text-white text-xs font-bold rounded-lg shadow-sm cursor-pointer"
                             >
                               Action
                             </button>
@@ -1683,7 +1691,7 @@ function OrderNotReceivedFMS() {
             onClick={(e) => e.stopPropagation()}
           >
             {/* Modal Header */}
-            <div className="bg-rose-700 px-6 py-4 flex justify-between items-center text-white shrink-0">
+            <div className="bg-indigo-700 px-6 py-4 flex justify-between items-center text-white shrink-0">
               <div className="flex items-center gap-2">
                 <FileTextIcon className="h-5 w-5 text-white" />
                 <h2 className="text-base md:text-lg font-bold tracking-tight">Order Not Received Form</h2>
@@ -1692,7 +1700,7 @@ function OrderNotReceivedFMS() {
                 type="button"
                 onClick={() => !isSubmitting && setShowActionModal(false)}
                 disabled={isSubmitting}
-                className="text-white hover:text-rose-200 transition-colors p-1 cursor-pointer disabled:opacity-50"
+                className="text-white hover:text-indigo-200 transition-colors p-1 cursor-pointer disabled:opacity-50"
               >
                 <X size={20} />
               </button>
@@ -1791,7 +1799,7 @@ function OrderNotReceivedFMS() {
                     placeholder="Your answer"
                     value={formData.qty}
                     onChange={handleInputChange}
-                    className="w-full px-3 py-2 border-b border-border focus:border-rose-600 focus:outline-none text-sm text-foreground bg-transparent transition-colors"
+                    className="w-full px-3 py-2 border-b border-border focus:border-indigo-600 focus:outline-none text-sm text-foreground bg-transparent transition-colors"
                   />
                 </div>
 
@@ -1825,7 +1833,7 @@ function OrderNotReceivedFMS() {
                     placeholder="Your answer"
                     value={formData.totalEnquiryValue}
                     onChange={handleInputChange}
-                    className="w-full px-3 py-2 border-b border-border focus:border-rose-600 focus:outline-none text-sm text-foreground bg-transparent transition-colors"
+                    className="w-full px-3 py-2 border-b border-border focus:border-indigo-600 focus:outline-none text-sm text-foreground bg-transparent transition-colors"
                   />
                 </div>
 
@@ -1841,7 +1849,7 @@ function OrderNotReceivedFMS() {
                       placeholder="Your answer"
                       value={formData.givenToWhom}
                       onChange={handleInputChange}
-                      className="w-full px-3 py-2 border-b border-border focus:border-rose-600 focus:outline-none text-sm text-foreground bg-transparent transition-colors"
+                      className="w-full px-3 py-2 border-b border-border focus:border-indigo-600 focus:outline-none text-sm text-foreground bg-transparent transition-colors"
                     />
                   </div>
 
@@ -1855,7 +1863,7 @@ function OrderNotReceivedFMS() {
                       placeholder="Your answer"
                       value={formData.rate}
                       onChange={handleInputChange}
-                      className="w-full px-3 py-2 border-b border-border focus:border-rose-600 focus:outline-none text-sm text-foreground bg-transparent transition-colors"
+                      className="w-full px-3 py-2 border-b border-border focus:border-indigo-600 focus:outline-none text-sm text-foreground bg-transparent transition-colors"
                     />
                   </div>
                 </div>
@@ -1872,7 +1880,7 @@ function OrderNotReceivedFMS() {
                     placeholder="Your answer"
                     value={formData.whyNotReceived}
                     onChange={handleInputChange}
-                    className="w-full px-3 py-2 border border-border rounded-lg focus:outline-none focus:ring-2 focus:ring-rose-500/20 focus:border-rose-600 text-sm text-foreground bg-card resize-none"
+                    className="w-full px-3 py-2 border border-border rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-600 text-sm text-foreground bg-card resize-none"
                   />
                 </div>
 
@@ -1887,7 +1895,7 @@ function OrderNotReceivedFMS() {
                       required
                       value={formData.haveToTakeSample}
                       onChange={handleInputChange}
-                      className="w-full px-3 py-2.5 border border-border rounded-lg text-sm text-foreground bg-card focus:outline-none focus:ring-2 focus:ring-rose-500/20 focus:border-rose-600"
+                      className="w-full px-3 py-2.5 border border-border rounded-lg text-sm text-foreground bg-card focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-600"
                     >
                       <option value="No">No</option>
                       <option value="Yes">Yes</option>
@@ -1902,7 +1910,7 @@ function OrderNotReceivedFMS() {
                       name="status"
                       value={formData.status}
                       onChange={handleInputChange}
-                      className="w-full px-3 py-2.5 border border-border rounded-lg text-sm text-foreground bg-card focus:outline-none focus:ring-2 focus:ring-rose-500/20 focus:border-rose-600"
+                      className="w-full px-3 py-2.5 border border-border rounded-lg text-sm text-foreground bg-card focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-600"
                     >
                       <option value="Order Not Received">Order Not Received</option>
                       <option value="Cancelled">Cancelled</option>
@@ -1926,7 +1934,7 @@ function OrderNotReceivedFMS() {
                 <button
                   type="submit"
                   disabled={isSubmitting}
-                  className="px-5 py-2 bg-rose-600 hover:bg-rose-700 text-white font-bold text-xs md:text-sm rounded-lg transition-colors flex items-center gap-1.5 shadow-sm disabled:opacity-50 cursor-pointer"
+                  className="px-5 py-2 bg-indigo-700 hover:bg-indigo-800 text-white font-bold text-xs md:text-sm rounded-lg transition-colors flex items-center gap-1.5 shadow-sm disabled:opacity-50 cursor-pointer"
                 >
                   {isSubmitting ? (
                     <>
@@ -1957,7 +1965,7 @@ function OrderNotReceivedFMS() {
             onClick={(e) => e.stopPropagation()}
           >
             {/* Modal Header */}
-            <div className="bg-rose-700 px-6 py-4 flex justify-between items-center text-white shrink-0">
+            <div className="bg-indigo-700 px-6 py-4 flex justify-between items-center text-white shrink-0">
               <div className="flex items-center gap-2">
                 <ShoppingCartIcon className="h-5 w-5 text-white" />
                 <h2 className="text-base md:text-lg font-bold tracking-tight">Get Sample Of Material</h2>
@@ -1966,7 +1974,7 @@ function OrderNotReceivedFMS() {
                 type="button"
                 onClick={() => !isSubmitting && setShowSampleModal(false)}
                 disabled={isSubmitting}
-                className="text-white hover:text-rose-200 transition-colors p-1 cursor-pointer disabled:opacity-50"
+                className="text-white hover:text-indigo-200 transition-colors p-1 cursor-pointer disabled:opacity-50"
               >
                 <X size={20} />
               </button>
@@ -1985,7 +1993,7 @@ function OrderNotReceivedFMS() {
                 <div className="bg-muted/40 p-4 rounded-xl border border-border space-y-2">
                   <div className="flex justify-between items-center text-xs">
                     <span className="text-muted-foreground font-medium">ONR No / Enquiry:</span>
-                    <span className="font-bold font-mono bg-rose-50 text-rose-800 px-2 py-0.5 rounded border border-rose-200">
+                    <span className="font-bold font-mono bg-indigo-50 text-indigo-800 px-2 py-0.5 rounded border border-indigo-200">
                       {sampleRecord.onrNo && sampleRecord.onrNo !== "-" ? sampleRecord.onrNo : sampleRecord.enquiryNo || sampleRecord.id}
                     </span>
                   </div>
@@ -2013,7 +2021,7 @@ function OrderNotReceivedFMS() {
                     required
                     value={sampleStatus}
                     onChange={(e) => setSampleStatus(e.target.value)}
-                    className="w-full px-3 py-2.5 border border-border rounded-lg text-sm text-foreground bg-card focus:outline-none focus:ring-2 focus:ring-rose-500/20 focus:border-rose-600 font-medium"
+                    className="w-full px-3 py-2.5 border border-border rounded-lg text-sm text-foreground bg-card focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-600 font-medium"
                   >
                     <option value="Sample Taken">Sample Taken</option>
                     <option value="Sample not taken">Sample not taken</option>
@@ -2034,7 +2042,7 @@ function OrderNotReceivedFMS() {
                 <button
                   type="submit"
                   disabled={isSubmitting}
-                  className="px-5 py-2 bg-rose-600 hover:bg-rose-700 text-white font-bold text-xs md:text-sm rounded-lg transition-colors flex items-center gap-1.5 shadow-sm disabled:opacity-50 cursor-pointer"
+                  className="px-5 py-2 bg-indigo-700 hover:bg-indigo-800 text-white font-bold text-xs md:text-sm rounded-lg transition-colors flex items-center gap-1.5 shadow-sm disabled:opacity-50 cursor-pointer"
                 >
                   {isSubmitting ? (
                     <>
@@ -2065,7 +2073,7 @@ function OrderNotReceivedFMS() {
             onClick={(e) => e.stopPropagation()}
           >
             {/* Modal Header */}
-            <div className="bg-rose-700 px-6 py-4 flex justify-between items-center text-white shrink-0">
+            <div className="bg-indigo-700 px-6 py-4 flex justify-between items-center text-white shrink-0">
               <div className="flex items-center gap-2">
                 <SlidersIcon className="h-5 w-5 text-white" />
                 <h2 className="text-base md:text-lg font-bold tracking-tight">Testing Of Material</h2>
@@ -2074,7 +2082,7 @@ function OrderNotReceivedFMS() {
                 type="button"
                 onClick={() => !isSubmitting && setShowTestingModal(false)}
                 disabled={isSubmitting}
-                className="text-white hover:text-rose-200 transition-colors p-1 cursor-pointer disabled:opacity-50"
+                className="text-white hover:text-indigo-200 transition-colors p-1 cursor-pointer disabled:opacity-50"
               >
                 <X size={20} />
               </button>
@@ -2093,7 +2101,7 @@ function OrderNotReceivedFMS() {
                 <div className="bg-muted/40 p-4 rounded-xl border border-border space-y-2.5">
                   <div className="flex justify-between items-center text-xs">
                     <span className="text-muted-foreground font-medium">ONR No / Enquiry:</span>
-                    <span className="font-bold font-mono bg-rose-50 text-rose-800 px-2 py-0.5 rounded border border-rose-200">
+                    <span className="font-bold font-mono bg-indigo-50 text-indigo-800 px-2 py-0.5 rounded border border-indigo-200">
                       {testingRecord.onrNo && testingRecord.onrNo !== "-" ? testingRecord.onrNo : testingRecord.enquiryNo || testingRecord.id}
                     </span>
                   </div>
@@ -2129,8 +2137,8 @@ function OrderNotReceivedFMS() {
                   </div>
                 </div>
 
-                <div className="p-3 bg-rose-50/70 border border-rose-200 text-rose-800 rounded-xl text-xs flex items-center gap-2">
-                  <CheckCircle2 size={16} className="text-rose-600 shrink-0" />
+                <div className="p-3 bg-indigo-50/70 border border-indigo-200 text-indigo-800 rounded-xl text-xs flex items-center gap-2">
+                  <CheckCircle2 size={16} className="text-indigo-600 shrink-0" />
                   <span>Clicking <b>Submit and Save</b> will record current timestamp in <b>Actual 2</b>.</span>
                 </div>
               </div>
@@ -2148,7 +2156,7 @@ function OrderNotReceivedFMS() {
                 <button
                   type="submit"
                   disabled={isSubmitting}
-                  className="px-5 py-2 bg-rose-600 hover:bg-rose-700 text-white font-bold text-xs md:text-sm rounded-lg transition-colors flex items-center gap-1.5 shadow-sm disabled:opacity-50 cursor-pointer"
+                  className="px-5 py-2 bg-indigo-700 hover:bg-indigo-800 text-white font-bold text-xs md:text-sm rounded-lg transition-colors flex items-center gap-1.5 shadow-sm disabled:opacity-50 cursor-pointer"
                 >
                   {isSubmitting ? (
                     <>
@@ -2179,7 +2187,7 @@ function OrderNotReceivedFMS() {
             onClick={(e) => e.stopPropagation()}
           >
             {/* Modal Header */}
-            <div className="bg-rose-700 px-6 py-4 flex justify-between items-center text-white shrink-0">
+            <div className="bg-indigo-700 px-6 py-4 flex justify-between items-center text-white shrink-0">
               <div className="flex items-center gap-2">
                 <AlertTriangleIcon className="h-5 w-5 text-white" />
                 <h2 className="text-base md:text-lg font-bold tracking-tight">Take Action</h2>
@@ -2188,7 +2196,7 @@ function OrderNotReceivedFMS() {
                 type="button"
                 onClick={() => !isSubmitting && setShowTakeActionModal(false)}
                 disabled={isSubmitting}
-                className="text-white hover:text-rose-200 transition-colors p-1 cursor-pointer disabled:opacity-50"
+                className="text-white hover:text-indigo-200 transition-colors p-1 cursor-pointer disabled:opacity-50"
               >
                 <X size={20} />
               </button>
@@ -2207,7 +2215,7 @@ function OrderNotReceivedFMS() {
                 <div className="bg-muted/40 p-4 rounded-xl border border-border space-y-2.5">
                   <div className="flex justify-between items-center text-xs">
                     <span className="text-muted-foreground font-medium">ONR No / Enquiry:</span>
-                    <span className="font-bold font-mono bg-rose-50 text-rose-800 px-2 py-0.5 rounded border border-rose-200">
+                    <span className="font-bold font-mono bg-indigo-50 text-indigo-800 px-2 py-0.5 rounded border border-indigo-200">
                       {takeActionRecord.onrNo && takeActionRecord.onrNo !== "-" ? takeActionRecord.onrNo : takeActionRecord.enquiryNo || takeActionRecord.id}
                     </span>
                   </div>
@@ -2249,12 +2257,12 @@ function OrderNotReceivedFMS() {
                     placeholder="Enter action remarks..."
                     value={actionRemarks}
                     onChange={(e) => setActionRemarks(e.target.value)}
-                    className="w-full px-3 py-2 border border-border rounded-lg focus:outline-none focus:ring-2 focus:ring-rose-500/20 focus:border-rose-600 text-sm text-foreground bg-card resize-none"
+                    className="w-full px-3 py-2 border border-border rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-600 text-sm text-foreground bg-card resize-none"
                   />
                 </div>
 
-                <div className="p-3 bg-rose-50/70 border border-rose-200 text-rose-800 rounded-xl text-xs flex items-center gap-2">
-                  <CheckCircle2 size={16} className="text-rose-600 shrink-0" />
+                <div className="p-3 bg-indigo-50/70 border border-indigo-200 text-indigo-800 rounded-xl text-xs flex items-center gap-2">
+                  <CheckCircle2 size={16} className="text-indigo-600 shrink-0" />
                   <span>Clicking <b>Submit and Save</b> will record current timestamp in <b>Actual 3</b> & save remarks in <b>Remarks</b>.</span>
                 </div>
               </div>
@@ -2272,7 +2280,7 @@ function OrderNotReceivedFMS() {
                 <button
                   type="submit"
                   disabled={isSubmitting}
-                  className="px-5 py-2 bg-rose-600 hover:bg-rose-700 text-white font-bold text-xs md:text-sm rounded-lg transition-colors flex items-center gap-1.5 shadow-sm disabled:opacity-50 cursor-pointer"
+                  className="px-5 py-2 bg-indigo-700 hover:bg-indigo-800 text-white font-bold text-xs md:text-sm rounded-lg transition-colors flex items-center gap-1.5 shadow-sm disabled:opacity-50 cursor-pointer"
                 >
                   {isSubmitting ? (
                     <>
